@@ -32,4 +32,4 @@ A infraestrutura core foi desenhada com base na Arquitetura de Referência para 
 
 1. Clone o repositório:
    ```bash
-   git clone [https://github.com/antosantosb/DAI.git](https://github.com/antosantosb/DAI.git)
+   git clone https://github.com/antosantosb/DAI.git
