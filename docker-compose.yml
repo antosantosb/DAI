@@ -1,0 +1,61 @@
+services:
+  # 1. Base de dados MongoDB (Obrigatória para o FIWARE Orion funcionar)
+  mongo:
+    image: mongo:4.4
+    container_name: tub_mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - pgu_network
+
+  # 2. FIWARE Orion Context Broker (Para a Contagem de Passageiros IoT)
+  orion:
+    image: fiware/orion-ld:latest
+    container_name: tub_orion
+    restart: always
+    depends_on:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo -logLevel DEBUG
+    networks:
+      - pgu_network
+
+  # 3. Keycloak (Para SSO, OpenID Connect e OAuth 2.0)
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: tub_keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
+    ports:
+      - "8080:8080"
+    networks:
+      - pgu_network
+
+  # 4. SQL Server (Mock do ERP Legacy)
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: tub_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Tub_Password2026!" # O SQL Server exige passwords fortes
+    ports:
+      - "1433:1433"
+    networks:
+      - pgu_network
+
+  # 5. Metabase (Analytics ligado diretamente ao SQL Server)
+  metabase:
+    image: metabase/metabase:latest
+    container_name: tub_metabase
+    ports:
+      - "3000:3000"
+    networks:
+      - pgu_network
+
+# Definir uma rede partilhada para eles comunicarem entre si
+networks:
+  pgu_network:
+    driver: bridge
