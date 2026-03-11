@@ -14,6 +14,9 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
 
+import dai.tub.pgu.TelemetryMapper;
+import dai.tub.pgu.dto.TelemetryDTO;
+
 @Configuration
 public class MqttConfig 
 {
@@ -76,11 +79,23 @@ public class MqttConfig
             @Override
             public void handleMessage(Message<?> message)
             {
-                System.out.println("====================");
-                System.out.println("Novo autocarro recebido!");
-                System.out.println("Tópico: " + message.getHeaders().get("mqtt_receivedTopic"));
-                System.out.println("Payload: " + message.getPayload());
-                System.out.println("====================");
+                try
+                {
+                    String payload = message.getPayload().toString();
+                    String topic = message.getHeaders().get("mqtt_receivedTopic").toString();
+
+                    TelemetryDTO telemetria = TelemetryMapper.fromJson(payload);
+
+                    System.out.println("======================================");
+                    System.out.println("Tópico: " + topic);
+                    System.out.println("Autocarro ID: " + telemetria.getBusId());
+                    System.out.println("Coordenadas: " + telemetria.getLatitude() + ", " + telemetria.getLongitude());
+                    System.out.println("======================================");
+                }
+                catch (Exception e)
+                {
+                    System.err.println("Erro ao converter JSON do MQTT: " + e.getMessage());
+                }
             }
         };
     }
