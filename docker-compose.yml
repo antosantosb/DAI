@@ -1,61 +1,111 @@
 services:
-  # 1. Base de dados MongoDB (Obrigatória para o FIWARE Orion funcionar)
-  mongo:
-    image: mongo:4.4
-    container_name: tub_mongo
-    ports:
-      - "27017:27017"
-    networks:
-      - pgu_network
-
-  # 2. FIWARE Orion Context Broker (Para a Contagem de Passageiros IoT)
-  orion:
-    image: fiware/orion-ld:latest
-    container_name: tub_orion
-    restart: always
-    depends_on:
-      - mongo
-    ports:
-      - "1026:1026"
-    command: -dbhost mongo -logLevel DEBUG
-    networks:
-      - pgu_network
-
-  # 3. Keycloak (Para SSO, OpenID Connect e OAuth 2.0)
+  # ==========================================
+  # OBJETIVO 2: Segurança e Identidade
+  # ==========================================
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    container_name: tub_keycloak
+    image: quay.io/keycloak/keycloak:22.0.1
+    container_name: pgu_keycloak
+    command: start-dev
     environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres_postgis:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-    command: start-dev
     ports:
       - "8080:8080"
+    depends_on:
+      - postgres_postgis
     networks:
       - pgu_network
 
-  # 4. SQL Server (Mock do ERP Legacy)
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2019-latest
-    container_name: tub_sqlserver
-    environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "Tub_Password2026!" # O SQL Server exige passwords fortes
+  # ==========================================
+  # OBJETIVO 4: Ingestão de Dados IoT
+  # ==========================================
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: pgu_mosquitto
     ports:
-      - "1433:1433"
+      - "1883:1883" # Porta padrão MQTT
+      - "9001:9001" # Porta para WebSockets
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
     networks:
       - pgu_network
 
-  # 5. Metabase (Analytics ligado diretamente ao SQL Server)
+  # ==========================================
+  # OBJETIVO 3: Bases de Dados
+  # ==========================================
+  postgres_postgis:
+    image: postgis/postgis:15-3.3
+    container_name: pgu_datawarehouse
+    environment:
+      POSTGRES_USER: pgu_admin
+      POSTGRES_PASSWORD: pgu_password
+      POSTGRES_DB: pgu_history
+      POSTGRES_MULTIPLE_DATABASES: keycloak,metabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pgu_network
+
+  # ==========================================
+  # OBJETIVO 3: Context Broker
+  # ==========================================
+  mongodb:
+    image: mongo:6.0
+    container_name: pgu_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - pgu_network
+
+  fiware_orion:
+    image: fiware/orion:3.9.0
+    container_name: pgu_orion
+    depends_on:
+      - mongodb
+    ports:
+      - "1026:1026"
+    command: -dbhost mongodb
+    networks:
+      - pgu_network
+
+  # ==========================================
+  # OBJETIVO 7: Analítica Avançada
+  # ==========================================
   metabase:
     image: metabase/metabase:latest
-    container_name: tub_metabase
+    container_name: pgu_metabase
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: pgu_admin
+      MB_DB_PASS: pgu_password
+      MB_DB_HOST: postgres_postgis
     ports:
       - "3000:3000"
+    depends_on:
+      - postgres_postgis
     networks:
       - pgu_network
 
-# Definir uma rede partilhada para eles comunicarem entre si
+# ==========================================
+# DEFINIÇÃO DE REDES E VOLUMES
+# ==========================================
 networks:
   pgu_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  mosquitto_data:
+  mosquitto_log:
