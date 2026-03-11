@@ -1,0 +1,19 @@
+{
+  "properties": [
+    {
+      "name": "mqtt.broker.url",
+      "type": "java.lang.String",
+      "description": "URL de ligação ao broker MQTT (ex: tcp://localhost:1883)."
+    },
+    {
+      "name": "mqtt.client.id",
+      "type": "java.lang.String",
+      "description": "ID único do cliente Spring Boot no broker Mosquitto."
+    },
+    {
+      "name": "mqtt.topics.telemetry",
+      "type": "java.lang.String",
+      "description": "Tópico raiz para escutar a telemetria (ex: tub/telemetry/#)."
+    }
+  ]
+}
