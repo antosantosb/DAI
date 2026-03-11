@@ -1,0 +1,28 @@
+Após ter a build do spring-boot color isto no docker-compose.yml:
+
+pgu_backend:
+    build: .
+    container_name: pgu_spring_boot
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres_postgis
+      - mosquitto
+      - keycloak
+    networks:
+      - pgu_network
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres_postgis:5432/pgu_history
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/pgu_realm
+
+
+
+Criar o dockerfile com isto:
+
+FROM eclipse-temurin:21-jdk-alpine
+VOLUME /tmp
+
+COPY target/pgu-0.0.1-SNAPSHOT.jar app.jar
+
+ENTRYPOINT ["java","-jar","/app.jar"]
