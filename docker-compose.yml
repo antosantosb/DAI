@@ -31,7 +31,7 @@ services:
       POSTGRES_PASSWORD: pgu_password
       POSTGRES_DB: pgu_history
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -113,12 +113,18 @@ services:
       - mongo_data:/data/db
     networks:
       - pgu_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   fiware_orion:
     image: fiware/orion:3.9.0
     container_name: orion
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     ports:
       - "1026:1026"
     command: -dbhost mongodb
