@@ -13,6 +13,7 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.mapper.TelemetryMapper;
@@ -73,7 +74,7 @@ public class MqttConfig
     // O que fazer ao receber uma mensagem do Mosquitto
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public org.springframework.messaging.MessageHandler handler(TelemetryService telemetryService)
+    public org.springframework.messaging.MessageHandler handler(TelemetryService telemetryService, SimpMessagingTemplate messagingTemplate)
     {
         return new org.springframework.messaging.MessageHandler()
         {
@@ -87,6 +88,9 @@ public class MqttConfig
                     TelemetryDTO telemetry = TelemetryMapper.fromJson(payload);
 
                     telemetryService.processAndSaveTelemetry(telemetry);
+
+                    //ponte entre o mosquito e o websocket
+                    messagingTemplate.convertAndSend("/topic/telemetry", telemetry);
                 }
                 catch (Exception e)
                 {
