@@ -4,13 +4,14 @@ services:
   # ==========================================
   postgres_tools:
     image: postgres:15-alpine
-    container_name: pgu_tools_db
+    container_name: toolsdb
     environment:
       POSTGRES_USER: tools_admin
       POSTGRES_PASSWORD: tools_password
       POSTGRES_DB: pgu_tools
     volumes:
       - tools_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - pgu_network
     healthcheck:
@@ -24,7 +25,7 @@ services:
   # ==========================================
   postgres_postgis:
     image: postgis/postgis:15-3.3
-    container_name: pgu_datawarehouse
+    container_name: datawarehouse
     environment:
       POSTGRES_USER: pgu_admin
       POSTGRES_PASSWORD: pgu_password
@@ -46,11 +47,11 @@ services:
   # ==========================================
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.1
-    container_name: pgu_keycloak
+    container_name: keycloak
     command: start-dev
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres_tools:5432/pgu_tools
+      KC_DB_URL: jdbc:postgresql://postgres_tools:5432/db_keycloak
       KC_DB_USERNAME: tools_admin
       KC_DB_PASSWORD: tools_password
       KEYCLOAK_ADMIN: admin
@@ -70,10 +71,10 @@ services:
   # ==========================================
   metabase:
     image: metabase/metabase:latest
-    container_name: pgu_metabase
+    container_name: metabase
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: pgu_tools
+      MB_DB_DBNAME: db_metabase
       MB_DB_USER: tools_admin
       MB_DB_PASS: tools_password
       MB_DB_HOST: postgres_tools
@@ -90,7 +91,7 @@ services:
   # ==========================================
   mosquitto:
     image: eclipse-mosquitto:2
-    container_name: pgu_mosquitto
+    container_name: mosquitto
     ports:
       - "1883:1883" 
       - "9001:9001" 
@@ -105,7 +106,7 @@ services:
   # ==========================================
   mongodb:
     image: mongo:6.0
-    container_name: pgu_mongodb
+    container_name: mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -115,12 +116,34 @@ services:
 
   fiware_orion:
     image: fiware/orion:3.9.0
-    container_name: pgu_orion
+    container_name: orion
     depends_on:
       - mongodb
     ports:
       - "1026:1026"
     command: -dbhost mongodb
+    networks:
+      - pgu_network
+
+  # ==============================================
+  # 7. Motor de Ingestão e ETL (Apache NiFi) 
+  # ==============================================
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    ports:
+      - "8443:8443"
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=pgu_admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=pgu_nifi_password
+    volumes:
+      - nifi_conf:/opt/nifi/nifi-current/conf
+      - nifi_flow:/opt/nifi/nifi-current/flow_repository
+      - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi_database:/opt/nifi/nifi-current/database_repository 
+      - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi_content:/opt/nifi/nifi-current/content_repository
+      - nifi_state:/opt/nifi/nifi-current/state_management
     networks:
       - pgu_network
 
@@ -137,3 +160,10 @@ volumes:
   mongo_data:
   mosquitto_data:
   mosquitto_log:
+  nifi_conf:
+  nifi_flow:
+  nifi_provenance:
+  nifi_database:
+  nifi_flowfile:
+  nifi_content:
+  nifi_state:

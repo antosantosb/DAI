@@ -1,10 +1,12 @@
-package dai.tub.pgu;
+package dai.tub.pgu.mapper;
 
 import java.util.Collection;
 
 import dai.tub.pgu.dto.TelemetryDTO;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+
+// Esta classe vai ser alterado quando tivermos o motor de ingestão (Apache NiFi)
 
 public class TelemetryMapper 
 {
@@ -25,7 +27,8 @@ public class TelemetryMapper
                 JsonNode value = rootNode.get(propertyName);
 
                 
-                switch (propertyName) {
+                switch (propertyName) 
+                {
                         case "busId":
                             dto.setBusId(value.asString());
                             break;

@@ -14,8 +14,9 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
 
-import dai.tub.pgu.TelemetryMapper;
 import dai.tub.pgu.dto.TelemetryDTO;
+import dai.tub.pgu.mapper.TelemetryMapper;
+import dai.tub.pgu.service.TelemetryService;
 
 @Configuration
 public class MqttConfig 
@@ -72,7 +73,7 @@ public class MqttConfig
     // O que fazer ao receber uma mensagem do Mosquitto
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public org.springframework.messaging.MessageHandler handler()
+    public org.springframework.messaging.MessageHandler handler(TelemetryService telemetryService)
     {
         return new org.springframework.messaging.MessageHandler()
         {
@@ -82,19 +83,15 @@ public class MqttConfig
                 try
                 {
                     String payload = message.getPayload().toString();
-                    String topic = message.getHeaders().get("mqtt_receivedTopic").toString();
 
-                    TelemetryDTO telemetria = TelemetryMapper.fromJson(payload);
+                    TelemetryDTO telemetry = TelemetryMapper.fromJson(payload);
 
-                    System.out.println("======================================");
-                    System.out.println("Tópico: " + topic);
-                    System.out.println("Autocarro ID: " + telemetria.getBusId());
-                    System.out.println("Coordenadas: " + telemetria.getLatitude() + ", " + telemetria.getLongitude());
-                    System.out.println("======================================");
+                    telemetryService.processAndSaveTelemetry(telemetry);
                 }
                 catch (Exception e)
                 {
                     System.err.println("Erro ao converter JSON do MQTT: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         };

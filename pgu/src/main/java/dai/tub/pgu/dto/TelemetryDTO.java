@@ -1,5 +1,7 @@
 package dai.tub.pgu.dto;
 
+import java.time.Instant;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 // Esta anotação diz ao Java: "Se o sensor enviar campos extra que eu 
@@ -9,22 +11,25 @@ public class TelemetryDTO
 {
     private String busId, status;
     private Double latitude, longitude, speed;
+    private Instant timestamp;
 
     public TelemetryDTO() {}
 
     // GET
-    public String getBusId()     { return busId; }
-    public String getStatus()    { return status; }
-    public Double getLatitude()  { return latitude; }
-    public Double getLongitude() { return longitude; }
-    public Double getSpeed()     { return speed; }
+    public String  getBusId()      { return busId; }
+    public String  getStatus()     { return status; }
+    public Double  getLatitude()   { return latitude; }
+    public Double  getLongitude()  { return longitude; }
+    public Double  getSpeed()      { return speed; }
+    public Instant getTimesptamp() { return timestamp; }
     
     // SET
-    public void setBusId(String busId)         { this.busId = busId; }
-    public void setStatus(String status)       { this.status = status; }
-    public void setLatitude(Double latitude)   { this.latitude = latitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
-    public void setSpeed(Double speed)         { this.speed = speed; }
+    public void setBusId(String busId)          { this.busId = busId; }
+    public void setStatus(String status)        { this.status = status; }
+    public void setLatitude(Double latitude)    { this.latitude = latitude; }
+    public void setLongitude(Double longitude)  { this.longitude = longitude; }
+    public void setSpeed(Double speed)          { this.speed = speed; }
+    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
 
     @Override
     public String toString()
@@ -35,6 +40,7 @@ public class TelemetryDTO
                 ", longitude=" + longitude +
                 ", speed=" + speed +
                 ", status='" + status + '\'' +
+                ", timestamp='" + timestamp + '\'' +
                 '}';
     }
 }
