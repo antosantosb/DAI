@@ -44,8 +44,3 @@ A infraestrutura core foi desenhada com base na Arquitetura de Referência para 
 3. Executar o Backend (Spring Boot):
    Abra o projeto no seu IDE (VS Code / IntelliJ) ou execute via terminal na raiz do projeto Java:
    mvn spring-boot:run
-
-- [ ] Fase 2: Lógica de Negócio e Persistência (Em Curso)
-  - [ ] Criação dos DTOs para mapeamento de mensagens JSON.
-  - [ ] Criação das Entidades JPA (PostGIS) para armazenamento de histórico.
-  - [ ] Lógica de processamento e validação de frota.
