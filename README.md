@@ -45,14 +45,6 @@ A infraestrutura core foi desenhada com base na Arquitetura de Referência para 
    Abra o projeto no seu IDE (VS Code / IntelliJ) ou execute via terminal na raiz do projeto Java:
    mvn spring-boot:run
 
-## 📍 Roadmap e Marcos Alcançados
-
-- [x] Fase 1: Infraestrutura e Comunicações Base
-  - [x] Arquitetura Dockerizada Zero-Trust (PostgreSQL isolado para ferramentas, Mosquitto, Keycloak, Metabase).
-  - [x] Ligação do backend Spring Boot à Data Warehouse (HikariCP).
-  - [x] Configuração de canais assíncronos MQTT.
-  - [x] Receção em tempo real de telemetria simulada com sucesso.
-
 - [ ] Fase 2: Lógica de Negócio e Persistência (Em Curso)
   - [ ] Criação dos DTOs para mapeamento de mensagens JSON.
   - [ ] Criação das Entidades JPA (PostGIS) para armazenamento de histórico.
