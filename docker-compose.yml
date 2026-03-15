@@ -212,6 +212,24 @@ services:
     networks:
       - pgu_network
 
+    # ==========================================
+    # 9. NO-CODE ENGINE (Node-RED)
+    # ==========================================
+  nodered:
+      image: nodered/node-red:latest
+      container_name: nodered
+      restart: always
+      ports:
+        - "1880:1880"
+      environment:
+        - TZ=Europe/Lisbon
+      volumes:
+        - nodered_data:/data
+      depends_on:
+        - mosquitto
+      networks:
+        - pgu_network
+
 # ==========================================
 # DEFINIÇÃO DE REDES E VOLUMES
 # ==========================================
