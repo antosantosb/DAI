@@ -3,6 +3,7 @@ package dai.tub.pgu.service;
 import org.locationtech.jts.geom.Point;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.TelemetryDTO;
+import dai.tub.pgu.mapper.TelemetryMapper;
 import dai.tub.pgu.repository.TelemetryRepository;
 
 @Service
@@ -38,5 +40,12 @@ public class TelemetryService
         entity.setRecordedAt(dto.getTimesptamp() != null ? dto.getTimesptamp() : Instant.now());
 
         telemetryRepository.save(entity);
+    }
+
+    public List<TelemetryDTO> getAllTelemetry()
+    {
+        List<VehicleTelemetry> entities = telemetryRepository.findAll();
+
+        return entities.stream().map(TelemetryMapper::fromEntity).toList();
     }
 }

@@ -2,6 +2,7 @@ package dai.tub.pgu.mapper;
 
 import java.util.Collection;
 
+import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.TelemetryDTO;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -57,5 +58,22 @@ public class TelemetryMapper
             System.err.println("Erro crítico ao fazer o parsing em loop do JSON: " + e.getMessage());
             return null;
         }
-    }    
+    }
+
+    public static TelemetryDTO fromEntity(VehicleTelemetry entity)
+    {
+        TelemetryDTO dto = new TelemetryDTO();
+            
+            dto.setBusId(entity.getBusId());
+            dto.setSpeed(entity.getSpeedKmh());
+            dto.setTimestamp(entity.getRecordedAt());
+
+            if (entity.getLocation() != null) 
+            {
+                dto.setLongitude(entity.getLocation().getX());
+                dto.setLatitude(entity.getLocation().getY());
+            }
+
+            return dto;
+    }
 }

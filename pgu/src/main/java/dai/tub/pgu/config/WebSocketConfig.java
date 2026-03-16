@@ -16,21 +16,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
         //Mensagens em Broadcast
         config.enableSimpleBroker("/topic");
+
+        // Prefixo para mensagens que o React queira enviar para o Spring Boot
+        config.setApplicationDestinationPrefixes("/app");
     }
 
     //Definir o URL de entrada para o React
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry){
-
-        //URl de ligação do React "http://localhost:8081/..."
-        //"/..." é um placeholder
-        registry.addEndpoint("/...");
-
-        //pelo que percebi o react usa as portas 3000 e 5173
-        //então temos que fazer isto para poder usar a 8081
-        registry.setAllowedOrigins("http://localhost:3000", "http://localhost:5173");
-
-        //em caso de falha do WebSocket o SockJS tenta manter a comunicação
-        registry.withSockJS();
+        registry.addEndpoint("/ws-telemetry") // O nome real do endpoint de WebSockets
+                .setAllowedOrigins("http://localhost:3000", "http://localhost:5173") // Portas do React/Vite
+                .withSockJS(); // Em caso de falha do WebSocket, o SockJS tenta manter a comunicação
     }
 }
+    

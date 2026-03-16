@@ -156,9 +156,9 @@ services:
   # ==========================================
   # 8. ORQUESTRAÇÃO (Apache Airflow)
   # ==========================================
-  airflow-init:
+  airflow:
     image: apache/airflow:2.8.1
-    container_name: tub_airflow_init
+    container_name: airflow_init
     depends_on:
       postgres_tools:
         condition: service_healthy
@@ -172,12 +172,12 @@ services:
 
   airflow-webserver:
     image: apache/airflow:2.8.1
-    container_name: tub_airflow_webserver
+    container_name: airflow_webserver
     restart: always
     depends_on:
       postgres_tools:
         condition: service_healthy
-      airflow-init:
+      airflow:
         condition: service_completed_successfully
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -194,12 +194,12 @@ services:
 
   airflow-scheduler:
     image: apache/airflow:2.8.1
-    container_name: tub_airflow_scheduler
+    container_name: airflow_scheduler
     restart: always
     depends_on:
       postgres_tools:
         condition: service_healthy
-      airflow-init:
+      airflow:
         condition: service_completed_successfully
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -211,24 +211,6 @@ services:
     command: scheduler
     networks:
       - pgu_network
-
-    # ==========================================
-    # 9. NO-CODE ENGINE (Node-RED)
-    # ==========================================
-  nodered:
-      image: nodered/node-red:latest
-      container_name: nodered
-      restart: always
-      ports:
-        - "1880:1880"
-      environment:
-        - TZ=Europe/Lisbon
-      volumes:
-        - nodered_data:/data
-      depends_on:
-        - mosquitto
-      networks:
-        - pgu_network
 
 # ==========================================
 # DEFINIÇÃO DE REDES E VOLUMES
