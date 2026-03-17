@@ -8,18 +8,25 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig 
-{
+public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception 
-    {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Desativa CSRF para testes de API
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/telemetry/**").permitAll() // LIBERTA A API
-                .anyRequest().authenticated()
-            );
+            // Mantive a desativação do CSRF que o quevin fez (necessário para APIs)
+           .csrf(csrf -> csrf.disable())
+            
+            // regras Zero Trust
+           .authorizeHttpRequests(auth -> auth
+                // Permite acesso público apenas à documentação da API
+               .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // Zero Trust: EXIGE token do Keycloak para TUDO o resto (incluindo a API do Quevin)
+               .anyRequest().authenticated()
+            )
+            
+            // integração com os tokens do Keycloak
+           .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
+            
         return http.build();
     }
 }
