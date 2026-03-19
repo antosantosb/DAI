@@ -1,13 +1,81 @@
-# Python
+# ==========================================
+# GERAIS E SISTEMA OPERATIVO
+# ==========================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.Spotlight-V100
+.Trashes
+
+# ==========================================
+# AMBIENTE (SEGREDO)
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# LOGS E DADOS LOCAIS
+# ==========================================
+logs/
+*.log
+!**/src/main/**/logs/
+
+# ==========================================
+# JAVA / SPRING BOOT / MAVEN (pgu/)
+# ==========================================
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ==========================================
+# PYTHON (Caso se escrevam scripts)
+# ==========================================
 __pycache__/
 venv/
 env/
 *.pyc
+*.pyo
 
-# IDEs
+# ==========================================
+# IDEs E EDITORES DE CÓDIGO
+# ==========================================
+### VS Code ###
 .vscode/
-.idea/
 
-# OS Files
-.DS_Store
-Thumbs.db
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse / STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ==========================================
+# VOLUMES LOCAIS DO DOCKER (Prevenção)
+# ==========================================
+postgres-data/
+mongo-data/
+mosquitto-data/
+mosquitto-log/
+nifi-data/
+tools-data/

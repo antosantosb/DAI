@@ -1,120 +1,82 @@
 services:
   # ==========================================
-  # 1. DATABASE DE INFRAESTRUTURA
-  # ==========================================
-  postgres_tools:
-    image: postgres:15-alpine
-    container_name: toolsdb
-    environment:
-      POSTGRES_USER: tools_admin
-      POSTGRES_PASSWORD: tools_password
-      POSTGRES_DB: pgu_tools
-    volumes:
-      - tools_data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
-    networks:
-      - pgu_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tools_admin -d pgu_tools"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # ==========================================
-  # 2. DATA WAREHOUSE
-  # ==========================================
-  postgres_postgis:
-    image: postgis/postgis:15-3.3
-    container_name: datawarehouse
-    environment:
-      POSTGRES_USER: pgu_admin
-      POSTGRES_PASSWORD: pgu_password
-      POSTGRES_DB: pgu_history
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - pgu_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pgu_admin -d pgu_history"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # ==========================================
-  # 3. SEGURANÇA E IDENTIDADE (Keycloak)
-  # ==========================================
-  keycloak:
-    image: quay.io/keycloak/keycloak:22.0.1
-    container_name: keycloak
-    command: start-dev
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres_tools:5432/db_keycloak
-      KC_DB_USERNAME: tools_admin
-      KC_DB_PASSWORD: tools_password
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres_tools:
-        condition: service_healthy
-    networks:
-      - pgu_network
-
-  # ==========================================
-  # 4. ANALÍTICA (Metabase)
-  # ==========================================
-  metabase:
-    image: metabase/metabase:latest
-    container_name: metabase
-    environment:
-      MB_DB_TYPE: postgres
-      MB_DB_DBNAME: db_metabase
-      MB_DB_USER: tools_admin
-      MB_DB_PASS: tools_password
-      MB_DB_HOST: postgres_tools
-    ports:
-      - "3000:3000"
-    depends_on:
-      postgres_tools:
-        condition: service_healthy
-    networks:
-      - pgu_network
-
-  # ==========================================
-  # 5. INGESTÃO DE DADOS (Mosquitto)
+  # 1. INGESTÃO DE DADOS (Broker MQTT)
   # ==========================================
   mosquitto:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.0
     container_name: mosquitto
+    restart: unless-stopped
     ports:
-      - "1883:1883" 
-      - "9001:9001" 
+      - "1883:1883"
+      - "9001:9001"
     volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     networks:
-      - pgu_network
+      - frontend_net
+
+  # ==============================================
+  # 2. MOTOR DE ORQUESTRAÇÃO E ETL (Apache NiFi)
+  # ==============================================
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=${NIFI_USERNAME}
+      - SINGLE_USER_CREDENTIALS_PASSWORD=${NIFI_PASSWORD}
+    volumes:
+      - nifi_conf:/opt/nifi/nifi-current/conf
+      - nifi_database:/opt/nifi/nifi-current/database_repository
+      - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi_content:/opt/nifi/nifi-current/content_repository
+      - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
+    networks:
+      - frontend_net
+      - backend_db_net
 
   # ==========================================
-  # 6. CONTEXT BROKER (Orion + MongoDB)
+  # 3. DATA WAREHOUSE
+  # ==========================================
+  postgres_postgis:
+    image: postgis/postgis:15-3.4
+    container_name: datawarehouse
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: ${DW_USER}
+      POSTGRES_PASSWORD: ${DW_PASSWORD}
+      POSTGRES_DB: ${DW_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_db_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DW_USER} -d ${DW_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 4. CONTEXT BROKER (FIWARE Orion + MongoDB)
   # ==========================================
   mongodb:
     image: mongo:6.0
     container_name: mongodb
-    ports:
-      - "27017:27017"
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongo_data:/data/db
     networks:
-      - pgu_network
+      - orion_db_net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -122,113 +84,195 @@ services:
   fiware_orion:
     image: fiware/orion:3.9.0
     container_name: orion
+    restart: unless-stopped
+    command: -dbhost mongodb -dbuser ${MONGO_USER} -dbpwd ${MONGO_PASSWORD}
     depends_on:
       mongodb:
         condition: service_healthy
-    ports:
-      - "1026:1026"
-    command: -dbhost mongodb
     networks:
-      - pgu_network
+      - frontend_net
+      - orion_db_net
 
-  # ==============================================
-  # 7. Motor de Ingestão e ETL (Apache NiFi) 
-  # ==============================================
-  nifi:
-    image: apache/nifi:latest
-    container_name: nifi
-    ports:
-      - "8443:8443"
+  # ==========================================
+  # 5. DB FERRAMENTAS (Keycloak, Airflow, Metabase)
+  # ==========================================
+  toolsbd:
+    image: postgres:15
+    container_name: toolsbd
+    restart: unless-stopped
     environment:
-      - SINGLE_USER_CREDENTIALS_USERNAME=pgu_admin
-      - SINGLE_USER_CREDENTIALS_PASSWORD=pgu_nifi_password
+      POSTGRES_USER: ${TOOLS_DB_USER}
+      POSTGRES_PASSWORD: ${TOOLS_DB_PASSWORD}
     volumes:
-      - nifi_conf:/opt/nifi/nifi-current/conf
-      - nifi_flow:/opt/nifi/nifi-current/flow_repository
-      - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
-      - nifi_database:/opt/nifi/nifi-current/database_repository 
-      - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
-      - nifi_content:/opt/nifi/nifi-current/content_repository
-      - nifi_state:/opt/nifi/nifi-current/state_management
+      - tools_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
-      - pgu_network
+      - tools_db_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${TOOLS_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ==========================================
-  # 8. ORQUESTRAÇÃO (Apache Airflow)
+  # 6. GESTÃO DE IDENTIDADE (Keycloak)
   # ==========================================
-  airflow:
-    image: apache/airflow:2.8.1
-    container_name: airflow_init
-    depends_on:
-      postgres_tools:
-        condition: service_healthy
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    restart: unless-stopped
+    command: start-dev
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://tools_admin:tools_password@postgres_tools/db_airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    command: bash -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://toolsbd:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${TOOLS_DB_USER}
+      KC_DB_PASSWORD: ${TOOLS_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${IAM_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD}
+    ports:
+      - "8080:8080"
+    depends_on:
+      toolsbd:
+        condition: service_healthy
     networks:
-      - pgu_network
+      - frontend_net
+      - tools_db_net
+
+  # ==========================================
+  # 7. ORQUESTRAÇÃO ETL (Apache Airflow)
+  # ==========================================
+  airflow-init:
+    image: apache/airflow:2.7.3
+    container_name: airflow_init
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - _AIRFLOW_DB_UPGRADE=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_WWW_USER_USERNAME}
+      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_WWW_USER_PASSWORD}
+      - _AIRFLOW_WWW_USER_ROLE=Admin
+    command: version
+    depends_on:
+      toolsbd:
+        condition: service_healthy
+    networks:
+      - tools_db_net
 
   airflow-webserver:
-    image: apache/airflow:2.8.1
+    image: apache/airflow:2.7.3
     container_name: airflow_webserver
-    restart: always
-    depends_on:
-      postgres_tools:
-        condition: service_healthy
-      airflow:
-        condition: service_completed_successfully
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://tools_admin:tools_password@postgres_tools/db_airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
+    restart: unless-stopped
     ports:
-      - "8090:8080"
+      - "8082:8080"
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
     command: webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     networks:
-      - pgu_network
+      - frontend_net
+      - tools_db_net
+      - backend_db_net
 
   airflow-scheduler:
-    image: apache/airflow:2.8.1
+    image: apache/airflow:2.7.3
     container_name: airflow_scheduler
-    restart: always
-    depends_on:
-      postgres_tools:
-        condition: service_healthy
-      airflow:
-        condition: service_completed_successfully
+    restart: unless-stopped
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://tools_admin:tools_password@postgres_tools/db_airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
     command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     networks:
-      - pgu_network
+      - tools_db_net
+      - backend_db_net
+
+  # ==========================================
+  # 8. DASHBOARDS (Metabase)
+  # ==========================================
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: toolsbd
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: ${METABASE_DB_NAME}
+      MB_DB_USER: ${TOOLS_DB_USER}
+      MB_DB_PASS: ${TOOLS_DB_PASSWORD}
+    depends_on:
+      postgres_postgis:
+        condition: service_healthy
+      toolsbd:
+        condition: service_healthy
+    networks:
+      - frontend_net
+      - backend_db_net
+      - tools_db_net
+
+  # ==========================================
+  # 9. BACKEND SPRING BOOT
+  # ==========================================
+  spring-boot_backend:
+    build:
+      context: ./pgu
+      dockerfile: Dockerfile
+    container_name: spring-boot_backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DW_USER=${DW_USER}
+      - DW_PASSWORD=${DW_PASSWORD}
+    depends_on:
+      postgres_postgis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+    networks:
+      - frontend_net
+      - backend_db_net
 
 # ==========================================
-# DEFINIÇÃO DE REDES E VOLUMES
+# DEFINIÇÃO DE REDES (ZERO TRUST)
 # ==========================================
 networks:
-  pgu_network:
+  frontend_net:
     driver: bridge
 
+  backend_db_net:
+    driver: bridge
+
+  orion_db_net:
+    driver: bridge
+
+  tools_db_net:
+    driver: bridge
+
+# ==========================================
+# DEFINIÇÃO DE VOLUMES
+# ==========================================
 volumes:
-  postgres_data:
-  tools_data:
-  mongo_data:
   mosquitto_data:
   mosquitto_log:
   nifi_conf:
-  nifi_flow:
-  nifi_provenance:
   nifi_database:
   nifi_flowfile:
   nifi_content:
-  nifi_state:
+  nifi_provenance:
+  postgres_data:
+  mongo_data:
+  tools_data:

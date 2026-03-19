@@ -1,3 +1,3 @@
-CREATE DATABASE db_keycloak;
-CREATE DATABASE db_metabase;
-CREATE DATABASE db_airflow;
+CREATE DATABASE keycloak_db;
+CREATE DATABASE metabase_db;
+CREATE DATABASE airflow_db;
