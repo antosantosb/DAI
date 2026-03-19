@@ -9,7 +9,8 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 // Diz que a "etiqueta" deve estar ativa enquanto a aplicação corre
 @Retention(RetentionPolicy.RUNTIME)
-public @interface LogActivity {
+public @interface LogActivity 
+{
     // Permite-nos escrever uma mensagem personalizada.
     String action() default "Ação genérica"; 
 }

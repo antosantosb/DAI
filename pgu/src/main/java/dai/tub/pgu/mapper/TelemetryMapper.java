@@ -1,5 +1,6 @@
 package dai.tub.pgu.mapper;
 
+import java.time.Instant;
 import java.util.Collection;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
@@ -38,9 +39,14 @@ public class TelemetryMapper
                             break;
                         case "longitude":
                             dto.setLongitude(value.asDouble());
+                        case "passengers":
+                            dto.setPassengers(value.asInt());
                             break;
                         case "speed":
                             dto.setSpeed(value.asDouble());
+                            break;
+                        case "timestamp":
+                            dto.setTimestamp(Instant.parse(value.asString()));
                             break;
                         case "status":
                             dto.setStatus(value.asString());
@@ -65,8 +71,10 @@ public class TelemetryMapper
         TelemetryDTO dto = new TelemetryDTO();
             
             dto.setBusId(entity.getBusId());
+            dto.setPassengers(entity.getPassengers());
             dto.setSpeed(entity.getSpeedKmh());
             dto.setTimestamp(entity.getRecordedAt());
+            dto.setStatus(entity.getStatus());
 
             if (entity.getLocation() != null) 
             {

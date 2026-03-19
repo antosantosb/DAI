@@ -7,11 +7,12 @@ import org.springframework.stereotype.Component;
 
 @Aspect
 @Component
-public class AuditAspect {
-
+public class AuditAspect 
+{
     // Fica "à escuta" de qualquer método que tenha a etiqueta @LogActivity
     @Around("@annotation(logActivity)")
-    public Object logAcao(ProceedingJoinPoint joinPoint, LogActivity logActivity) throws Throwable {
+    public Object logAcao(ProceedingJoinPoint joinPoint, LogActivity logActivity) throws Throwable 
+    {
         
         // antes de o método correr
         System.out.println(" [AUDITORIA] Início da ação: " + logActivity.action() + " | Método: " + joinPoint.getSignature().getName());
@@ -23,7 +24,6 @@ public class AuditAspect {
         System.out.println(" [AUDITORIA] Sucesso na ação: " + logActivity.action());
         
         // (Mais tarde, é aqui que vamos guardar isto na Base de Dados)
-
         return resultado;
     }
 }

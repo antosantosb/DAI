@@ -36,8 +36,10 @@ public class TelemetryService
         VehicleTelemetry entity = new VehicleTelemetry();
         entity.setBusId(dto.getBusId());
         entity.setLocation(location);
+        entity.setPassengers(dto.getPassengers());
         entity.setSpeedKmh(dto.getSpeed());
-        entity.setRecordedAt(dto.getTimesptamp() != null ? dto.getTimesptamp() : Instant.now());
+        entity.setRecordedAt(dto.getTimestamp() != null ? dto.getTimestamp() : Instant.now());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : "unknown");
 
         telemetryRepository.save(entity);
     }

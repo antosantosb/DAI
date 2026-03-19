@@ -91,6 +91,8 @@ public class MqttConfig
 
                     //ponte entre o mosquito e o websocket
                     messagingTemplate.convertAndSend("/topic/telemetry", telemetry);
+
+                    System.out.println("Telemetria Guardada!");
                 }
                 catch (Exception e)
                 {

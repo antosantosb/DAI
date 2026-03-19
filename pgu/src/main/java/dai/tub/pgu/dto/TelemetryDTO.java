@@ -11,25 +11,28 @@ public class TelemetryDTO
 {
     private String busId, status;
     private Double latitude, longitude, speed;
+    private int passengerCount;
     private Instant timestamp;
 
     public TelemetryDTO() {}
 
     // GET
-    public String  getBusId()      { return busId; }
-    public String  getStatus()     { return status; }
-    public Double  getLatitude()   { return latitude; }
-    public Double  getLongitude()  { return longitude; }
-    public Double  getSpeed()      { return speed; }
-    public Instant getTimesptamp() { return timestamp; }
+    public String  getBusId()      { return this.busId; }
+    public String  getStatus()     { return this.status; }
+    public Double  getLatitude()   { return this.latitude; }
+    public Double  getLongitude()  { return this.longitude; }
+    public int     getPassengers() { return this.passengerCount; }
+    public Double  getSpeed()      { return this.speed; }
+    public Instant getTimestamp() { return this.timestamp; }
     
     // SET
-    public void setBusId(String busId)          { this.busId = busId; }
-    public void setStatus(String status)        { this.status = status; }
-    public void setLatitude(Double latitude)    { this.latitude = latitude; }
-    public void setLongitude(Double longitude)  { this.longitude = longitude; }
-    public void setSpeed(Double speed)          { this.speed = speed; }
-    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    public void setBusId(String busId)             { this.busId = busId; }
+    public void setStatus(String status)           { this.status = status; }
+    public void setLatitude(Double latitude)       { this.latitude = latitude; }
+    public void setLongitude(Double longitude)     { this.longitude = longitude; }
+    public void setPassengers(int passengerCount) { this.passengerCount = passengerCount; }
+    public void setSpeed(Double speed)             { this.speed = speed; }
+    public void setTimestamp(Instant timestamp)    { this.timestamp = timestamp; }
 
     @Override
     public String toString()
@@ -38,6 +41,7 @@ public class TelemetryDTO
                 "busId='" + busId + '\'' +
                 ", latitude=" + latitude +
                 ", longitude=" + longitude +
+                ", passengerCount=" + passengerCount +
                 ", speed=" + speed +
                 ", status='" + status + '\'' +
                 ", timestamp='" + timestamp + '\'' +
