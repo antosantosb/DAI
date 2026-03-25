@@ -8,26 +8,23 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer 
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer
 {
-    //Configuração do broker
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config)
     {
-        //Mensagens em Broadcast
+        // Mensagens em broadcast para os clientes subscritores
         config.enableSimpleBroker("/topic");
 
-        // Prefixo para mensagens que o React queira enviar para o Spring Boot
+        // Prefixo para mensagens enviadas do Frontend para o Spring Boot
         config.setApplicationDestinationPrefixes("/app");
     }
 
-    //Definir o URL de entrada para o React
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry)
     {
-        registry.addEndpoint("/ws-telemetry") // O nome real do endpoint de WebSockets
-                .setAllowedOrigins("http://localhost:3000", "http://localhost:5173") // Portas do React/Vite
-                .withSockJS(); // Em caso de falha do WebSocket, o SockJS tenta manter a comunicação
+        registry.addEndpoint("/ws-telemetry")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 }
-    

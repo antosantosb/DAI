@@ -1,12 +1,12 @@
 package dai.tub.pgu.mapper;
 
 import java.time.Instant;
-import java.util.Collection;
+import java.util.Iterator;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.TelemetryDTO;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 // Esta classe vai ser alterado quando tivermos o motor de ingestão (Apache NiFi)
 
@@ -22,34 +22,43 @@ public class TelemetryMapper
         {
             JsonNode rootNode =  mapper.readTree(jsonPayload);
 
-            Collection<String> propertyNames = rootNode.propertyNames();
-        
-            for (String propertyName : propertyNames) 
+            Iterator<String> fieldNames = rootNode.fieldNames();
+
+            while (fieldNames.hasNext())
             {
+                String propertyName = fieldNames.next();
                 JsonNode value = rootNode.get(propertyName);
 
                 
-                switch (propertyName) 
+                switch (propertyName)
                 {
+                        case "id_veiculo":
                         case "busId":
-                            dto.setBusId(value.asString());
+                            dto.setBusId(value.asText());
                             break;
+                        case "lat":
                         case "latitude":
                             dto.setLatitude(value.asDouble());
                             break;
+                        case "lon":
                         case "longitude":
                             dto.setLongitude(value.asDouble());
+                            break;
+                        case "passageiros":
                         case "passengers":
                             dto.setPassengers(value.asInt());
                             break;
+                        case "velocidade_atual":
                         case "speed":
                             dto.setSpeed(value.asDouble());
                             break;
+                        case "timestamp_leitura":
                         case "timestamp":
-                            dto.setTimestamp(Instant.parse(value.asString()));
+                            dto.setTimestamp(Instant.parse(value.asText()));
                             break;
+                        case "estado":
                         case "status":
-                            dto.setStatus(value.asString());
+                            dto.setStatus(value.asText());
                             break;
                         default:
                             System.out.println("Aviso: Propriedade desconhecida ignorada -> " + propertyName);

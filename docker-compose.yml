@@ -1,6 +1,6 @@
 services:
   # ==========================================
-  # 1. INGESTÃO DE DADOS (Broker MQTT)
+  # 1. BROKER MQTT (Mosquitto)
   # ==========================================
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -8,19 +8,18 @@ services:
     restart: unless-stopped
     ports:
       - "1883:1883"
-      - "9001:9001"
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     networks:
-      - frontend_net
+      - mqtt_net
 
-  # ==============================================
-  # 2. MOTOR DE ORQUESTRAÇÃO E ETL (Apache NiFi)
-  # ==============================================
+  # ==========================================
+  # 2. MOTOR ETL E SIMULAÇÃO (Apache NiFi)
+  # ==========================================
   nifi:
-    image: apache/nifi:latest
+    image: apache/nifi:2.4.0
     container_name: nifi
     restart: unless-stopped
     ports:
@@ -34,12 +33,16 @@ services:
       - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
       - nifi_content:/opt/nifi/nifi-current/content_repository
       - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
+      # Script do simulador acessível pelo ExecuteStreamCommand
+      - ./simulator:/opt/nifi/scripts:ro
+    depends_on:
+      - mosquitto
     networks:
-      - frontend_net
-      - backend_db_net
+      - mqtt_net
+      - etl_net
 
   # ==========================================
-  # 3. DATA WAREHOUSE
+  # 3. DATA WAREHOUSE (PostgreSQL + PostGIS)
   # ==========================================
   postgres_postgis:
     image: postgis/postgis:15-3.4
@@ -54,7 +57,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - backend_db_net
+      - dw_net
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DW_USER} -d ${DW_NAME}" ]
       interval: 10s
@@ -90,11 +93,11 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - frontend_net
       - orion_db_net
+      - etl_net
 
   # ==========================================
-  # 5. DB FERRAMENTAS (Keycloak, Airflow, Metabase)
+  # 5. DB FERRAMENTAS (Keycloak + Metabase)
   # ==========================================
   toolsbd:
     image: postgres:15
@@ -118,7 +121,7 @@ services:
   # 6. GESTÃO DE IDENTIDADE (Keycloak)
   # ==========================================
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:26.2.4
     container_name: keycloak
     restart: unless-stopped
     command: start-dev
@@ -135,70 +138,14 @@ services:
       toolsbd:
         condition: service_healthy
     networks:
-      - frontend_net
       - tools_db_net
+      - auth_net
 
   # ==========================================
-  # 7. ORQUESTRAÇÃO ETL (Apache Airflow)
-  # ==========================================
-  airflow-init:
-    image: apache/airflow:2.7.3
-    container_name: airflow_init
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - _AIRFLOW_DB_UPGRADE=true
-      - _AIRFLOW_WWW_USER_CREATE=true
-      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_WWW_USER_USERNAME}
-      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_WWW_USER_PASSWORD}
-      - _AIRFLOW_WWW_USER_ROLE=Admin
-    command: version
-    depends_on:
-      toolsbd:
-        condition: service_healthy
-    networks:
-      - tools_db_net
-
-  airflow-webserver:
-    image: apache/airflow:2.7.3
-    container_name: airflow_webserver
-    restart: unless-stopped
-    ports:
-      - "8082:8080"
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__LOAD_EXAMPLES=false
-    command: webserver
-    depends_on:
-      airflow-init:
-        condition: service_completed_successfully
-    networks:
-      - frontend_net
-      - tools_db_net
-      - backend_db_net
-
-  airflow-scheduler:
-    image: apache/airflow:2.7.3
-    container_name: airflow_scheduler
-    restart: unless-stopped
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__LOAD_EXAMPLES=false
-    command: scheduler
-    depends_on:
-      airflow-init:
-        condition: service_completed_successfully
-    networks:
-      - tools_db_net
-      - backend_db_net
-
-  # ==========================================
-  # 8. DASHBOARDS (Metabase)
+  # 7. DASHBOARDS (Metabase)
   # ==========================================
   metabase:
-    image: metabase/metabase:latest
+    image: metabase/metabase:v0.52.4
     container_name: metabase
     restart: unless-stopped
     ports:
@@ -216,12 +163,11 @@ services:
       toolsbd:
         condition: service_healthy
     networks:
-      - frontend_net
-      - backend_db_net
       - tools_db_net
+      - dw_net
 
   # ==========================================
-  # 9. BACKEND SPRING BOOT
+  # 8. BACKEND SPRING BOOT
   # ==========================================
   spring-boot_backend:
     build:
@@ -240,49 +186,38 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
-      mosquitto:
-        condition: service_started
     networks:
-      - frontend_net
-      - backend_db_net
-
-  # ==========================================
-  # 10. SIMULADOR DE TELEMETRIA
-  # ==========================================
-  simulator:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: pgu-simulator
-    restart: unless-stopped
-    environment:
-      - MQTT_BROKER=mosquitto
-      - MQTT_PORT=1883
-      - MQTT_TOPIC=raw/telemetry
-      - INTERVAL_SECONDS=5
-    depends_on:
-      - mosquitto
-    networks:
-      - frontend_net
+      - dw_net
+      - etl_net
+      - auth_net
 
 # ==========================================
-# DEFINIÇÃO DE REDES (ZERO TRUST)
+# REDES (Micro-Segmentação Zero Trust)
 # ==========================================
+#
+# mqtt_net:     Mosquitto <-> NiFi
+# etl_net:      NiFi -> Spring Boot (API) + NiFi -> Fiware Orion (API)
+# dw_net:       Spring Boot <-> PostgreSQL/PostGIS + Metabase -> PostGIS
+# orion_db_net: Fiware Orion <-> MongoDB
+# tools_db_net: Keycloak/Metabase <-> toolsbd (PostgreSQL)
+# auth_net:     Spring Boot -> Keycloak (validação JWT)
+#
 networks:
-  frontend_net:
+  mqtt_net:
     driver: bridge
-
-  backend_db_net:
+  etl_net:
     driver: bridge
-
+  dw_net:
+    driver: bridge
   orion_db_net:
     driver: bridge
-
   tools_db_net:
+    driver: bridge
+  auth_net:
     driver: bridge
 
 # ==========================================
-# DEFINIÇÃO DE VOLUMES
+# VOLUMES
 # ==========================================
 volumes:
   mosquitto_data:

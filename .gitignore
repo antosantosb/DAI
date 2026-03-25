@@ -44,6 +44,7 @@ env/
 # ==========================================
 ### VS Code ###
 .vscode/
+.claude/
 
 ### IntelliJ IDEA ###
 .idea/

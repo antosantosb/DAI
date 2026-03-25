@@ -1,17 +1,12 @@
-{"properties": 
+{"properties":
 [{
-  "name": "mqtt.broker.url",
-  "type": "java.lang.String",
-  "description": "Broker url'"
+  "name": "spring.flyway.enabled",
+  "type": "java.lang.Boolean",
+  "description": "Ativa ou desativa as migrações Flyway ao arrancar a aplicação"
 },
 {
-  "name": "mqtt.client.id",
+  "name": "spring.flyway.locations",
   "type": "java.lang.String",
-  "description": "Client ID"
-},
-{
-  "name": "mqtt.topics.telemetry",
-  "type": "java.lang.String",
-  "description": "Topic"
+  "description": "Localização dos scripts de migração SQL (ex: classpath:db/migration)"
 }]
 }

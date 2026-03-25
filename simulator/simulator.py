@@ -10,7 +10,7 @@ from paho.mqtt import client as mqtt_client
 # ==========================================
 BROKER   = os.getenv("MQTT_BROKER", "mosquitto")
 PORT     = int(os.getenv("MQTT_PORT", 1883))
-TOPIC    = os.getenv("MQTT_TOPIC", "raw/telemetry")
+TOPIC    = os.getenv("MQTT_TOPIC", "tub/telemetry")
 INTERVAL = float(os.getenv("INTERVAL_SECONDS", 5))
 
 # Frota simulada — autocarros de Braga
