@@ -23,7 +23,6 @@ PORT        = int(os.getenv("MQTT_PORT", 1883))
 TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
 INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 5))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
-OSRM_URL    = os.getenv("OSRM_URL", "https://router.project-osrm.org")
 
 AVG_SPEED_KMH = 30
 
@@ -63,49 +62,6 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def decode_polyline(encoded):
-    """Descodifica uma polyline encoded do Google/OSRM em lista de (lat, lon)."""
-    points = []
-    idx, lat, lon = 0, 0, 0
-    while idx < len(encoded):
-        for is_lon in (False, True):
-            shift, result = 0, 0
-            while True:
-                b = ord(encoded[idx]) - 63
-                idx += 1
-                result |= (b & 0x1F) << shift
-                shift += 5
-                if b < 0x20:
-                    break
-            delta = (~(result >> 1)) if (result & 1) else (result >> 1)
-            if is_lon:
-                lon += delta
-            else:
-                lat += delta
-        points.append((lat / 1e5, lon / 1e5))
-    return points
-
-
-def osrm_route(lat1, lon1, lat2, lon2):
-    """Pede ao OSRM a rota real entre dois pontos. Retorna lista de (lat, lon)."""
-    url = (
-        f"{OSRM_URL}/route/v1/driving/"
-        f"{lon1},{lat1};{lon2},{lat2}"
-        f"?overview=full&geometries=polyline"
-    )
-    try:
-        req = urllib.request.Request(url)
-        req.add_header("User-Agent", "TUB-Simulator/1.0")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data.get("code") == "Ok" and data.get("routes"):
-                geometry = data["routes"][0]["geometry"]
-                return decode_polyline(geometry)
-    except Exception as e:
-        print(f"[SIM] OSRM falhou ({lat1},{lon1} -> {lat2},{lon2}): {e}")
-    return None
-
-
 def api_post(endpoint, data):
     """POST JSON ao backend. Retorna resposta ou None."""
     url = f"{BACKEND_URL}{endpoint}"
@@ -134,13 +90,12 @@ def api_patch(endpoint, data):
         return None
 
 
-def load_or_build_segments(route_id, stops):
+def load_segments(route_id, stops):
     """
-    1. Tenta carregar segmentos da base de dados (GET /api/v1/route-segments/route/{id})
-    2. Se não existirem, calcula via OSRM e guarda na base de dados (POST /batch)
+    Carrega segmentos da base de dados (calculados pelo Spring Boot via OSRM).
     Retorna dict: (from_order, to_order) -> [(lat, lon), ...]
+    Se não existirem, usa fallback de linhas retas entre paragens.
     """
-    # Tentar carregar da DB
     db_segments = api_get(f"/api/v1/route-segments/route/{route_id}")
     if db_segments and len(db_segments) > 0:
         print(f"[SIM] Segmentos carregados da DB ({len(db_segments)} segmentos)")
@@ -150,44 +105,16 @@ def load_or_build_segments(route_id, stops):
             segments[key] = [(p[0], p[1]) for p in seg["points"]]
         return segments
 
-    # Calcular via OSRM e guardar na DB
-    print(f"[SIM] Sem segmentos na DB, a calcular via OSRM...")
+    # Fallback: linhas retas (segmentos ainda não calculados pelo backend)
+    print(f"[SIM] Sem segmentos na DB, a usar linhas retas como fallback")
     segments = {}
-    batch = []
-    total = len(stops) - 1
-
-    for i in range(total):
+    for i in range(len(stops) - 1):
         a = stops[i]
         b = stops[i + 1]
-        from_order = a["stopOrder"]
-        to_order = b["stopOrder"]
-        print(f"[SIM]   OSRM {i+1}/{total}: {a.get('stopName','?')} -> {b.get('stopName','?')} ... ", end="", flush=True)
-
-        points = osrm_route(a["latitude"], a["longitude"], b["latitude"], b["longitude"])
-        if points and len(points) >= 2:
-            segments[(i, i + 1)] = points
-            print(f"{len(points)} pontos")
-        else:
-            points = [(a["latitude"], a["longitude"]), (b["latitude"], b["longitude"])]
-            segments[(i, i + 1)] = points
-            print("fallback (linha reta)")
-
-        batch.append({
-            "routeId": route_id,
-            "fromStopOrder": from_order,
-            "toStopOrder": to_order,
-            "points": [[p[0], p[1]] for p in points]
-        })
-
-        time.sleep(1)
-
-    # Guardar na DB
-    result = api_post("/api/v1/route-segments/batch", batch)
-    if result:
-        print(f"[SIM] {len(batch)} segmentos guardados na DB")
-    else:
-        print(f"[SIM] Aviso: falha ao guardar segmentos na DB (simulação continua)")
-
+        segments[(i, i + 1)] = [
+            (a["latitude"], a["longitude"]),
+            (b["latitude"], b["longitude"])
+        ]
     return segments
 
 
@@ -409,7 +336,7 @@ def main():
         # Usar cache local, ou carregar da DB, ou calcular via OSRM
         if route_id not in route_cache:
             print(f"[SIM] A carregar segmentos para {route['name']} ({route['code']})...")
-            route_cache[route_id] = load_or_build_segments(route_id, stops)
+            route_cache[route_id] = load_segments(route_id, stops)
 
         sim = SimBus(bus, route, route_cache[route_id])
         sim_buses.append(sim)
@@ -468,7 +395,7 @@ def main():
                 stops = sorted(route["stops"], key=lambda s: s["stopOrder"])
                 if route_id not in route_cache:
                     print(f"[SIM] A carregar segmentos para {route['name']} ({route['code']})...")
-                    route_cache[route_id] = load_or_build_segments(route_id, stops)
+                    route_cache[route_id] = load_segments(route_id, stops)
 
                 sim = SimBus(bus, route, route_cache[route_id])
                 sim_buses.append(sim)

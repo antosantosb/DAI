@@ -8,5 +8,10 @@
   "name": "spring.flyway.locations",
   "type": "java.lang.String",
   "description": "Localização dos scripts de migração SQL (ex: classpath:db/migration)"
+},
+{
+  "name": "osrm.url",
+  "type": "java.lang.String",
+  "description": "URL para engine de routing"
 }]
 }

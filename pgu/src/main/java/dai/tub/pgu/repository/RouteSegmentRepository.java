@@ -14,4 +14,6 @@ public interface RouteSegmentRepository extends JpaRepository<RouteSegment, Long
     Optional<RouteSegment> findByRouteIdAndFromStopOrderAndToStopOrder(
         Long routeId, Integer fromStopOrder, Integer toStopOrder
     );
+
+    void deleteByRouteId(Long routeId);
 }

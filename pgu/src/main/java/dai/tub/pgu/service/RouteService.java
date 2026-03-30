@@ -1,28 +1,41 @@
 package dai.tub.pgu.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dai.tub.pgu.domain.BusStop;
 import dai.tub.pgu.domain.Route;
+import dai.tub.pgu.domain.RouteSegment;
 import dai.tub.pgu.domain.RouteStop;
 import dai.tub.pgu.dto.RouteDTO;
 import dai.tub.pgu.dto.RouteStopDTO;
 import dai.tub.pgu.repository.BusStopRepository;
 import dai.tub.pgu.repository.RouteRepository;
+import dai.tub.pgu.repository.RouteSegmentRepository;
 
 @Service
 public class RouteService
 {
+    private static final Logger log = LoggerFactory.getLogger(RouteService.class);
+
     private final RouteRepository routeRepository;
     private final BusStopRepository busStopRepository;
+    private final RouteSegmentRepository segmentRepository;
+    private final OsrmService osrmService;
 
-    public RouteService(RouteRepository routeRepository, BusStopRepository busStopRepository)
+    public RouteService(RouteRepository routeRepository, BusStopRepository busStopRepository,
+                        RouteSegmentRepository segmentRepository, OsrmService osrmService)
     {
         this.routeRepository = routeRepository;
         this.busStopRepository = busStopRepository;
+        this.segmentRepository = segmentRepository;
+        this.osrmService = osrmService;
     }
 
     public List<RouteDTO> getAll()
@@ -59,7 +72,9 @@ public class RouteService
             }
         }
 
-        return toDTO(routeRepository.save(route));
+        Route saved = routeRepository.save(route);
+        calculateSegmentsAsync(saved);
+        return toDTO(saved);
     }
 
     @Transactional
@@ -87,12 +102,86 @@ public class RouteService
             }
         }
 
-        return toDTO(routeRepository.save(route));
+        Route saved = routeRepository.save(route);
+        // Recalcular segmentos quando paragens mudam
+        if (dto.getStops() != null)
+        {
+            calculateSegmentsAsync(saved);
+        }
+        return toDTO(saved);
     }
 
+    @Transactional
     public void delete(Long id)
     {
+        segmentRepository.deleteByRouteId(id);
         routeRepository.deleteById(id);
+    }
+
+    /**
+     * Calcula segmentos OSRM entre paragens consecutivas de uma rota.
+     * Corre em background para não bloquear o request.
+     */
+    @Async
+    @Transactional
+    public void calculateSegmentsAsync(Route route)
+    {
+        try
+        {
+            Long routeId = route.getId();
+            log.info("[OSRM] A calcular segmentos para rota {} ({})", routeId, route.getName());
+
+            // Apagar segmentos antigos
+            segmentRepository.deleteByRouteId(routeId);
+
+            // Ordenar paragens
+            List<RouteStop> ordered = route.getRouteStops().stream()
+                .sorted((a, b) -> a.getStopOrder() - b.getStopOrder())
+                .toList();
+
+            if (ordered.size() < 2)
+            {
+                log.info("[OSRM] Rota {} tem menos de 2 paragens, nada a calcular", routeId);
+                return;
+            }
+
+            List<RouteSegment> segments = new ArrayList<>();
+
+            for (int i = 0; i < ordered.size() - 1; i++)
+            {
+                RouteStop a = ordered.get(i);
+                RouteStop b = ordered.get(i + 1);
+
+                if (a.getStop().getLocation() == null || b.getStop().getLocation() == null) continue;
+
+                double lat1 = a.getStop().getLocation().getY();
+                double lon1 = a.getStop().getLocation().getX();
+                double lat2 = b.getStop().getLocation().getY();
+                double lon2 = b.getStop().getLocation().getX();
+
+                List<List<Double>> points = osrmService.getRoute(lat1, lon1, lat2, lon2);
+
+                // Fallback: linha reta
+                if (points == null || points.size() < 2)
+                {
+                    points = List.of(List.of(lat1, lon1), List.of(lat2, lon2));
+                }
+
+                RouteSegment seg = new RouteSegment();
+                seg.setRoute(route);
+                seg.setFromStopOrder(a.getStopOrder());
+                seg.setToStopOrder(b.getStopOrder());
+                seg.setPoints(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(points));
+                segments.add(seg);
+            }
+
+            segmentRepository.saveAll(segments);
+            log.info("[OSRM] Rota {}: {} segmentos calculados e guardados", routeId, segments.size());
+        }
+        catch (Exception e)
+        {
+            log.error("[OSRM] Erro ao calcular segmentos para rota {}: {}", route.getId(), e.getMessage());
+        }
     }
 
     private RouteDTO toDTO(Route entity)

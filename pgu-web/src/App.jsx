@@ -6,6 +6,7 @@ import Buses from './pages/Buses';
 import Stops from './pages/Stops';
 import RoutesPage from './pages/Routes';
 import './App.css';
+import Livemap from './pages/livemap';
 
 export default function App() {
   return (
@@ -18,7 +19,7 @@ export default function App() {
           <Route path="stops" element={<Stops />} />
           <Route path="routes" element={<RoutesPage />} />
         </Route>
-        <Route path="/livemap" element={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#64748b', fontSize: 18 }}>LiveMap — Em breve</div>} />
+        <Route path="/livemap" element={<Livemap />} />
       </Routes>
     </BrowserRouter>
   );

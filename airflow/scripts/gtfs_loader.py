@@ -11,7 +11,6 @@ import io
 import os
 import sys
 import json
-import time
 import zipfile
 import urllib.request
 
@@ -151,6 +150,7 @@ def load_routes(zf, stop_id_map, route_stops_map):
 
     created = 0
     errors = 0
+    route_id_map = {}  # GTFS route_id → backend route id
 
     for i, route in enumerate(routes):
         gtfs_route_id = route["route_id"]
@@ -177,12 +177,15 @@ def load_routes(zf, stop_id_map, route_stops_map):
         status, body = api_post("/api/v1/routes", dto)
         if status == 201:
             created += 1
+            resp = json.loads(body)
+            route_id_map[gtfs_route_id] = resp["id"]
         else:
             errors += 1
             if created == 0 and errors == 1:
                 print(f"[GTFS]   Primeiro erro: {status} — {body[:200]}")
 
     print(f"[GTFS] Rotas: {created} criadas, {errors} erros")
+    print(f"[GTFS] Segmentos OSRM serão calculados automaticamente pelo backend.")
 
 
 # ==========================================
@@ -207,6 +210,7 @@ def main():
     print(f"[GTFS] {len(route_stops_map)} rotas com paragens mapeadas")
 
     # 3. Carregar rotas (com paragens)
+    # Segmentos OSRM são calculados automaticamente pelo Spring Boot
     load_routes(zf, stop_id_map, route_stops_map)
 
     print("=" * 50)

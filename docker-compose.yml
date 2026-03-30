@@ -33,9 +33,11 @@ services:
     depends_on:
       - mosquitto
       - spring-boot-backend
+      - osrm
     networks:
       - mqtt_net
       - etl_net
+      - osrm_net
 
   # ==========================================
   # 2.1 ORQUESTRADOR ETL (Apache Airflow)
@@ -66,9 +68,12 @@ services:
         condition: service_healthy
       spring-boot-backend:
         condition: service_started
+      osrm:
+        condition: service_started
     networks:
       - tools_db_net
       - etl_net
+      - osrm_net
 
   # ==========================================
   # 3. MOTOR ETL (Apache NiFi)
@@ -235,15 +240,33 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - DW_USER=${DW_USER}
       - DW_PASSWORD=${DW_PASSWORD}
+      - OSRM_URL=http://osrm:5000
     depends_on:
       postgres_postgis:
         condition: service_healthy
       keycloak:
         condition: service_started
+      osrm:
+        condition: service_started
     networks:
       - dw_net
       - etl_net
       - auth_net
+      - osrm_net
+
+  # ==========================================
+  # 10. OSRM (Routing Engine — Portugal)
+  # ==========================================
+  osrm:
+    build:
+      context: ./osrm
+      dockerfile: Dockerfile
+    container_name: osrm
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    networks:
+      - osrm_net
 
 # ==========================================
 # REDES (Micro-Segmentação Zero Trust)
@@ -268,6 +291,8 @@ networks:
   tools_db_net:
     driver: bridge
   auth_net:
+    driver: bridge
+  osrm_net:
     driver: bridge
 
 # ==========================================
