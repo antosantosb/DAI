@@ -1,0 +1,167 @@
+/* ─── Live indicator ─── */
+.dash-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-success-light);
+  border-radius: 20px;
+}
+
+.dash-live-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+/* ─── Dashboard Grid ─── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+}
+
+/* ─── Panels ─── */
+.dash-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  animation: fadeIn 0.4s ease both;
+}
+
+.dash-panel:nth-child(2) { animation-delay: 0.1s; }
+
+.dash-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.dash-panel-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.dash-panel-body {
+  padding: 22px;
+}
+
+.dash-panel-body--list {
+  padding: 0;
+}
+
+/* ─── Fleet Bars ─── */
+.fleet-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fleet-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fleet-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fleet-bar-count {
+  font-weight: 800;
+  color: var(--color-text-heading);
+}
+
+.fleet-bar-track {
+  height: 10px;
+  background: var(--color-border-light);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.fleet-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 4px;
+}
+
+/* ─── Telemetry list ─── */
+.telemetry-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background var(--transition);
+}
+
+.telemetry-row:last-child {
+  border-bottom: none;
+}
+
+.telemetry-row:hover {
+  background: #f9fafb;
+}
+
+.telemetry-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.telemetry-bus {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.telemetry-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.telemetry-speed { font-weight: 600; }
+.telemetry-sep { color: var(--color-border); }
+.telemetry-pax { font-weight: 500; }
+
+.telemetry-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.telemetry-status--active {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.telemetry-status--stopped {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.dash-empty {
+  padding: 40px 22px;
+  text-align: center;
+  color: var(--color-text-light);
+  font-size: 13px;
+}

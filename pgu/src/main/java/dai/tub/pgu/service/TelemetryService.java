@@ -40,6 +40,8 @@ public class TelemetryService
         entity.setSpeedKmh(dto.getSpeed());
         entity.setRecordedAt(dto.getTimestamp() != null ? dto.getTimestamp() : Instant.now());
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : "unknown");
+        entity.setNextStop(dto.getNextStop());
+        entity.setStopsRemaining(dto.getStopsRemaining());
 
         telemetryRepository.save(entity);
     }
@@ -49,5 +51,11 @@ public class TelemetryService
         List<VehicleTelemetry> entities = telemetryRepository.findAll();
 
         return entities.stream().map(TelemetryMapper::fromEntity).toList();
+    }
+
+    public List<TelemetryDTO> getLatestPerBus()
+    {
+        return telemetryRepository.findLatestPerBus()
+            .stream().map(TelemetryMapper::fromEntity).toList();
     }
 }

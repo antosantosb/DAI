@@ -60,6 +60,14 @@ public class TelemetryMapper
                         case "status":
                             dto.setStatus(value.asText());
                             break;
+                        case "proxima_paragem":
+                        case "nextStop":
+                            dto.setNextStop(value.asText());
+                            break;
+                        case "paragens_restantes":
+                        case "stopsRemaining":
+                            dto.setStopsRemaining(value.asInt());
+                            break;
                         default:
                             System.out.println("Aviso: Propriedade desconhecida ignorada -> " + propertyName);
                             break;
@@ -84,6 +92,8 @@ public class TelemetryMapper
             dto.setSpeed(entity.getSpeedKmh());
             dto.setTimestamp(entity.getRecordedAt());
             dto.setStatus(entity.getStatus());
+            dto.setNextStop(entity.getNextStop());
+            dto.setStopsRemaining(entity.getStopsRemaining());
 
             if (entity.getLocation() != null) 
             {

@@ -1,4 +1,4 @@
--- Ativa a extensão PostGIS (necessária para tipos geográficos)
+-- Ativa a extensão PostGIS
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- Tabela principal de telemetria dos veículos
@@ -10,7 +10,9 @@ CREATE TABLE vehicle_telemetry
     passenger_count INTEGER,
     speed_kmh       DOUBLE PRECISION,
     recorded_at     TIMESTAMPTZ     NOT NULL,
-    status          VARCHAR(20)     NOT NULL
+    status          VARCHAR(20)     NOT NULL,
+    next_stop       VARCHAR(150),
+    stops_remaining INTEGER
 );
 
 -- Índice espacial para queries geográficas (ex: autocarros num raio)

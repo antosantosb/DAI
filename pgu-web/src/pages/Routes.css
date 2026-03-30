@@ -1,0 +1,177 @@
+/* ─── Stop Assignment Section ─── */
+.route-stops-section {
+  margin-bottom: 24px;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 20px;
+}
+
+.route-stops-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.route-stops-header label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.route-stops-add select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-text);
+  background: #fafbfc;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-bottom: 12px;
+}
+
+.route-stops-add select:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.route-stops-add select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* ─── Stop List ─── */
+.route-stops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.route-stop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.route-stop-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+.route-stop-item--dragging {
+  opacity: 0.4;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.route-stop-item:active {
+  cursor: grabbing;
+}
+
+.route-stop-grip {
+  color: var(--color-text-light);
+  font-size: 12px;
+  letter-spacing: -2px;
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.route-stop-order {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.route-stop-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.route-stop-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-stop-code {
+  font-size: 11px;
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.route-stop-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.route-stop-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.route-stop-btn:hover:not(:disabled) {
+  background: var(--color-border-light);
+  border-color: var(--color-text-light);
+}
+
+.route-stop-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.route-stop-btn--remove:hover:not(:disabled) {
+  background: var(--color-danger-light);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ─── Empty State ─── */
+.route-stops-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-light);
+  font-size: 13px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fafbfc;
+}

@@ -37,6 +37,14 @@ public class TelemetryController
         return ResponseEntity.ok().body(data);
     }
 
+    // GET — Última telemetria de cada autocarro
+    @GetMapping("/latest")
+    public ResponseEntity<List<TelemetryDTO>> getLatestPerBus()
+    {
+        List<TelemetryDTO> data = telemetryService.getLatestPerBus();
+        return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
+    }
+
     // POST — Usado pelo NiFi (InvokeHTTP) para ingerir dados transformados
     // Guarda na DW e faz broadcast via WebSocket para o Frontend
     @PostMapping("/ingest")

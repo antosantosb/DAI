@@ -31,6 +31,12 @@ public class VehicleTelemetry
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "next_stop")
+    private String nextStop;
+
+    @Column(name = "stops_remaining")
+    private Integer stopsRemaining;
+
     public VehicleTelemetry() {}
 
     public VehicleTelemetry(String busId, Point location, int passengerCount, Double speedKmh, Instant recordedAt, String status) 
@@ -50,8 +56,10 @@ public class VehicleTelemetry
     public int     getPassengers() { return this.passengerCount; }
     public Double  getSpeedKmh()   { return this.speedKmh; }
     public Instant getRecordedAt() { return this.recordedAt; }
-    public String  getStatus()     { return this.status; }
-    
+    public String  getStatus()         { return this.status; }
+    public String  getNextStop()       { return this.nextStop; }
+    public Integer getStopsRemaining() { return this.stopsRemaining; }
+
     // SET
     public void setId(Long id)                     { this.id = id; }
     public void setBusId(String busId)             { this.busId = busId; }
@@ -59,5 +67,7 @@ public class VehicleTelemetry
     public void setPassengers(int passengerCount) { this.passengerCount = passengerCount; }
     public void setSpeedKmh(Double speedKmh)       { this.speedKmh = speedKmh; }
     public void setRecordedAt(Instant recordedAt)  { this.recordedAt = recordedAt; }
-    public void setStatus(String status)           { this.status = status; }
+    public void setStatus(String status)                   { this.status = status; }
+    public void setNextStop(String nextStop)               { this.nextStop = nextStop; }
+    public void setStopsRemaining(Integer stopsRemaining)  { this.stopsRemaining = stopsRemaining; }
 }

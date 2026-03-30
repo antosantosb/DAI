@@ -13,6 +13,8 @@ public class TelemetryDTO
     private Double latitude, longitude, speed;
     private int passengerCount;
     private Instant timestamp;
+    private String nextStop;
+    private Integer stopsRemaining;
 
     public TelemetryDTO() {}
 
@@ -23,8 +25,10 @@ public class TelemetryDTO
     public Double  getLongitude()  { return this.longitude; }
     public int     getPassengers() { return this.passengerCount; }
     public Double  getSpeed()      { return this.speed; }
-    public Instant getTimestamp() { return this.timestamp; }
-    
+    public Instant getTimestamp()      { return this.timestamp; }
+    public String  getNextStop()       { return this.nextStop; }
+    public Integer getStopsRemaining() { return this.stopsRemaining; }
+
     // SET
     public void setBusId(String busId)             { this.busId = busId; }
     public void setStatus(String status)           { this.status = status; }
@@ -32,7 +36,9 @@ public class TelemetryDTO
     public void setLongitude(Double longitude)     { this.longitude = longitude; }
     public void setPassengers(int passengerCount) { this.passengerCount = passengerCount; }
     public void setSpeed(Double speed)             { this.speed = speed; }
-    public void setTimestamp(Instant timestamp)    { this.timestamp = timestamp; }
+    public void setTimestamp(Instant timestamp)            { this.timestamp = timestamp; }
+    public void setNextStop(String nextStop)               { this.nextStop = nextStop; }
+    public void setStopsRemaining(Integer stopsRemaining)  { this.stopsRemaining = stopsRemaining; }
 
     @Override
     public String toString()
