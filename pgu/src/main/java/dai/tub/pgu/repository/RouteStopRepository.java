@@ -5,10 +5,10 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import dai.tub.pgu.domain.Bus;
+import dai.tub.pgu.domain.RouteStop;
 
 @Repository
-public interface BusRepository extends JpaRepository<Bus, Long>
+public interface RouteStopRepository extends JpaRepository<RouteStop, Long>
 {
-    List<Bus> findByRouteIdAndStatus(Long routeId, String status);
+    List<RouteStop> findByStopId(Long stopId);
 }

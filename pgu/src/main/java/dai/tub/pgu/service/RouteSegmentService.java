@@ -28,6 +28,12 @@ public class RouteSegmentService
         this.routeRepo = routeRepo;
     }
 
+    public List<RouteSegmentDTO> getAll()
+    {
+        return segmentRepo.findAll()
+            .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     public List<RouteSegmentDTO> getByRouteId(Long routeId)
     {
         return segmentRepo.findByRouteIdOrderByFromStopOrder(routeId)

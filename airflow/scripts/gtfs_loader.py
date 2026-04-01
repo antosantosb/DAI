@@ -95,23 +95,31 @@ def build_route_stops_map(zf):
     Usa trips.txt + stop_times.txt para mapear:
     route_id → [(stop_id, stop_sequence), ...] ordenados
     Pega apenas 1 trip por rota (direction_id=0) para evitar duplicados.
+    Também retorna route_id → shape_id para associar shapes.
     """
     trips = parse_csv(zf, "trips.txt")
     stop_times = parse_csv(zf, "stop_times.txt")
 
     # Pegar 1 trip por rota (direction_id = 0, primeiro encontrado)
     route_trip = {}
+    route_shape = {}  # route_id → shape_id
     for trip in trips:
         rid = trip["route_id"]
         direction = trip.get("direction_id", "0")
         if rid not in route_trip and direction == "0":
             route_trip[rid] = trip["trip_id"]
+            shape_id = trip.get("shape_id", "").strip()
+            if shape_id:
+                route_shape[rid] = shape_id
 
     # Para rotas que só têm direction_id=1
     for trip in trips:
         rid = trip["route_id"]
         if rid not in route_trip:
             route_trip[rid] = trip["trip_id"]
+            shape_id = trip.get("shape_id", "").strip()
+            if shape_id and rid not in route_shape:
+                route_shape[rid] = shape_id
 
     selected_trips = set(route_trip.values())
 
@@ -131,14 +139,65 @@ def build_route_stops_map(zf):
     for rid in route_stops:
         route_stops[rid].sort(key=lambda x: x[1])
 
-    return route_stops
+    return route_stops, route_shape
+
+
+# ==========================================
+# CARREGAR SHAPES DO GTFS
+# ==========================================
+def build_shapes_map(zf):
+    """
+    Lê shapes.txt e retorna shape_id → [[lat, lon], ...] ordenado por sequence.
+    Estes são os percursos reais dos autocarros definidos pelos TUB.
+    """
+    if "shapes.txt" not in zf.namelist():
+        print("[GTFS] shapes.txt não encontrado — será usado OSRM como fallback")
+        return {}
+
+    shapes_raw = parse_csv(zf, "shapes.txt")
+    print(f"[GTFS] {len(shapes_raw)} pontos de shape encontrados")
+
+    # Detectar nomes das colunas (podem ter espaços)
+    if shapes_raw:
+        sample = shapes_raw[0]
+        lat_key = next((k for k in sample.keys() if "lat" in k.lower()), None)
+        lon_key = next((k for k in sample.keys() if "lon" in k.lower()), None)
+        seq_key = next((k for k in sample.keys() if "sequence" in k.lower()), None)
+        id_key = next((k for k in sample.keys() if "shape_id" in k.lower()), None)
+    else:
+        return {}
+
+    # Agrupar por shape_id
+    shapes = {}
+    for row in shapes_raw:
+        sid = row.get(id_key, "").strip()
+        if not sid:
+            continue
+        if sid not in shapes:
+            shapes[sid] = []
+        try:
+            lat = float(row[lat_key].strip())
+            lon = float(row[lon_key].strip())
+            seq = int(row[seq_key].strip()) if seq_key and row.get(seq_key, "").strip() else len(shapes[sid])
+            shapes[sid].append((seq, lat, lon))
+        except (ValueError, TypeError):
+            continue
+
+    # Ordenar por sequence e converter para [[lat, lon], ...]
+    result = {}
+    for sid, points in shapes.items():
+        points.sort(key=lambda x: x[0])
+        result[sid] = [[p[1], p[2]] for p in points]
+
+    print(f"[GTFS] {len(result)} shapes processados")
+    return result
 
 
 # ==========================================
 # CARREGAR ROTAS
 # ==========================================
-def load_routes(zf, stop_id_map, route_stops_map):
-    """Carrega routes.txt → POST /api/v1/routes (com paragens associadas)"""
+def load_routes(zf, stop_id_map, route_stops_map, route_shape_map, shapes_map):
+    """Carrega routes.txt → POST /api/v1/routes (com paragens e shapes GTFS)"""
     routes = parse_csv(zf, "routes.txt")
     print(f"[GTFS] {len(routes)} rotas encontradas")
 
@@ -150,6 +209,7 @@ def load_routes(zf, stop_id_map, route_stops_map):
 
     created = 0
     errors = 0
+    with_shape = 0
     route_id_map = {}  # GTFS route_id → backend route id
 
     for i, route in enumerate(routes):
@@ -174,6 +234,12 @@ def load_routes(zf, stop_id_map, route_stops_map):
             "stops": stops_list
         }
 
+        # Incluir shape GTFS se disponível (percurso real do autocarro)
+        shape_id = route_shape_map.get(gtfs_route_id)
+        if shape_id and shape_id in shapes_map:
+            dto["shapePoints"] = shapes_map[shape_id]
+            with_shape += 1
+
         status, body = api_post("/api/v1/routes", dto)
         if status == 201:
             created += 1
@@ -185,7 +251,9 @@ def load_routes(zf, stop_id_map, route_stops_map):
                 print(f"[GTFS]   Primeiro erro: {status} — {body[:200]}")
 
     print(f"[GTFS] Rotas: {created} criadas, {errors} erros")
-    print(f"[GTFS] Segmentos OSRM serão calculados automaticamente pelo backend.")
+    print(f"[GTFS] Shapes GTFS: {with_shape} rotas com percurso real dos TUB")
+    if with_shape < created:
+        print(f"[GTFS] {created - with_shape} rotas sem shape — segmentos OSRM serão usados como fallback")
 
 
 # ==========================================
@@ -205,13 +273,16 @@ def main():
         print("[GTFS] ERRO: Nenhuma paragem criada. Verifica se o backend está a correr.")
         sys.exit(1)
 
-    # 2. Construir mapa rota → paragens
-    route_stops_map = build_route_stops_map(zf)
+    # 2. Construir mapa rota → paragens + shapes
+    route_stops_map, route_shape_map = build_route_stops_map(zf)
     print(f"[GTFS] {len(route_stops_map)} rotas com paragens mapeadas")
+    print(f"[GTFS] {len(route_shape_map)} rotas com shape_id associado")
 
-    # 3. Carregar rotas (com paragens)
-    # Segmentos OSRM são calculados automaticamente pelo Spring Boot
-    load_routes(zf, stop_id_map, route_stops_map)
+    # 3. Carregar shapes (percursos reais dos autocarros)
+    shapes_map = build_shapes_map(zf)
+
+    # 4. Carregar rotas (com paragens e shapes GTFS)
+    load_routes(zf, stop_id_map, route_stops_map, route_shape_map, shapes_map)
 
     print("=" * 50)
     print("[GTFS] Carga completa!")

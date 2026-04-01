@@ -21,10 +21,41 @@ from paho.mqtt import client as mqtt_client
 BROKER      = os.getenv("MQTT_BROKER", "mosquitto")
 PORT        = int(os.getenv("MQTT_PORT", 1883))
 TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
-INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 5))
+INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 1))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
 
-AVG_SPEED_KMH = 30
+AVG_SPEED_KMH_RUSH  = 30
+AVG_SPEED_KMH_NORMAL = 45
+
+
+def get_time_period():
+    """Retorna o período do dia para ajustar o comportamento."""
+    h = datetime.now().hour
+    if (13 <= h < 15) or (17 <= h < 19):
+        return "rush"
+    if h >= 23 or h < 6:
+        return "night"
+    return "normal"
+
+
+def passenger_multiplier():
+    """Multiplicador de passageiros baseado na hora do dia."""
+    period = get_time_period()
+    if period == "rush":
+        return 1.8
+    if period == "night":
+        return 0.3
+    return 1.0
+
+
+def speed_curve(progress):
+    """Curva de aceleração/desaceleração baseada no progresso (0→1) entre paragens."""
+    if progress < 0.15:
+        return 0.3 + 0.7 * (progress / 0.15)
+    if progress > 0.85:
+        return 0.3 + 0.7 * ((1.0 - progress) / 0.15)
+    return 1.0
+
 
 # ==========================================
 # HELPERS
@@ -90,14 +121,76 @@ def api_patch(endpoint, data):
         return None
 
 
+def split_shape_into_segments(shape_points, stops):
+    """
+    Divide um shape GTFS completo em sub-segmentos paragem-a-paragem.
+    Para cada paragem, encontra o ponto mais próximo no shape e extrai
+    o sub-percurso entre paragens consecutivas.
+    """
+    if len(shape_points) < 2 or len(stops) < 2:
+        return {}
+
+    # Para cada paragem, encontrar o índice do ponto mais próximo no shape
+    stop_indices = []
+    search_start = 0  # Só procurar para a frente para manter a ordem
+
+    for stop in stops:
+        slat, slon = stop["latitude"], stop["longitude"]
+        best_idx = search_start
+        best_dist = float('inf')
+
+        for j in range(search_start, len(shape_points)):
+            d = haversine_km(slat, slon, shape_points[j][0], shape_points[j][1])
+            if d < best_dist:
+                best_dist = d
+                best_idx = j
+
+        stop_indices.append(best_idx)
+        search_start = best_idx  # Próxima paragem tem de estar mais à frente
+
+    # Construir segmentos entre paragens consecutivas
+    segments = {}
+    for i in range(len(stops) - 1):
+        start_idx = stop_indices[i]
+        end_idx = stop_indices[i + 1]
+
+        if end_idx <= start_idx:
+            end_idx = start_idx + 1
+
+        sub_points = shape_points[start_idx:end_idx + 1]
+        if len(sub_points) < 2:
+            sub_points = [
+                (stops[i]["latitude"], stops[i]["longitude"]),
+                (stops[i + 1]["latitude"], stops[i + 1]["longitude"])
+            ]
+
+        segments[(i, i + 1)] = sub_points
+
+    return segments
+
+
 def load_segments(route_id, stops):
     """
-    Carrega segmentos da base de dados (calculados pelo Spring Boot via OSRM).
+    Carrega segmentos da base de dados (calculados pelo Spring Boot via OSRM ou GTFS).
     Retorna dict: (from_order, to_order) -> [(lat, lon), ...]
-    Se não existirem, usa fallback de linhas retas entre paragens.
+    Se o segmento for um shape GTFS (segmento único cobrindo toda a rota),
+    divide-o em sub-segmentos paragem-a-paragem para o simulador interpolar.
     """
     db_segments = api_get(f"/api/v1/route-segments/route/{route_id}")
     if db_segments and len(db_segments) > 0:
+        # Detectar shape GTFS: um único segmento que cobre toda a rota
+        if len(db_segments) == 1:
+            seg = db_segments[0]
+            span = seg["toStopOrder"] - seg["fromStopOrder"]
+            if span >= len(stops) - 1 and len(seg["points"]) > len(stops) * 2:
+                # É um shape GTFS — dividir em sub-segmentos paragem-a-paragem
+                shape_points = [(p[0], p[1]) for p in seg["points"]]
+                result = split_shape_into_segments(shape_points, stops)
+                total_points = sum(len(pts) for pts in result.values())
+                print(f"[SIM] Shape GTFS dividido em {len(result)} sub-segmentos ({total_points} pontos)")
+                return result
+
+        # Segmentos OSRM normais (um por par de paragens)
         print(f"[SIM] Segmentos carregados da DB ({len(db_segments)} segmentos)")
         segments = {}
         for seg in db_segments:
@@ -140,6 +233,7 @@ class SimBus:
         self.status        = "active"
         self.stopped_ticks = 0
         self.removed = False
+        self.current_speed = 0.0
         self.lat = self.stops[self.stop_idx]["latitude"]
         self.lon = self.stops[self.stop_idx]["longitude"]
 
@@ -182,8 +276,6 @@ class SimBus:
             if self.stopped_ticks <= 0:
                 self.status = "active"
                 self._ensure_direction()
-                self.stop_idx += self.direction
-                self._ensure_direction()
                 self.progress = 0.0
                 self.point_idx = 0
             return
@@ -201,7 +293,10 @@ class SimBus:
             return
 
         total_dist = self._segment_total_dist(points)
-        speed = max(5, AVG_SPEED_KMH + random.uniform(-10, 10))
+        avg = AVG_SPEED_KMH_RUSH if get_time_period() == "rush" else AVG_SPEED_KMH_NORMAL
+        base_speed = max(5, avg + random.uniform(-5, 5))
+        speed = base_speed * speed_curve(self.progress)
+        self.current_speed = speed
         km_per_tick = speed * (INTERVAL / 3600)
         self.progress += km_per_tick / total_dist
 
@@ -251,11 +346,31 @@ class SimBus:
             return
 
         self.status = "stopped"
-        self.stopped_ticks = random.randint(1, 3)
+        self.current_speed = 0.0
+        stop_seconds = random.randint(30, 60) if is_terminal else random.randint(8, 20)
+        self.stopped_ticks = max(1, int(stop_seconds / INTERVAL))
 
-        # Passageiros saem e entram
-        saem   = random.randint(0, min(self.passengers, 12))
-        entram = random.randint(0, min(10, self.capacity - self.passengers + saem))
+        # Passageiros — baseado na ocupação e hora do dia
+        mult = passenger_multiplier()
+        occupancy = self.passengers / self.capacity  # 0.0 → 1.0
+
+        if is_terminal:
+            # Nos terminais, a maioria sai
+            saem = random.randint(int(self.passengers * 0.6), self.passengers)
+            entram = random.randint(0, max(0, int(8 * mult)))
+        elif occupancy > 0.7:
+            # Autocarro cheio — saem mais do que entram
+            saem = random.randint(3, min(self.passengers, int(15 * mult)))
+            entram = random.randint(0, max(0, int(5 * mult)))
+        elif occupancy < 0.3:
+            # Autocarro vazio — entram mais do que saem
+            saem = random.randint(0, min(self.passengers, 3))
+            entram = random.randint(2, max(2, int(18 * mult)))
+        else:
+            # Ocupação média — flutuação equilibrada
+            saem = random.randint(0, min(self.passengers, int(10 * mult)))
+            entram = random.randint(0, max(0, int(12 * mult)))
+
         self.passengers = max(0, min(self.capacity, self.passengers - saem + entram))
 
     def stops_remaining(self):
@@ -280,7 +395,7 @@ class SimBus:
         return self.stops[self.stop_idx].get("stopName", "?")
 
     def to_telemetry(self):
-        speed = round(max(0, AVG_SPEED_KMH + random.uniform(-10, 10)), 1) if self.status == "active" else 0.0
+        speed = round(self.current_speed, 1) if self.status == "active" else 0.0
 
         return {
             "id_veiculo":          self.bus_id,

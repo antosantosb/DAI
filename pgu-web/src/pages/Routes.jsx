@@ -27,6 +27,7 @@ export default function Routes() {
   const resetForm = () => {
     setForm({ name: '', code: '', color: '' });
     setRouteStops([]);
+    setOriginalStops([]);
     setEditing(null);
     setShowForm(false);
   };
@@ -35,12 +36,18 @@ export default function Routes() {
     e.preventDefault();
     const stops = routeStops.map((s, i) => ({ stopId: s.id, stopOrder: i + 1 }));
 
+    // Check if stops changed compared to original
+    const currentStopIds = routeStops.map(s => s.id);
+    const stopsChanged = !editing ||
+      currentStopIds.length !== originalStops.length ||
+      currentStopIds.some((id, i) => id !== originalStops[i]);
+
     const payload = editing
       ? {
           ...(form.name ? { name: form.name } : {}),
           ...(form.code ? { code: form.code } : {}),
           ...(form.color ? { color: form.color } : {}),
-          stops,
+          ...(stopsChanged ? { stops } : {}),
         }
       : { name: form.name, code: form.code, color: form.color || null, stops };
 
@@ -57,6 +64,8 @@ export default function Routes() {
     });
   };
 
+  const [originalStops, setOriginalStops] = useState([]);
+
   const startEdit = (route) => {
     setForm({ name: route.name, code: route.code, color: route.color || '' });
     const sorted = (route.stops || [])
@@ -66,6 +75,7 @@ export default function Routes() {
         return full || { id: rs.stopId, name: rs.stopName || '?', code: rs.stopCode || '?' };
       });
     setRouteStops(sorted);
+    setOriginalStops(sorted.map(s => s.id));
     setEditing(route.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -9,6 +9,7 @@ public class RouteDTO
     private String code;
     private String color;
     private List<RouteStopDTO> stops;
+    private List<List<Double>> shapePoints;
 
     public RouteDTO() {}
 
@@ -18,6 +19,7 @@ public class RouteDTO
     public String            getCode()  { return this.code; }
     public String            getColor() { return this.color; }
     public List<RouteStopDTO> getStops() { return this.stops; }
+    public List<List<Double>> getShapePoints() { return this.shapePoints; }
 
     // SET
     public void setId(Long id)                      { this.id = id; }
@@ -25,4 +27,5 @@ public class RouteDTO
     public void setCode(String code)                { this.code = code; }
     public void setColor(String color)              { this.color = color; }
     public void setStops(List<RouteStopDTO> stops)  { this.stops = stops; }
+    public void setShapePoints(List<List<Double>> shapePoints) { this.shapePoints = shapePoints; }
 }

@@ -5,7 +5,8 @@ public class BusStopDTO
     private Long id;
     private String name;
     private String code;
-    private String display;
+    private Integer maxBusesDisplay;
+    private String panelMessage;
     private Double latitude;
     private Double longitude;
 
@@ -15,7 +16,8 @@ public class BusStopDTO
     public Long   getId()        { return this.id; }
     public String getName()      { return this.name; }
     public String getCode()      { return this.code; }
-    public String getDisplay()   { return this.display; }
+    public Integer getMaxBusesDisplay() { return this.maxBusesDisplay; }
+    public String  getPanelMessage()   { return this.panelMessage; }
     public Double getLatitude()  { return this.latitude; }
     public Double getLongitude() { return this.longitude; }
 
@@ -23,7 +25,8 @@ public class BusStopDTO
     public void setId(Long id)               { this.id = id; }
     public void setName(String name)         { this.name = name; }
     public void setCode(String code)         { this.code = code; }
-    public void setDisplay(String display)   { this.display = display; }
+    public void setMaxBusesDisplay(Integer max) { this.maxBusesDisplay = max; }
+    public void setPanelMessage(String msg)    { this.panelMessage = msg; }
     public void setLatitude(Double lat)      { this.latitude = lat; }
     public void setLongitude(Double lon)     { this.longitude = lon; }
 }

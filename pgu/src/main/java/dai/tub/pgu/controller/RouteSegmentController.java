@@ -19,6 +19,13 @@ public class RouteSegmentController
         this.service = service;
     }
 
+    @GetMapping
+    public ResponseEntity<List<RouteSegmentDTO>> getAll()
+    {
+        List<RouteSegmentDTO> segments = service.getAll();
+        return segments.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(segments);
+    }
+
     @GetMapping("/route/{routeId}")
     public ResponseEntity<List<RouteSegmentDTO>> getByRoute(@PathVariable Long routeId)
     {

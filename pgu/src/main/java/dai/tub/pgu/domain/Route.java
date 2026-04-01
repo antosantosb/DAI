@@ -25,7 +25,7 @@ public class Route
     @OrderBy("stopOrder ASC")
     private List<RouteStop> routeStops = new ArrayList<>();
 
-    @OneToMany(mappedBy = "route", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "route", fetch = FetchType.LAZY)
     private List<Bus> buses = new ArrayList<>();
 
     public Route() {}

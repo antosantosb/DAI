@@ -6,17 +6,21 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import dai.tub.pgu.dto.BusStopDTO;
+import dai.tub.pgu.dto.StopPanelDTO;
 import dai.tub.pgu.service.BusStopService;
+import dai.tub.pgu.service.StopPanelService;
 
 @RestController
 @RequestMapping("/api/v1/stops")
 public class BusStopController
 {
     private final BusStopService busStopService;
+    private final StopPanelService stopPanelService;
 
-    public BusStopController(BusStopService busStopService)
+    public BusStopController(BusStopService busStopService, StopPanelService stopPanelService)
     {
         this.busStopService = busStopService;
+        this.stopPanelService = stopPanelService;
     }
 
     @GetMapping
@@ -49,5 +53,11 @@ public class BusStopController
     {
         busStopService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/panel")
+    public ResponseEntity<StopPanelDTO> getPanel(@PathVariable Long id)
+    {
+        return ResponseEntity.ok(stopPanelService.getPanel(id));
     }
 }

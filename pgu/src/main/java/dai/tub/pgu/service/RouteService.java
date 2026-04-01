@@ -18,6 +18,7 @@ import dai.tub.pgu.dto.RouteStopDTO;
 import dai.tub.pgu.repository.BusStopRepository;
 import dai.tub.pgu.repository.RouteRepository;
 import dai.tub.pgu.repository.RouteSegmentRepository;
+import jakarta.persistence.EntityManager;
 
 @Service
 public class RouteService
@@ -28,14 +29,17 @@ public class RouteService
     private final BusStopRepository busStopRepository;
     private final RouteSegmentRepository segmentRepository;
     private final OsrmService osrmService;
+    private final EntityManager entityManager;
 
     public RouteService(RouteRepository routeRepository, BusStopRepository busStopRepository,
-                        RouteSegmentRepository segmentRepository, OsrmService osrmService)
+                        RouteSegmentRepository segmentRepository, OsrmService osrmService,
+                        EntityManager entityManager)
     {
         this.routeRepository = routeRepository;
         this.busStopRepository = busStopRepository;
         this.segmentRepository = segmentRepository;
         this.osrmService = osrmService;
+        this.entityManager = entityManager;
     }
 
     public List<RouteDTO> getAll()
@@ -73,7 +77,16 @@ public class RouteService
         }
 
         Route saved = routeRepository.save(route);
-        calculateSegmentsAsync(saved);
+
+        // Usar shape points do GTFS se disponíveis, senão OSRM
+        if (dto.getShapePoints() != null && !dto.getShapePoints().isEmpty())
+        {
+            saveShapeAsSegment(saved, dto.getShapePoints());
+        }
+        else
+        {
+            calculateSegmentsAsync(saved);
+        }
         return toDTO(saved);
     }
 
@@ -90,6 +103,7 @@ public class RouteService
         if (dto.getStops() != null)
         {
             route.getRouteStops().clear();
+            entityManager.flush(); // Force DELETE before INSERT to avoid unique constraint violation
             for (RouteStopDTO rsDto : dto.getStops())
             {
                 BusStop stop = busStopRepository.findById(rsDto.getStopId())
@@ -103,10 +117,18 @@ public class RouteService
         }
 
         Route saved = routeRepository.save(route);
+
         // Recalcular segmentos quando paragens mudam
         if (dto.getStops() != null)
         {
-            calculateSegmentsAsync(saved);
+            if (dto.getShapePoints() != null && !dto.getShapePoints().isEmpty())
+            {
+                saveShapeAsSegment(saved, dto.getShapePoints());
+            }
+            else
+            {
+                calculateSegmentsAsync(saved);
+            }
         }
         return toDTO(saved);
     }
@@ -119,8 +141,43 @@ public class RouteService
     }
 
     /**
+     * Guarda a geometria GTFS (shape) como um único segmento para a rota inteira.
+     * Mais preciso que OSRM porque usa o percurso real definido pelos TUB.
+     */
+    @Transactional
+    public void saveShapeAsSegment(Route route, List<List<Double>> shapePoints)
+    {
+        try
+        {
+            Long routeId = route.getId();
+            log.info("[GTFS] A guardar shape para rota {} ({}) com {} pontos", routeId, route.getName(), shapePoints.size());
+
+            // Apagar segmentos antigos
+            segmentRepository.deleteByRouteId(routeId);
+
+            int lastStopOrder = route.getRouteStops().stream()
+                .mapToInt(RouteStop::getStopOrder)
+                .max().orElse(1);
+
+            RouteSegment seg = new RouteSegment();
+            seg.setRoute(route);
+            seg.setFromStopOrder(1);
+            seg.setToStopOrder(lastStopOrder);
+            seg.setPoints(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(shapePoints));
+
+            segmentRepository.save(seg);
+            log.info("[GTFS] Rota {}: shape guardado com {} pontos", routeId, shapePoints.size());
+        }
+        catch (Exception e)
+        {
+            log.error("[GTFS] Erro ao guardar shape para rota {}: {}", route.getId(), e.getMessage());
+        }
+    }
+
+    /**
      * Calcula segmentos OSRM entre paragens consecutivas de uma rota.
      * Corre em background para não bloquear o request.
+     * Usado como fallback quando não há shapes GTFS disponíveis.
      */
     @Async
     @Transactional

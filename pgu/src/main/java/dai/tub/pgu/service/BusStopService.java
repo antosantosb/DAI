@@ -40,7 +40,8 @@ public class BusStopService
         BusStop stop = new BusStop();
         stop.setName(dto.getName());
         stop.setCode(dto.getCode());
-        stop.setDisplay(dto.getDisplay() != null ? dto.getDisplay() : "N/A");
+        stop.setMaxBusesDisplay(dto.getMaxBusesDisplay() != null ? dto.getMaxBusesDisplay() : 3);
+        stop.setPanelMessage(dto.getPanelMessage());
         stop.setLocation(geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude())));
 
         return toDTO(busStopRepository.save(stop));
@@ -53,7 +54,8 @@ public class BusStopService
 
         if (dto.getName() != null) stop.setName(dto.getName());
         if (dto.getCode() != null) stop.setCode(dto.getCode());
-        if (dto.getDisplay() != null) stop.setDisplay(dto.getDisplay());
+        if (dto.getMaxBusesDisplay() != null) stop.setMaxBusesDisplay(dto.getMaxBusesDisplay());
+        if (dto.getPanelMessage() != null) stop.setPanelMessage(dto.getPanelMessage());
         if (dto.getLatitude() != null && dto.getLongitude() != null)
             stop.setLocation(geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude())));
 
@@ -71,7 +73,8 @@ public class BusStopService
         dto.setId(entity.getId());
         dto.setName(entity.getName());
         dto.setCode(entity.getCode());
-        dto.setDisplay(entity.getDisplay());
+        dto.setMaxBusesDisplay(entity.getMaxBusesDisplay());
+        dto.setPanelMessage(entity.getPanelMessage());
         if (entity.getLocation() != null)
         {
             dto.setLongitude(entity.getLocation().getX());

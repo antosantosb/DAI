@@ -6,7 +6,12 @@ RUN curl -L -o /tmp/portugal-latest.osm.pbf \
 # Stage 2: Process with OSRM tools
 FROM osrm/osrm-backend:latest AS builder
 COPY --from=downloader /tmp/portugal-latest.osm.pbf /data/portugal-latest.osm.pbf
-RUN osrm-extract -p /opt/car.lua /data/portugal-latest.osm.pbf && \
+
+# NOVO: Copiar o bus.lua da diretoria local para o contentor
+COPY bus.lua /opt/bus.lua
+
+# ATUALIZADO: O osrm-extract agora vai usar o ficheiro que acabámos de copiar
+RUN osrm-extract -p /opt/bus.lua /data/portugal-latest.osm.pbf && \
     osrm-partition /data/portugal-latest.osrm && \
     osrm-customize /data/portugal-latest.osrm && \
     rm -f /data/portugal-latest.osm.pbf

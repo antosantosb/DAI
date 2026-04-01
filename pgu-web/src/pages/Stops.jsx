@@ -4,7 +4,7 @@ import api from '../services/api';
 export default function Stops() {
   const [stops, setStops] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', code: '', display: '', latitude: '', longitude: '' });
+  const [form, setForm] = useState({ name: '', code: '', maxBusesDisplay: 3, panelMessage: '', latitude: '', longitude: '' });
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -15,7 +15,7 @@ export default function Stops() {
   useEffect(load, []);
 
   const resetForm = () => {
-    setForm({ name: '', code: '', display: '', latitude: '', longitude: '' });
+    setForm({ name: '', code: '', maxBusesDisplay: 3, panelMessage: '', latitude: '', longitude: '' });
     setEditing(null);
     setShowForm(false);
   };
@@ -26,14 +26,16 @@ export default function Stops() {
       ? Object.fromEntries(Object.entries({
           name: form.name || undefined,
           code: form.code || undefined,
-          display: form.display || undefined,
+          maxBusesDisplay: form.maxBusesDisplay ? parseInt(form.maxBusesDisplay) : undefined,
+          panelMessage: form.panelMessage || undefined,
           latitude: form.latitude ? parseFloat(form.latitude) : undefined,
           longitude: form.longitude ? parseFloat(form.longitude) : undefined,
         }).filter(([, v]) => v !== undefined))
       : {
           name: form.name,
           code: form.code,
-          display: form.display || 'N/A',
+          maxBusesDisplay: parseInt(form.maxBusesDisplay) || 3,
+          panelMessage: form.panelMessage || null,
           latitude: parseFloat(form.latitude),
           longitude: parseFloat(form.longitude),
         };
@@ -50,7 +52,8 @@ export default function Stops() {
     setForm({
       name: stop.name,
       code: stop.code,
-      display: stop.display || '',
+      maxBusesDisplay: stop.maxBusesDisplay ?? 3,
+      panelMessage: stop.panelMessage || '',
       latitude: stop.latitude,
       longitude: stop.longitude,
     });
@@ -107,8 +110,12 @@ export default function Stops() {
                 <input value={form.code} onChange={e => setForm({...form, code: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Display (Painel)</label>
-                <input value={form.display} onChange={e => setForm({...form, display: e.target.value})} placeholder="N/A" />
+                <label>Max Autocarros no Painel</label>
+                <input type="number" min="1" max="10" value={form.maxBusesDisplay} onChange={e => setForm({...form, maxBusesDisplay: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Mensagem do Painel</label>
+                <input value={form.panelMessage} onChange={e => setForm({...form, panelMessage: e.target.value})} placeholder="Opcional" />
               </div>
               <div className="form-group">
                 <label>Latitude</label>
@@ -134,7 +141,8 @@ export default function Stops() {
               <th style={{ width: '70px' }}>ID</th>
               <th>Nome</th>
               <th style={{ width: '110px' }}>Codigo</th>
-              <th style={{ width: '130px' }}>Display</th>
+              <th style={{ width: '80px' }}>Painel</th>
+              <th style={{ width: '150px' }}>Mensagem</th>
               <th style={{ width: '130px' }}>Latitude</th>
               <th style={{ width: '130px' }}>Longitude</th>
               <th style={{ width: '170px' }}>Acoes</th>
@@ -146,7 +154,8 @@ export default function Stops() {
                 <td><span className="count-badge">{stop.id}</span></td>
                 <td><strong>{stop.name}</strong></td>
                 <td><code style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 600 }}>{stop.code}</code></td>
-                <td>{stop.display}</td>
+                <td>{stop.maxBusesDisplay ?? 3}</td>
+                <td>{stop.panelMessage || '—'}</td>
                 <td>{stop.latitude?.toFixed(6)}</td>
                 <td>{stop.longitude?.toFixed(6)}</td>
                 <td className="actions">
@@ -156,7 +165,7 @@ export default function Stops() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="7" className="empty">
+              <tr><td colSpan="8" className="empty">
                 {search ? 'Nenhuma paragem encontrada' : 'Nenhuma paragem registada'}
               </td></tr>
             )}
