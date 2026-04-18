@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Buses from './pages/Buses';
 import Stops from './pages/Stops';
 import RoutesPage from './pages/Routes';
+import BusHealthDashboard from './pages/BusHealthDashboard';
 import './App.css';
 import Livemap from './pages/livemap';
 
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="buses" element={<Buses />} />
           <Route path="stops" element={<Stops />} />
           <Route path="routes" element={<RoutesPage />} />
+          <Route path="health" element={<BusHealthDashboard />} />
         </Route>
         <Route path="/livemap" element={<Livemap />} />
       </Routes>

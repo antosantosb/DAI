@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 
 import dai.tub.pgu.dto.TelemetryDTO;
+import dai.tub.pgu.dto.BusHealthDTO;
 import dai.tub.pgu.service.TelemetryService;
 
 @RestController
@@ -42,6 +43,14 @@ public class TelemetryController
     public ResponseEntity<List<TelemetryDTO>> getLatestPerBus()
     {
         List<TelemetryDTO> data = telemetryService.getLatestPerBus();
+        return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
+    }
+
+    // GET — Dashboard de saúde dos autocarros
+    @GetMapping("/health")
+    public ResponseEntity<List<BusHealthDTO>> getBusHealthStatuses()
+    {
+        List<BusHealthDTO> data = telemetryService.getBusHealthStatuses();
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 

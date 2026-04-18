@@ -31,6 +31,10 @@ export default function Layout() {
             <span className="nav-icon">&#9654;</span>
             Autocarros
           </NavLink>
+          <NavLink to="/backoffice/health">
+            <span className="nav-icon">&#10084;</span>
+            Saúde da Rede
+          </NavLink>
           <span className="sidebar-section-label">Gestao</span>
           <NavLink to="/backoffice/stops">
             <span className="nav-icon">&#9679;</span>
