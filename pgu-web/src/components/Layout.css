@@ -100,12 +100,18 @@
 }
 
 .sidebar-nav a .nav-icon {
-  font-size: 18px;
   width: 24px;
-  text-align: center;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   opacity: 0.7;
   transition: opacity var(--transition);
+}
+.sidebar-nav a .nav-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar-nav a:hover {
@@ -115,6 +121,11 @@
 
 .sidebar-nav a:hover .nav-icon {
   opacity: 1;
+}
+
+.sidebar-nav a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--color-primary);
 }
 
 .sidebar-nav a.active {
@@ -176,6 +187,14 @@
   color: #64748b;
 }
 
+.sidebar-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sidebar-home,
 .sidebar-logout {
   width: 34px;
   height: 34px;
@@ -189,6 +208,12 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all var(--transition);
+}
+
+.sidebar-home:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
 }
 
 .sidebar-logout:hover {

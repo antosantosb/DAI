@@ -1,9 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import './Routes.css';
 
 export default function Routes() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const [routes, setRoutes] = useState([]);
   const [allStops, setAllStops] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -145,9 +148,11 @@ export default function Routes() {
           <h1>Rotas</h1>
           <p className="page-subtitle">{routes.length} rotas registadas</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          + Nova Rota
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            + Nova Rota
+          </button>
+        )}
       </div>
 
       <div className="bus-toolbar" style={{ marginBottom: 20 }}>
@@ -279,8 +284,12 @@ export default function Routes() {
                 </td>
                 <td><span className="count-badge">{route.stops?.length || 0}</span></td>
                 <td className="actions">
-                  <button className="btn btn-sm" onClick={() => startEdit(route)}>Editar</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(route.id)}>Apagar</button>
+                  {isAdmin && (
+                    <>
+                      <button className="btn btn-sm" onClick={() => startEdit(route)}>Editar</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(route.id)}>Apagar</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

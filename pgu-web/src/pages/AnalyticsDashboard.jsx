@@ -1,45 +1,114 @@
-import { useEffect, useState } from 'react';
-import { 
+import { useEffect, useState, useRef } from 'react';
+import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar,
 } from 'recharts';
 import api from '../services/api';
 import HeatmapAnalytics from '../components/HeatmapAnalytics';
-import './Buses.css'; // Mimetizar os estilos do Bus Dashboard
+import './Buses.css';            // herdar estilo de cards
+import './AnalyticsDashboard.css';
 
-const COLORS = ['#22c55e', '#eab308', '#ef4444', '#3b82f6'];
+// Paleta consistente com os tokens do backoffice (index.css)
+const CHART = {
+  passengers:  '#4f46e5', // primary-hover
+  buses:       '#10b981', // success
+  active:      '#10b981',
+  atStop:      '#6366f1', // primary
+  stopping:    '#f59e0b', // warning
+  delayed:     '#ef4444', // danger
+  stopped:     '#94a3b8', // neutro
+  avgPax:      '#6366f1',
+  maxPax:      '#cbd5e1',
+  axis:        '#94a3b8',
+  grid:        '#f1f5f9',
+};
+
+// Evita recriar objectos inline a cada render (regra reduce-reflows)
+const TOOLTIP_STYLE = {
+  borderRadius: 8,
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.08)',
+  fontSize: 13,
+};
+
+// Formata números para UI (média vs contagem inteira)
+const fmt1 = (v) => (typeof v === 'number' ? v.toFixed(1) : v);
+
+// Tooltip de estados: mostra apenas a proporção (%) de cada estado.
+// A contagem absoluta depende da taxa de amostragem e confunde mais do que informa.
+const DelaysTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((s, p) => s + (p.value || 0), 0) || 1;
+  return (
+    <div style={{ ...TOOLTIP_STYLE, padding: '8px 12px', background: '#fff' }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
+      {payload.map(p => (
+        <div key={p.dataKey} style={{ color: p.color, fontSize: 12, lineHeight: 1.5 }}>
+          {p.name}: {((p.value / total) * 100).toFixed(1)}%
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function AnalyticsDashboard() {
-  const [fleetData, setFleetData] = useState([]);
-  const [delayData, setDelayData] = useState([]);
-  const [efficiencyData, setEfficiencyData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fleetData, setFleetData]             = useState([]);
+  const [delayData, setDelayData]             = useState([]);
+  const [efficiencyData, setEfficiencyData]   = useState([]);
+  const [loading, setLoading]                 = useState(true);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      // cancela pedidos anteriores se ainda pendentes (evita sobreposições)
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+
       try {
-        const [fleetRes, delaysRes, efficiencyRes] = await Promise.all([
-          api.get('/analytics/fleet-occupancy'),
-          api.get('/analytics/route-delays'),
-          api.get('/analytics/bus-efficiency')
+        const [fleet, delays, eff] = await Promise.all([
+          api.get('/analytics/fleet-occupancy', { signal: ctrl.signal }),
+          api.get('/analytics/route-delays',    { signal: ctrl.signal }),
+          api.get('/analytics/bus-efficiency',  { signal: ctrl.signal }),
         ]);
-        setFleetData(fleetRes.data || []);
-        setDelayData(delaysRes.data || []);
-        setEfficiencyData(efficiencyRes.data || []);
-      } catch(err) {
-        console.error("Error fetching analytics", err);
+        setFleetData(fleet.data || []);
+        // Semântica do DW:
+        //   telemetry.status = 'stopped' | 'at-stop'  → "Em paragem" (veículo estacionário numa paragem)
+        //   telemetry.status = 'active'               → "Ativo"
+        //   telemetry.status = 'delayed'              → "Atrasado"
+        //   telemetry.status = 'stopping'             → NÃO É MOSTRADO
+        //       ("A parar" só faz sentido quando alguém preme o botão de parar,
+        //        informação que vive em `buses.status`, não em telemetria pura.)
+        //   buses.status     = 'STOPPED'              → "Parado" (fora de serviço,
+        //                                               estado do autocarro — fora
+        //                                               deste gráfico de telemetria)
+        const normalized = (delays.data || []).map(d => ({
+          ...d,
+          atStopCount: (d.atStopCount || 0) + (d.stoppedCount || 0),
+          stoppedCount: 0,
+          stoppingCount: 0, // excluído do stacked bar
+        }));
+        setDelayData(normalized);
+        setEfficiencyData(eff.data || []);
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Error fetching analytics', err);
+        }
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
-    // Atualização a cada 60s
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchData, 60_000);
+    return () => {
+      clearInterval(iv);
+      abortRef.current?.abort();
+    };
   }, []);
 
   return (
-    <div>
+    <div className="analytics-page">
       <div className="page-header">
         <div>
           <h1>Gestão e Analytics</h1>
@@ -48,91 +117,91 @@ export default function AnalyticsDashboard() {
       </div>
 
       {loading ? (
-        <p style={{ padding: '0 2rem', color: '#6b7280' }}>A carregar gráficos pesados...</p>
+        <p className="analytics-loading">A carregar gráficos…</p>
       ) : (
-        <div style={{ padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-          
-          {/* Gráfico 1: Evolução da Frota (Linhas) */}
-          <div className="bus-card" style={{ padding: '1.5rem', width: '100%', maxWidth: '1200px' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Evolução de Tráfego e Autocarros (Última Hora)</h3>
-            <div style={{ width: '100%', height: 350 }}>
+        <div className="analytics-grid">
+
+          {/* 1 — Evolução da Frota */}
+          <section className="bus-card analytics-card">
+            <h3>Evolução de Tráfego e Autocarros (Última Hora)</h3>
+            <div className="chart-container chart-container--lg">
               <ResponsiveContainer>
                 <LineChart data={fleetData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="minute" stroke="#9ca3af" />
-                  <YAxis yAxisId="left" stroke="#3b82f6" />
-                  <YAxis yAxisId="right" orientation="right" stroke="#22c55e" />
-                  <RechartsTooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
-                  />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="totalPassengers" name="Passageiros Totais" stroke="#3b82f6" activeDot={{ r: 8 }} strokeWidth={3} />
-                  <Line yAxisId="right" type="monotone" dataKey="activeBuses" name="Autocarros Ativos" stroke="#22c55e" strokeWidth={3} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
+                  <XAxis dataKey="minute" stroke={CHART.axis} tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left"  stroke={CHART.passengers} tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="right" orientation="right" stroke={CHART.buses} tick={{ fontSize: 12 }} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 13 }} />
+                  <Line yAxisId="left"  type="monotone" dataKey="totalPassengers" name="Passageiros Totais" stroke={CHART.passengers} strokeWidth={2.5} activeDot={{ r: 6 }} dot={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="activeBuses"     name="Autocarros Ativos"   stroke={CHART.buses}      strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            {fleetData.length === 0 && <p style={{color: '#9ca3af'}}>Sem dados históricos de frota disponíveis.</p>}
-          </div>
+            {fleetData.length === 0 && <p className="analytics-empty">Sem dados de frota nas últimas 2 horas.</p>}
+          </section>
 
-          {/* Gráfico 2: Atrasos de Rota (Barras) */}
-          <div className="bus-card" style={{ padding: '1.5rem', width: '100%', maxWidth: '1200px', marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Impacto Operacional (Logs por Rota)</h3>
-            <div style={{ width: '100%', height: 350 }}>
+          {/* 2 — Estados por Rota (stacked 100% = proporção de tempo) */}
+          <section className="bus-card analytics-card">
+            <h3>Distribuição de Estados por Rota (Hoje)</h3>
+            <p className="analytics-subtitle">
+              Proporção do tempo em cada estado operacional. Ideal perto de 100% <span style={{color: CHART.active, fontWeight:600}}>Ativo</span>.
+            </p>
+            <div className="chart-container chart-container--lg">
               <ResponsiveContainer>
-                <BarChart data={delayData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="routeCode" stroke="#9ca3af" />
-                  <YAxis stroke="#9ca3af" />
-                  <RechartsTooltip 
-                    cursor={{fill: '#f3f4f6'}}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                <BarChart
+                  data={delayData}
+                  margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                  stackOffset="expand"
+                  barCategoryGap="25%"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
+                  <XAxis dataKey="routeCode" stroke={CHART.axis} tick={{ fontSize: 12 }} />
+                  <YAxis
+                    stroke={CHART.axis}
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(v) => `${Math.round(v * 100)}%`}
+                    domain={[0, 1]}
                   />
-                  <Legend />
-                  <Bar dataKey="statusCount" name="Eventos Registados" fill="#eab308" radius={[4, 4, 0, 0]}>
-                    {
-                      delayData.map((entry, index) => {
-                        let barColor = '#eab308'; // default
-                        if (entry.status === 'active') barColor = '#22c55e';
-                        else if (entry.status === 'delayed') barColor = '#ef4444';
-                        else if (entry.status === 'stopped') barColor = '#9ca3af';
-                        return <Cell key={`cell-${index}`} fill={barColor} />;
-                      })
-                    }
-                  </Bar>
+                  <RechartsTooltip cursor={{ fill: CHART.grid }} content={<DelaysTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 13 }} />
+                  <Bar dataKey="activeCount"   stackId="s" name="Ativo"     fill={CHART.active} />
+                  <Bar dataKey="atStopCount"   stackId="s" name="Em paragem" fill={CHART.atStop} />
+                  <Bar dataKey="delayedCount"  stackId="s" name="Atrasado"   fill={CHART.delayed} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-             {delayData.length === 0 && <p style={{color: '#9ca3af'}}>Nenhum evento anómalo registado nas rotas.</p>}
-          </div>
+            {delayData.length === 0 && <p className="analytics-empty">Sem eventos operacionais registados hoje.</p>}
+          </section>
 
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-            {/* Gráfico 3: Mapa de Calor (Esquerda) */}
-            <div className="bus-card" style={{ padding: '1.5rem', flex: '1 1 400px', minWidth: '400px' }}>
-              <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Zonas Quentes (Densidade de Passageiros)</h3>
+          {/* 3 + 4 lado a lado */}
+          <div className="analytics-row">
+            <section className="bus-card analytics-card">
+              <h3>Zonas Quentes (Densidade de Passageiros)</h3>
               <HeatmapAnalytics />
-            </div>
+            </section>
 
-            {/* Gráfico 4: Eficiência de Autocarros (Direita) */}
-            <div className="bus-card" style={{ padding: '1.5rem', flex: '1 1 400px', minWidth: '400px' }}>
-              <h3 style={{ marginBottom: '1rem', color: '#1f2937' }}>Eficiência da Frota (Lotação Média vs Máxima)</h3>
-              <div style={{ width: '100%', height: 400 }}>
+            <section className="bus-card analytics-card">
+              <h3>Eficiência da Frota (Média vs Máx de Passageiros)</h3>
+              <div className="chart-container chart-container--xl">
                 <ResponsiveContainer>
                   <BarChart data={efficiencyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                    <XAxis type="number" stroke="#9ca3af" />
-                    <YAxis dataKey="busId" type="category" stroke="#9ca3af" width={80} />
-                    <RechartsTooltip 
-                      cursor={{fill: '#f3f4f6'}}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} horizontal={false} />
+                    <XAxis type="number" stroke={CHART.axis} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="busId" type="category" stroke={CHART.axis} width={80} tick={{ fontSize: 12 }} />
+                    <RechartsTooltip
+                      cursor={{ fill: CHART.grid }}
+                      contentStyle={TOOLTIP_STYLE}
+                      formatter={(value, name) => [name === 'Média' ? fmt1(value) : value, name]}
                     />
-                    <Legend />
-                    <Bar dataKey="avgPassengers" name="Passageiros Médios" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="maxPassengers" name="Lotação Máxima Registo" fill="#9ca3af" radius={[0, 4, 4, 0]} opacity={0.5} />
+                    <Legend wrapperStyle={{ fontSize: 13 }} />
+                    <Bar dataKey="avgPassengers" name="Média"  fill={CHART.avgPax} radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="maxPassengers" name="Máximo" fill={CHART.maxPax} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              {efficiencyData.length === 0 && <p style={{color: '#9ca3af'}}>Sem dados de eficiência calculados ainda.</p>}
-            </div>
+              {efficiencyData.length === 0 && <p className="analytics-empty">Sem dados de eficiência.</p>}
+            </section>
           </div>
 
         </div>

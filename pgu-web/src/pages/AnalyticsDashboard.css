@@ -1,0 +1,74 @@
+/* Analytics Dashboard — layout e tipografia baseados nos tokens de index.css */
+
+.analytics-page {
+  padding: 24px 32px;
+}
+
+.analytics-page .page-header {
+  margin-bottom: 24px;
+}
+.analytics-page .page-header h1 {
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+.analytics-page .page-subtitle {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.analytics-loading {
+  padding: 0 8px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.analytics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.analytics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.analytics-card {
+  padding: 20px;
+}
+.analytics-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+.analytics-subtitle {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.chart-container {
+  width: 100%;
+}
+.chart-container--lg { height: 320px; }
+.chart-container--xl { height: 400px; }
+
+.analytics-empty {
+  color: var(--color-text-light);
+  font-size: 13px;
+  font-style: italic;
+  margin: 8px 0 0;
+}
+
+@media (max-width: 1100px) {
+  .analytics-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .analytics-page { padding: 16px; }
+  .chart-container--lg { height: 260px; }
+  .chart-container--xl { height: 320px; }
+}

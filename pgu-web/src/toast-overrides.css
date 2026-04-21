@@ -1,0 +1,131 @@
+/* ──────────────────────────────────────────────────────────────
+   Override visual do react-toastify para alinhar com o
+   design system do backoffice (tokens em index.css).
+   ────────────────────────────────────────────────────────────── */
+
+.Toastify__toast-container {
+  padding: 8px;
+  width: 360px;
+}
+
+/* Base card */
+.pgu-toast {
+  border-radius: 12px !important;
+  box-shadow:
+    0 12px 28px -6px rgba(15, 23, 42, 0.14),
+    0 4px 10px -4px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  padding: 14px 16px !important;
+  min-height: 60px !important;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  align-items: flex-start !important;
+  gap: 6px;
+}
+
+.pgu-toast-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  color: var(--color-text-heading);
+  font-weight: 600;
+  align-items: flex-start !important;
+  letter-spacing: -0.005em;
+}
+
+/* Ícone à esquerda — disco colorido suave com SVG do toastify dentro. */
+.Toastify__toast-icon {
+  width: 28px !important;
+  height: 28px !important;
+  margin-right: 12px !important;
+  margin-top: 0 !important;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.Toastify__toast-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pgu-toast.Toastify__toast--success .Toastify__toast-icon { background: var(--color-success-light, #dcfce7); }
+.pgu-toast.Toastify__toast--info    .Toastify__toast-icon { background: var(--color-primary-light, #e0e7ff); }
+.pgu-toast.Toastify__toast--warning .Toastify__toast-icon { background: var(--color-warning-light, #fef3c7); }
+.pgu-toast.Toastify__toast--error   .Toastify__toast-icon { background: var(--color-danger-light, #fee2e2); }
+
+/* Faixa lateral colorida em vez do fundo inteiro colorido */
+.pgu-toast.Toastify__toast--success { border-left: 4px solid var(--color-success); }
+.pgu-toast.Toastify__toast--info    { border-left: 4px solid var(--color-primary); }
+.pgu-toast.Toastify__toast--warning { border-left: 4px solid var(--color-warning); }
+.pgu-toast.Toastify__toast--error   { border-left: 4px solid var(--color-danger); }
+
+.pgu-toast.Toastify__toast--success .Toastify__toast-icon svg { fill: var(--color-success); }
+.pgu-toast.Toastify__toast--info    .Toastify__toast-icon svg { fill: var(--color-primary); }
+.pgu-toast.Toastify__toast--warning .Toastify__toast-icon svg { fill: var(--color-warning); }
+.pgu-toast.Toastify__toast--error   .Toastify__toast-icon svg { fill: var(--color-danger); }
+
+/* Botão de fechar discreto */
+.pgu-toast .Toastify__close-button {
+  color: var(--color-text-light);
+  opacity: 0.7;
+  align-self: flex-start;
+  margin-top: 2px;
+  transition: opacity var(--transition, 0.15s);
+}
+.pgu-toast .Toastify__close-button:hover { opacity: 1; color: var(--color-text); }
+.pgu-toast .Toastify__close-button > svg { width: 14px; height: 14px; }
+
+/* Barra de progresso com a cor semântica */
+.pgu-toast-progress {
+  height: 3px !important;
+  background: var(--color-primary) !important;
+  opacity: 0.6 !important;
+}
+.pgu-toast.Toastify__toast--success .pgu-toast-progress { background: var(--color-success) !important; }
+.pgu-toast.Toastify__toast--info    .pgu-toast-progress { background: var(--color-primary) !important; }
+.pgu-toast.Toastify__toast--warning .pgu-toast-progress { background: var(--color-warning) !important; }
+.pgu-toast.Toastify__toast--error   .pgu-toast-progress { background: var(--color-danger) !important; }
+
+/* Conteúdo custom (ex.: toast de ficheiro pronto) */
+.pgu-toast-title {
+  font-weight: 700;
+  color: var(--color-text-heading);
+  margin-bottom: 2px;
+  font-size: 13.5px;
+}
+.pgu-toast-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  font-family: ui-monospace, Menlo, monospace;
+  word-break: break-all;
+}
+.pgu-toast-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-success);
+  color: #fff !important;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.pgu-toast-action:hover { background: var(--color-success-hover, #059669); }
+
+@media (max-width: 520px) {
+  .Toastify__toast-container { width: calc(100vw - 16px); padding: 8px; }
+}
+
+/* ─── Hover: sombra mais forte ─── */
+.pgu-toast:hover {
+  box-shadow:
+    0 14px 30px -6px rgba(15, 23, 42, 0.16),
+    0 6px 10px -4px rgba(15, 23, 42, 0.10) !important;
+}

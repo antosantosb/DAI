@@ -23,6 +23,7 @@ PORT        = int(os.getenv("MQTT_PORT", 1883))
 TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
 INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 1))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
+API_KEY     = os.getenv("PGU_INTERNAL_API_KEY", "changeme-internal-key")
 
 AVG_SPEED_KMH_RUSH  = 30
 AVG_SPEED_KMH_NORMAL = 45
@@ -65,6 +66,7 @@ def api_get(endpoint):
     url = f"{BACKEND_URL}{endpoint}"
     try:
         req = urllib.request.Request(url)
+        req.add_header("X-API-Key", API_KEY)
         with urllib.request.urlopen(req, timeout=10) as resp:
             if resp.status == 204:
                 return []
@@ -100,6 +102,7 @@ def api_post(endpoint, data):
         body = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(url, data=body, method="POST")
         req.add_header("Content-Type", "application/json")
+        req.add_header("X-API-Key", API_KEY)
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
@@ -114,6 +117,7 @@ def api_patch(endpoint, data):
         body = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(url, data=body, method="PATCH")
         req.add_header("Content-Type", "application/json")
+        req.add_header("X-API-Key", API_KEY)
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthProvider';
 
 export default function Stops() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const [stops, setStops] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', code: '', maxBusesDisplay: 3, panelMessage: '', latitude: '', longitude: '' });
@@ -80,9 +83,11 @@ export default function Stops() {
           <h1>Paragens</h1>
           <p className="page-subtitle">{stops.length} paragens registadas</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          + Nova Paragem
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            + Nova Paragem
+          </button>
+        )}
       </div>
 
       <div className="bus-toolbar" style={{ marginBottom: 20 }}>
@@ -159,8 +164,12 @@ export default function Stops() {
                 <td>{stop.latitude?.toFixed(6)}</td>
                 <td>{stop.longitude?.toFixed(6)}</td>
                 <td className="actions">
-                  <button className="btn btn-sm" onClick={() => startEdit(stop)}>Editar</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(stop.id)}>Apagar</button>
+                  {isAdmin && (
+                    <>
+                      <button className="btn btn-sm" onClick={() => startEdit(stop)}>Editar</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(stop.id)}>Apagar</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

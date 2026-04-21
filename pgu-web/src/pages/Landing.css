@@ -103,6 +103,10 @@
   transform: translateY(-6px);
   border-color: rgba(255, 255, 255, 0.2);
 }
+.landing-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+}
 
 .landing-card--backoffice:hover {
   background: rgba(99, 102, 241, 0.12);
@@ -188,6 +192,100 @@
   font-weight: 500;
   letter-spacing: 0.5px;
   animation: fadeIn 0.6s ease 0.3s both;
+}
+
+/* ─── Auth: User Info ─── */
+.landing-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.6s ease 0.1s both;
+}
+
+.landing-user-greeting {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.landing-user-greeting strong {
+  color: #ffffff;
+}
+
+.landing-user-role {
+  font-size: 12px;
+  color: rgba(99, 102, 241, 0.9);
+  background: rgba(99, 102, 241, 0.12);
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ─── Auth: Login Section ─── */
+.landing-login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 48px;
+  animation: fadeIn 0.6s ease 0.15s both;
+}
+
+.landing-login-text {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.45);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.landing-login-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 48px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.landing-login-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.35);
+}
+.landing-login-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+}
+
+/* ─── Auth: Logout Button ─── */
+.landing-logout {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 32px;
+}
+
+.landing-logout:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+}
+.landing-logout:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
 }
 
 /* ─── Responsive ─── */

@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import BusIcon from '../components/BusIcon';
 import './Buses.css';
 
 export default function Buses() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('admin');
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [telemetry, setTelemetry] = useState({});
@@ -176,9 +179,11 @@ export default function Buses() {
           <h1>Autocarros</h1>
           <p className="page-subtitle">{buses.length} autocarros registados</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          + Novo Autocarro
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            + Novo Autocarro
+          </button>
+        )}
       </div>
 
       {/* Quick stats */}
@@ -320,7 +325,7 @@ export default function Buses() {
                     &#9654; Ativar
                   </button>
                 )}
-                {(!bus.routeId || isStopped) && (
+                {isAdmin && (!bus.routeId || isStopped) && (
                   <>
                     <button className="btn btn-secondary btn-sm" onClick={() => startEdit(bus)}>
                       Editar
