@@ -1,6 +1,7 @@
 package dai.tub.pgu.domain;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "buses")
@@ -26,6 +27,9 @@ public class Bus
     @Column(nullable = false)
     private String status = "ACTIVE";
 
+    @Column(name = "last_sync")
+    private Instant lastSync;
+
     public Bus() {}
 
     // GET
@@ -35,6 +39,7 @@ public class Bus
     public Integer getCapacity()     { return this.capacity; }
     public Route   getRoute()        { return this.route; }
     public String  getStatus()       { return this.status; }
+    public Instant getLastSync()     { return this.lastSync; }
 
     // SET
     public void setId(Long id)                     { this.id = id; }
@@ -43,4 +48,5 @@ public class Bus
     public void setCapacity(Integer capacity)      { this.capacity = capacity; }
     public void setRoute(Route route)              { this.route = route; }
     public void setStatus(String status)           { this.status = status; }
+    public void setLastSync(Instant lastSync)      { this.lastSync = lastSync; }
 }

@@ -20,6 +20,7 @@ public class FlywayConfig {
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")
                 .load();
+        flyway.repair();
         flyway.migrate();
         return flyway;
     }

@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import GlobalToastListener from './GlobalToastListener';
 import './Layout.css';
 
 export default function Layout() {
@@ -11,6 +12,7 @@ export default function Layout() {
 
   return (
     <div className="layout">
+      <GlobalToastListener />
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-brand">
@@ -27,9 +29,17 @@ export default function Layout() {
             <span className="nav-icon">&#9632;</span>
             Dashboard
           </NavLink>
+          <NavLink to="/backoffice/analytics">
+            <span className="nav-icon">&#128200;</span>
+            Analytics
+          </NavLink>
           <NavLink to="/backoffice/buses">
             <span className="nav-icon">&#9654;</span>
             Autocarros
+          </NavLink>
+          <NavLink to="/backoffice/health">
+            <span className="nav-icon">&#10084;</span>
+            Saúde da Rede
           </NavLink>
           <span className="sidebar-section-label">Gestao</span>
           <NavLink to="/backoffice/stops">
