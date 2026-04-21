@@ -18,36 +18,61 @@ public class AnalyticsService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * Ocupação da frota, últimos 60 minutos.
+     * A view v_fleet_occupancy já filtra janela temporal (2h) e gera rótulo em fuso local.
+     */
     public List<FleetOccupancyData> getFleetOccupancy() {
-        // Obter as ultimas 60 amostras (minutos) ativas
-        String sql = "SELECT TO_CHAR(minute, 'HH24:MI') as min_formatted, total_passengers, active_buses " +
-                     "FROM v_fleet_occupancy " +
-                     "ORDER BY minute DESC LIMIT 60";
+        String sql = """
+                SELECT minute_label, total_passengers, active_buses
+                FROM v_fleet_occupancy
+                ORDER BY minute DESC
+                LIMIT 60
+                """;
 
-        List<FleetOccupancyData> reversedResults = jdbcTemplate.query(sql, (rs, rowNum) -> new FleetOccupancyData(
-                rs.getString("min_formatted"),
+        List<FleetOccupancyData> reversed = jdbcTemplate.query(sql, (rs, rowNum) -> new FleetOccupancyData(
+                rs.getString("minute_label"),
                 rs.getLong("total_passengers"),
                 rs.getLong("active_buses")
         ));
-
-        // Inversao para ficar em ordem cronologica normal (do mais antigo para o mais recente)
-        java.util.Collections.reverse(reversedResults);
-        return reversedResults;
+        // inverter → ordem cronológica crescente (esquerda→direita no gráfico)
+        java.util.Collections.reverse(reversed);
+        return reversed;
     }
 
+    /**
+     * Estados operacionais por rota no dia corrente (pivot).
+     */
     public List<RouteDelayData> getRouteDelays() {
-        String sql = "SELECT route_code, status, status_count FROM v_route_status_delays";
+        String sql = """
+                SELECT route_code,
+                       active_count, at_stop_count, stopping_count,
+                       delayed_count, stopped_count
+                FROM v_route_status_delays
+                ORDER BY route_code
+                """;
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RouteDelayData(
                 rs.getString("route_code"),
-                rs.getString("status"),
-                rs.getLong("status_count")
+                rs.getLong("active_count"),
+                rs.getLong("at_stop_count"),
+                rs.getLong("stopping_count"),
+                rs.getLong("delayed_count"),
+                rs.getLong("stopped_count")
         ));
     }
 
+    /**
+     * Densidade de passageiros agregada em grid ~50m, últimas 2h.
+     * Limite defensivo: 5000 células (cardinalidade real é muito menor).
+     */
     public List<HeatmapData> getHeatmapData() {
-        // limitamos a 5000 para nao rebentar com a UI
-        String sql = "SELECT ST_Y(location) as lat, ST_X(location) as lng, passenger_count FROM v_heatmap_passenger_density LIMIT 5000";
+        String sql = """
+                SELECT lat, lng, passenger_count
+                FROM v_heatmap_passenger_density
+                ORDER BY passenger_count DESC
+                LIMIT 5000
+                """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new HeatmapData(
                 rs.getDouble("lat"),
                 rs.getDouble("lng"),
@@ -55,8 +80,16 @@ public class AnalyticsService {
         ));
     }
 
+    /**
+     * Eficiência por autocarro (média vs máx de passageiros nas últimas 24h).
+     * ORDER BY garante estabilidade das barras entre refreshes.
+     */
     public List<BusEfficiencyData> getBusEfficiency() {
-        String sql = "SELECT bus_id, avg_passengers, max_passengers FROM v_avg_passengers_per_bus";
+        String sql = """
+                SELECT bus_id, avg_passengers, max_passengers
+                FROM v_avg_passengers_per_bus
+                ORDER BY bus_id
+                """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new BusEfficiencyData(
                 rs.getString("bus_id"),
                 rs.getDouble("avg_passengers"),

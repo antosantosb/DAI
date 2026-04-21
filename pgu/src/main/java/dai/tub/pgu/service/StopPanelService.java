@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+// import org.slf4j.Logger;
+// import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import dai.tub.pgu.domain.Bus;
@@ -23,7 +23,7 @@ import dai.tub.pgu.repository.TelemetryRepository;
 @Service
 public class StopPanelService
 {
-    private static final Logger log = LoggerFactory.getLogger(StopPanelService.class);
+    // private static final Logger log = LoggerFactory.getLogger(StopPanelService.class);
     private static final double DEFAULT_SPEED_KMH = 25.0;
     private static final double DWELL_TIME_SECONDS = 30.0; // tempo parado por paragem
 

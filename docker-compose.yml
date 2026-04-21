@@ -30,6 +30,7 @@ services:
       - MQTT_TOPIC=tub/telemetry
       - INTERVAL_SECONDS=1
       - BACKEND_URL=http://spring-boot-backend:8081
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
     depends_on:
       - mosquitto
       - spring-boot-backend
@@ -88,6 +89,7 @@ services:
       - NIFI_WEB_HTTPS_HOST=0.0.0.0
       - SINGLE_USER_CREDENTIALS_USERNAME=${NIFI_USERNAME}
       - SINGLE_USER_CREDENTIALS_PASSWORD=${NIFI_PASSWORD}
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
     volumes:
       - nifi_conf:/opt/nifi/nifi-current/conf
       - nifi_database:/opt/nifi/nifi-current/database_repository
@@ -183,7 +185,7 @@ services:
     image: quay.io/keycloak/keycloak:26.2.4
     container_name: keycloak
     restart: unless-stopped
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://toolsbd:5432/${KEYCLOAK_DB_NAME}
@@ -193,6 +195,9 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD}
     ports:
       - "8080:8080"
+    volumes:
+      - ./keycloak/pgu-realm-realm.json:/opt/keycloak/data/import/pgu-realm-realm.json:ro
+      - ./keycloak/themes/pgu:/opt/keycloak/themes/pgu:ro
     depends_on:
       toolsbd:
         condition: service_healthy
@@ -241,6 +246,11 @@ services:
       - DW_USER=${DW_USER}
       - DW_PASSWORD=${DW_PASSWORD}
       - OSRM_URL=http://osrm:5000
+      - PGU_EXPORT_DIR=/var/pgu/exports
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
+    volumes:
+      # Motor de Exportação Massiva: persistência dos CSV/PDF gerados
+      - pgu_exports:/var/pgu/exports
     depends_on:
       postgres_postgis:
         condition: service_healthy
@@ -309,3 +319,4 @@ volumes:
   postgres_data:
   mongo_data:
   tools_data:
+  pgu_exports:

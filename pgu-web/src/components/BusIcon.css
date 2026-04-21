@@ -79,11 +79,11 @@
   fill: var(--color-primary);
 }
 
-.bus-icon-wrap--active .bus-body { fill: #10b981; }
-.bus-icon-wrap--at-stop .bus-body { fill: #6366f1; }
-.bus-icon-wrap--stopping .bus-body { fill: #f59e0b; }
-.bus-icon-wrap--stopped .bus-body { fill: #94a3b8; }
-.bus-icon-wrap--unknown .bus-body { fill: #cbd5e1; }
+.bus-icon-wrap--active .bus-body { fill: var(--color-success); }
+.bus-icon-wrap--at-stop .bus-body { fill: var(--color-primary); }
+.bus-icon-wrap--stopping .bus-body { fill: var(--color-warning); }
+.bus-icon-wrap--stopped .bus-body { fill: var(--color-text-light); }
+.bus-icon-wrap--unknown .bus-body { fill: var(--color-border-medium); }
 
 .bus-roof {
   fill: rgba(255,255,255,0.15);

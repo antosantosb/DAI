@@ -8,10 +8,17 @@ public class AnalyticsDTOs {
             long activeBuses
     ) {}
 
+    /**
+     * Pivot de estados por rota no dia corrente.
+     * Permite barras empilhadas no frontend sem duplicar rótulos do eixo X.
+     */
     public record RouteDelayData(
             String routeCode,
-            String status,
-            long statusCount
+            long activeCount,
+            long atStopCount,
+            long stoppingCount,
+            long delayedCount,
+            long stoppedCount
     ) {}
 
     public record HeatmapData(

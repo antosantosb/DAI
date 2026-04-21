@@ -4,6 +4,20 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import './Buses.css';
 
+/**
+ * Deriva o label/estado de saúde a partir do uptime.
+ * Em vez de receber uma string fixa do backend (que estava
+ * hard-coded a "Good Performance"), usamos thresholds baseados
+ * na percentagem de amostras recebidas nas últimas N horas.
+ */
+const deriveHealthStatus = (pct) => {
+  if (pct == null || Number.isNaN(pct)) return 'Sem Dados';
+  if (pct >= 95) return 'Bom Desempenho';
+  if (pct >= 80) return 'Desempenho Degradado';
+  if (pct >  0) return 'Desempenho Fraco';
+  return 'Offline';
+};
+
 export default function BusHealthDashboard() {
   const [healthData, setHealthData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +26,13 @@ export default function BusHealthDashboard() {
     // 1. Initial Load via HTTP
     api.get('/telemetry/health')
       .then(r => {
-        setHealthData(r.data || []);
+        // Deriva sempre o estado a partir do uptime, ignorando qualquer
+        // label que possa vir do backend.
+        const data = (r.data || []).map(b => ({
+          ...b,
+          healthStatus: deriveHealthStatus(b.uptimePercentage),
+        }));
+        setHealthData(data);
         setLoading(false);
       })
       .catch(err => {
@@ -37,23 +57,29 @@ export default function BusHealthDashboard() {
               const currentTime = new Date().toISOString();
 
               if (busIndex !== -1) {
-                // Atualização imutável: clona o array e substitui apenas o bus afetado
+                // Mantemos a percentagem de uptime que veio do snapshot inicial
+                // (computada no backend por janela temporal) e re-derivamos o
+                // label de estado a partir dela. O evento STOMP só confirma
+                // que o bus continua a comunicar → só refresca o lastSync.
                 const newArray = [...prevData];
+                const cur = newArray[busIndex];
                 newArray[busIndex] = {
-                  ...newArray[busIndex],
+                  ...cur,
                   lastSync: currentTime,
-                  healthStatus: 'Good Performance'
+                  healthStatus: deriveHealthStatus(cur.uptimePercentage),
                 };
                 return newArray;
               } else {
-                // Novo bus associado ao payload de tempo real
+                // Primeiro evento para um bus que não estava no snapshot HTTP:
+                // até ao próximo poll da saúde ainda não sabemos o uptime real.
+                // Entra como "Sem Dados" e o próximo refresh corrigirá.
                 return [
                   ...prevData,
                   {
                     busId: telemetryUpdate.busId,
                     lastSync: currentTime,
-                    healthStatus: 'Good Performance',
-                    uptimePercentage: 100 // Dummy value temporário para o dashboard
+                    uptimePercentage: null,
+                    healthStatus: 'Sem Dados',
                   }
                 ];
               }
@@ -76,18 +102,24 @@ export default function BusHealthDashboard() {
   }, []);
 
   const getBadgeStyle = (status) => {
-    if (status === 'Good Performance') {
-      return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
+    switch (status) {
+      case 'Bom Desempenho':
+        return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
+      case 'Desempenho Degradado':
+        return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
+      case 'Desempenho Fraco':
+        return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' };
+      case 'Offline':
+        return { backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' };
+      default: // Sem Dados
+        return { backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' };
     }
-    if (status === 'Partial Information') {
-      return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
-    }
-    return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' };
   };
 
   const getProgressBarColor = (percentage) => {
-    if (percentage > 95) return '#22c55e';
-    if (percentage > 80) return '#f59e0b';
+    if (percentage == null) return '#cbd5e1';
+    if (percentage >= 95) return '#22c55e';
+    if (percentage >= 80) return '#f59e0b';
     return '#ef4444';
   };
 
@@ -143,7 +175,7 @@ export default function BusHealthDashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
                     <span>Uptime Diário</span>
-                    <span>{bus.uptimePercentage}%</span>
+                    <span>{bus.uptimePercentage == null ? '—' : `${bus.uptimePercentage}%`}</span>
                   </div>
                   <div style={{ width: '100%', height: '10px', backgroundColor: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
                     <div style={{

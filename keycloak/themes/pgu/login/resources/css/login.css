@@ -1,0 +1,204 @@
+/* PGU TUB — Custom Keycloak Login Theme */
+
+/* ─── Base ─── */
+body.kc-login {
+  background: #0f172a;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ─── Header ─── */
+#kc-header-wrapper {
+  font-size: 32px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -1px;
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+#kc-header-wrapper::after {
+  content: 'Plataforma de Gestão Urbana';
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+/* ─── Card ─── */
+#kc-content-wrapper {
+  margin-top: 0;
+}
+
+#kc-form-login {
+  padding: 0;
+}
+
+.login-pf-page .card-pf {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 36px 32px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ─── Form Groups — force vertical stacking ─── */
+.login-pf-page .form-group,
+.login-pf-page .card-pf .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+/* ─── Labels ─── */
+.login-pf-page .card-pf label,
+.login-pf-page label {
+  display: block;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  width: 100%;
+}
+
+/* ─── Inputs ─── */
+.login-pf-page .card-pf input[type="text"],
+.login-pf-page .card-pf input[type="password"],
+.login-pf-page input[type="text"],
+.login-pf-page input[type="password"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  padding: 12px 14px !important;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+  width: 100% !important;
+  box-sizing: border-box;
+  display: block;
+}
+
+.login-pf-page .card-pf input[type="text"]:focus,
+.login-pf-page .card-pf input[type="password"]:focus,
+.login-pf-page input[type="text"]:focus,
+.login-pf-page input[type="password"]:focus {
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* ─── Password wrapper (input-group with toggle) ─── */
+.login-pf-page .input-group,
+.login-pf-page .pf-v5-c-input-group,
+.login-pf-page .kc-form-group-password {
+  display: flex;
+  width: 100%;
+  position: relative;
+}
+
+.login-pf-page .input-group input,
+.login-pf-page .pf-v5-c-input-group input {
+  flex: 1;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+/* Hide password toggle button */
+.login-pf-page .input-group-addon,
+.login-pf-page .input-group .btn,
+.login-pf-page .pf-v5-c-input-group button,
+.login-pf-page .pf-v5-c-button[aria-label*="password"],
+.login-pf-page button[aria-label*="password"],
+.login-pf-page .kc-form-password-visibility-toggle,
+.login-pf-page .pf-v5-c-button.pf-m-control {
+  display: none !important;
+}
+
+/* With toggle hidden, restore full border-radius on password input */
+.login-pf-page .input-group input,
+.login-pf-page .pf-v5-c-input-group input {
+  border-radius: 10px !important;
+}
+
+/* ─── Sign In Button ─── */
+#kc-login {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+#kc-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+}
+
+/* ─── Hide unnecessary elements ─── */
+#kc-registration, #kc-info, .login-pf-page .login-pf-header,
+#kc-form-options, #kc-form-buttons .pf-v5-c-button--link {
+  display: none;
+}
+
+/* ─── Checkbox (remember me) ─── */
+.login-pf-page .checkbox,
+.login-pf-page .pf-v5-c-check {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+/* ─── Alert styling ─── */
+.alert-error,
+.pf-v5-c-alert {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  color: #fca5a5;
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* ─── PatternFly overrides (Keycloak 26 uses PF5) ─── */
+.pf-v5-c-login__main,
+.pf-v5-c-card {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--BackgroundColor: rgba(255, 255, 255, 0.07);
+  --pf-v5-c-form-control--BorderColor: rgba(255, 255, 255, 0.15);
+  --pf-v5-c-form-control--Color: #ffffff;
+}
+
+/* Ensure all form controls are full width */
+.login-pf-page .pf-v5-c-form__group,
+.login-pf-page .pf-v5-c-form__group-control {
+  width: 100%;
+}
+
+.login-pf-page .pf-v5-c-form__label-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  font-size: 13px;
+}

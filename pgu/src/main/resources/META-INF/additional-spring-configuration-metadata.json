@@ -13,5 +13,20 @@
   "name": "osrm.url",
   "type": "java.lang.String",
   "description": "URL para engine de routing"
+},
+{
+  "name": "pgu.export.dir",
+  "type": "java.lang.String",
+  "description": "Diretorio de exportação massiva"
+},
+{
+  "name": "pgu.telemetry.expected-interval-sec",
+  "type": "java.lang.String",
+  "description": "Intervalo entre telemetrias esperado"
+},
+{
+  "name": "pgu.telemetry.uptime-window-hours",
+  "type": "java.lang.String",
+  "description": "Janela de Uptime em horas"
 }]
 }

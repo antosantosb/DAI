@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthProvider';
 import './Landing.css';
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { authenticated, login, logout, username, roles } = useAuth();
 
   return (
     <div className="landing">
@@ -31,49 +33,63 @@ export default function Landing() {
           <p className="landing-subtitle">Plataforma de Gestão Urbana</p>
         </div>
 
-        <div className="landing-cards">
-          <div className="landing-card landing-card--backoffice" onClick={() => navigate('/backoffice')}>
-            <div className="landing-card-icon">
-              <svg viewBox="0 0 32 32" fill="none">
-                <rect x="4" y="4" width="24" height="18" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
-                <rect x="7" y="7" width="8" height="5" rx="1" fill="currentColor" opacity="0.2" />
-                <rect x="17" y="7" width="8" height="5" rx="1" fill="currentColor" opacity="0.2" />
-                <rect x="7" y="14" width="18" height="2" rx="1" fill="currentColor" opacity="0.15" />
-                <line x1="12" y1="22" x2="20" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <line x1="16" y1="22" x2="16" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <line x1="10" y1="26" x2="22" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+        {authenticated ? (
+          <>
+            <div className="landing-user-info">
+              <span className="landing-user-greeting">
+                Bem-vindo, <strong>{username}</strong>
+              </span>
+              <span className="landing-user-role">
+                {roles.includes('admin') ? 'Administrador' : 'Operador'}
+              </span>
             </div>
-            <h2>Backoffice</h2>
-            <p>Gestão de autocarros, rotas, paragens e monitoramento da frota em tempo real.</p>
-            <span className="landing-card-action">
-              Aceder
-              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
-                <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </div>
 
-          <div className="landing-card landing-card--livemap" onClick={() => navigate('/livemap')}>
-            <div className="landing-card-icon">
-              <svg viewBox="0 0 32 32" fill="none">
-                <path d="M6 8L13 5V24L6 27V8Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M13 5L20 8V27L13 24V5Z" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M20 8L27 5V24L20 27V8Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                <circle cx="22" cy="14" r="3" fill="currentColor" opacity="0.3" />
-                <circle cx="22" cy="14" r="1.2" fill="currentColor" />
-              </svg>
+            <div className="landing-cards">
+              <div className="landing-card landing-card--backoffice" onClick={() => navigate('/backoffice')}>
+                <div className="landing-card-icon">
+                  <svg viewBox="0 0 32 32" fill="none">
+                    <rect x="4" y="4" width="24" height="18" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
+                    <rect x="7" y="7" width="8" height="5" rx="1" fill="currentColor" opacity="0.2" />
+                    <rect x="17" y="7" width="8" height="5" rx="1" fill="currentColor" opacity="0.2" />
+                    <rect x="7" y="14" width="18" height="2" rx="1" fill="currentColor" opacity="0.15" />
+                    <line x1="12" y1="22" x2="20" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="16" y1="22" x2="16" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="10" y1="26" x2="22" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h2>Backoffice</h2>
+                <p>Gestão de autocarros, rotas, paragens e monitoramento da frota em tempo real.</p>
+              </div>
+
+              <div className="landing-card landing-card--livemap" onClick={() => navigate('/livemap')}>
+                <div className="landing-card-icon">
+                  <svg viewBox="0 0 32 32" fill="none">
+                    <path d="M6 8L13 5V24L6 27V8Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d="M13 5L20 8V27L13 24V5Z" fill="currentColor" opacity="0.1" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d="M20 8L27 5V24L20 27V8Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                    <circle cx="22" cy="14" r="3" fill="currentColor" opacity="0.3" />
+                    <circle cx="22" cy="14" r="1.2" fill="currentColor" />
+                  </svg>
+                </div>
+                <h2>LiveMap</h2>
+                <p>Mapa interativo com localização dos autocarros em tempo real pela cidade de Braga.</p>
+              </div>
             </div>
-            <h2>LiveMap</h2>
-            <p>Mapa interativo com localização dos autocarros em tempo real pela cidade de Braga.</p>
-            <span className="landing-card-action">
-              Aceder
-              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
-                <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
+
+            <button className="landing-logout" onClick={logout}>
+              Terminar Sessão
+            </button>
+          </>
+        ) : (
+          <div className="landing-login-section">
+            <p className="landing-login-text">
+              Acede à plataforma para gerir a frota e monitorizar autocarros em tempo real.
+            </p>
+            <button className="landing-login-btn" onClick={login}>
+              Entrar
+            </button>
           </div>
-        </div>
+        )}
 
         <p className="landing-footer-text">Transportes Urbanos de Braga &middot; DAI 2025</p>
       </div>

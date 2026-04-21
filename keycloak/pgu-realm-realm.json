@@ -1,0 +1,63 @@
+{
+  "realm": "pgu-realm",
+  "enabled": true,
+  "loginTheme": "pgu",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Full access to backoffice" },
+      { "name": "operator", "description": "Read-only access + exports" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "pgu-backoffice",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@pgu.local",
+      "firstName": "Admin",
+      "lastName": "PGU",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "operador",
+      "enabled": true,
+      "email": "operador@pgu.local",
+      "firstName": "Operador",
+      "lastName": "PGU",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "operador123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["operator"]
+    }
+  ]
+}

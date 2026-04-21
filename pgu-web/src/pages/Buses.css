@@ -26,7 +26,7 @@
 
 .quick-stat-dot--active { background: var(--color-success); }
 .quick-stat-dot--stopping { background: var(--color-warning); }
-.quick-stat-dot--stopped { background: #94a3b8; }
+.quick-stat-dot--stopped { background: var(--color-text-light); }
 
 /* ─── Toolbar ─── */
 .bus-toolbar {
@@ -68,7 +68,7 @@
 .bus-card--active::before { background: var(--color-success); }
 .bus-card--at-stop::before { background: var(--color-primary); }
 .bus-card--stopping::before { background: var(--color-warning); }
-.bus-card--stopped::before { background: #94a3b8; }
+.bus-card--stopped::before { background: var(--color-text-light); }
 .bus-card--unknown::before { background: var(--color-border); }
 
 .bus-card:hover {
@@ -109,16 +109,31 @@
   white-space: nowrap;
 }
 
+/* Tag da rota — intencionalmente neutra (slate) para nunca colidir
+   visualmente com os badges de estado (.badge--at-stop, --active, etc.).
+   O ponto colorido sinaliza "linha/rota" sem competir com o estado. */
 .bus-route-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 3px 10px 3px 8px;
   border-radius: 6px;
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   white-space: nowrap;
   letter-spacing: 0.2px;
   text-transform: uppercase;
+}
+.bus-route-tag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  flex-shrink: 0;
 }
 
 /* Badge */
@@ -136,11 +151,11 @@
   gap: 5px;
 }
 
-.badge--active    { background: var(--color-success-light); color: #059669; }
+.badge--active    { background: var(--color-success-light); color: var(--color-success-hover); }
 .badge--at-stop   { background: var(--color-primary-light); color: var(--color-primary); }
-.badge--stopping  { background: var(--color-warning-light); color: #b45309; }
-.badge--stopped   { background: #f1f5f9; color: #64748b; }
-.badge--unknown   { background: #f1f5f9; color: #9ca3af; }
+.badge--stopping  { background: var(--color-warning-light); color: var(--color-warning-hover); }
+.badge--stopped   { background: var(--color-border-light); color: var(--color-text-secondary); }
+.badge--unknown   { background: var(--color-border-light); color: var(--color-text-light); }
 
 /* Body */
 .bus-card-body {
@@ -247,6 +262,6 @@
   gap: 8px;
   padding: 14px 20px;
   border-top: 1px solid var(--color-border-light);
-  background: #fafbfc;
+  background: var(--color-bg);
   flex-wrap: wrap;
 }
