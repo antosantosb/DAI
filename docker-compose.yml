@@ -289,6 +289,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt/live/pgu-tub.switzerlandnorth.cloudapp.azure.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+      - /etc/letsencrypt/live/pgu-tub.switzerlandnorth.cloudapp.azure.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
     depends_on:
       - spring-boot-backend
     networks:
