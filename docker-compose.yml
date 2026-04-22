@@ -63,6 +63,7 @@ services:
       - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
       - BACKEND_URL=http://spring-boot-backend:8081
       - GTFS_URL=https://www.tub.pt/developer/gtfs/feed/tub.zip
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
     command: bash -c "airflow db migrate && airflow users create --username $${_AIRFLOW_WWW_USER_USERNAME} --password $${_AIRFLOW_WWW_USER_PASSWORD} --firstname Admin --lastname PGU --role Admin --email admin@pgu.local 2>/dev/null; airflow webserver -D && airflow scheduler"
     depends_on:
       toolsbd:

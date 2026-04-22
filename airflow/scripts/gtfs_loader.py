@@ -17,8 +17,9 @@ import urllib.request
 # ==========================================
 # CONFIGURAÇÃO
 # ==========================================
-GTFS_URL    = os.getenv("GTFS_URL", "https://www.tub.pt/developer/gtfs/feed/tub.zip")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
+GTFS_URL        = os.getenv("GTFS_URL", "https://www.tub.pt/developer/gtfs/feed/tub.zip")
+BACKEND_URL     = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
+INTERNAL_API_KEY = os.getenv("PGU_INTERNAL_API_KEY", "changeme-internal-key")
 
 # ==========================================
 # HELPERS
@@ -27,7 +28,10 @@ def api_post(endpoint, data):
     """POST JSON para o backend. Retorna (status_code, response_body)."""
     url = f"{BACKEND_URL}{endpoint}"
     body = json.dumps(data).encode("utf-8")
-    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(url, data=body, headers={
+        "Content-Type": "application/json",
+        "X-API-Key": INTERNAL_API_KEY
+    }, method="POST")
     try:
         with urllib.request.urlopen(req) as resp:
             return resp.status, resp.read().decode("utf-8")
