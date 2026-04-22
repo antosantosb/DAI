@@ -80,7 +80,13 @@ public class SecurityConfig
     public CorsConfigurationSource corsSource()
     {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "http://localhost",
+            "https://localhost",
+            "http://localhost:80",
+            "https://pgu-tub.switzerlandnorth.cloudapp.azure.com"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
