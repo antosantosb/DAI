@@ -37,7 +37,7 @@ services:
       spring-boot-backend:
         condition: service_started
       osrm:
-        condition: service_healthy
+        condition: service_started
     networks:
       - mqtt_net
       - etl_net
@@ -280,12 +280,6 @@ services:
     restart: unless-stopped
     networks:
       - osrm_net
-    healthcheck:
-      test: ["CMD-SHELL", "perl -e 'use IO::Socket::INET; my $s = IO::Socket::INET->new(PeerAddr=>\"localhost\", PeerPort=>5000, Timeout=>2) or die; close $s'"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 60s
 
   # ==========================================
   # 11. FRONTEND (React SPA + Nginx)
