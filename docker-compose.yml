@@ -281,10 +281,10 @@ services:
     networks:
       - osrm_net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/nearest/v1/driving/-8.4,41.5 >/dev/null 2>&1 || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/5000' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
       start_period: 60s
 
   # ==========================================
