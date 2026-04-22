@@ -72,7 +72,7 @@ server {
 
     # ─────────────────────────────────────────
     # Metabase (Dashboards)
-    # sub_filter reescreve paths absolutos
+    # MB_SITE_URL já gera paths com /metabase/ prefix
     # ─────────────────────────────────────────
     location ^~ /metabase/ {
         proxy_pass http://metabase:3000/;
@@ -80,17 +80,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        # Desativar gzip do upstream para sub_filter funcionar
-        proxy_set_header Accept-Encoding "";
-        sub_filter_once off;
-        sub_filter_types text/html text/css application/javascript;
-        sub_filter 'href="/' 'href="/metabase/';
-        sub_filter 'src="/' 'src="/metabase/';
-        sub_filter 'action="/' 'action="/metabase/';
-        sub_filter 'fetch("/' 'fetch("/metabase/';
-        sub_filter 'url(/' 'url(/metabase/';
-        sub_filter '"/api/' '"/metabase/api/';
-        sub_filter '"/app/' '"/metabase/app/';
     }
 
     # ─────────────────────────────────────────
@@ -114,22 +103,14 @@ server {
 
     # ─────────────────────────────────────────
     # Airflow (ETL Orchestrator)
-    # sub_filter reescreve paths absolutos
+    # BASE_URL configura Flask APPLICATION_ROOT=/airflow
     # ─────────────────────────────────────────
     location ^~ /airflow/ {
-        proxy_pass http://airflow:8080/;
+        proxy_pass http://airflow:8080/airflow/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Accept-Encoding "";
-        sub_filter_once off;
-        sub_filter_types text/html text/css application/javascript;
-        sub_filter 'href="/' 'href="/airflow/';
-        sub_filter 'src="/' 'src="/airflow/';
-        sub_filter 'action="/' 'action="/airflow/';
-        sub_filter 'fetch("/' 'fetch("/airflow/';
-        sub_filter 'url(/' 'url(/airflow/';
     }
 
     # ─────────────────────────────────────────
