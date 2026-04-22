@@ -114,7 +114,7 @@ export default function AnalyticsDashboard() {
           <p className="page-subtitle">Ferramentas de decisão baseadas em histórico</p>
         </div>
         <a
-          href={`${window.location.protocol}//${window.location.hostname}:3000`}
+          href={`${window.location.origin}/metabase/`}
           target="_blank"
           rel="noopener noreferrer"
           className="metabase-link"

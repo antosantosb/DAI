@@ -48,6 +48,7 @@ public class SecurityConfig
                 // Escrita em recursos de gestão — apenas admin
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/buses/**").hasRole("admin")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/stops/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/stops/**").hasRole("admin")
