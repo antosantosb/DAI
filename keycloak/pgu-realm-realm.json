@@ -18,11 +18,11 @@
       "directAccessGrantsEnabled": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "redirectUris": ["http://localhost:5173/*", "http://localhost/*"],
-      "webOrigins": ["http://localhost:5173", "http://localhost"],
+      "redirectUris": ["http://localhost:5173/*", "http://localhost/*", "https://pgu-tub.switzerlandnorth.cloudapp.azure.com/*"],
+      "webOrigins": ["http://localhost:5173", "http://localhost", "https://pgu-tub.switzerlandnorth.cloudapp.azure.com"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost/*"
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost/*##https://pgu-tub.switzerlandnorth.cloudapp.azure.com/*"
       },
       "defaultClientScopes": ["openid", "profile", "email", "roles"],
       "protocol": "openid-connect"
