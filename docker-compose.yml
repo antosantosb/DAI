@@ -32,9 +32,12 @@ services:
       - BACKEND_URL=http://spring-boot-backend:8081
       - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
     depends_on:
-      - mosquitto
-      - spring-boot-backend
-      - osrm
+      mosquitto:
+        condition: service_started
+      spring-boot-backend:
+        condition: service_started
+      osrm:
+        condition: service_healthy
     networks:
       - mqtt_net
       - etl_net
@@ -99,9 +102,11 @@ services:
       - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
     depends_on:
       - mosquitto
+      - spring-boot-backend
     networks:
       - mqtt_net
       - etl_net
+      - osrm_net
 
   # ==========================================
   # 4. DATA WAREHOUSE (PostgreSQL + PostGIS)
@@ -262,6 +267,7 @@ services:
       - etl_net
       - auth_net
       - osrm_net
+      - mqtt_net
 
   # ==========================================
   # 10. OSRM (Routing Engine — Portugal)
@@ -274,6 +280,12 @@ services:
     restart: unless-stopped
     networks:
       - osrm_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/nearest/v1/driving/0,0 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # ==========================================
   # 11. FRONTEND (React SPA + Nginx)
