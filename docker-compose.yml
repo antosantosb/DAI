@@ -290,9 +290,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
     volumes:
-      - /etc/letsencrypt/live/pgu-tub.switzerlandnorth.cloudapp.azure.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
-      - /etc/letsencrypt/live/pgu-tub.switzerlandnorth.cloudapp.azure.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot
     depends_on:
       - spring-boot-backend
     networks:
@@ -340,3 +342,4 @@ volumes:
   mongo_data:
   tools_data:
   pgu_exports:
+  certbot_webroot:
