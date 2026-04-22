@@ -18,6 +18,7 @@ RUN osrm-extract -p /opt/bus.lua /data/portugal-latest.osm.pbf && \
 
 # Stage 3: Final slim image with only processed data
 FROM osrm/osrm-backend:latest
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /data /data
 
 EXPOSE 5000

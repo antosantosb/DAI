@@ -14,7 +14,7 @@ import SockJS from 'sockjs-client';
 export default function GlobalToastListener() {
   useEffect(() => {
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8081/ws-telemetry'),
+      webSocketFactory: () => new SockJS(`${window.location.origin}/ws-telemetry`),
       reconnectDelay: 5000,
       onConnect: () => {
         console.log('Global Toast Listener connected via SockJS');

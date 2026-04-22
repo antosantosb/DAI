@@ -42,7 +42,7 @@ export default function BusHealthDashboard() {
 
     // 2. Real-time connection with STOMP over SockJS
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8081/ws-telemetry'),
+      webSocketFactory: () => new SockJS(`${window.location.origin}/ws-telemetry`),
       reconnectDelay: 5000, // tenta reconectar a cada 5 segundos
       onConnect: () => {
         console.log('Connected to STOMP via SockJS!');

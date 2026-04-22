@@ -281,7 +281,7 @@ services:
     networks:
       - osrm_net
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/5000' 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/nearest/v1/driving/-8.4,41.5 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15

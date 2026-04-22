@@ -119,7 +119,7 @@ export default function Exports() {
   // ─── Subscrição STOMP para atualizar a tabela em tempo real ───
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8081/ws-telemetry'),
+      webSocketFactory: () => new SockJS(`${window.location.origin}/ws-telemetry`),
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe('/topic/exports', (msg) => {
