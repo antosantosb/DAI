@@ -9,7 +9,8 @@ import RoutesPage from './pages/Routes';
 import BusHealthDashboard from './pages/BusHealthDashboard';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import Exports from './pages/Exports';
-import Livemap from './pages/livemap';
+import AuditLogs from './pages/AuditLogs';
+import Livemap from './pages/Livemap';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="health" element={<BusHealthDashboard />} />
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="exports" element={<Exports />} />
+          <Route path="audit" element={<AuditLogs />} />
         </Route>
         <Route
           path="/livemap"

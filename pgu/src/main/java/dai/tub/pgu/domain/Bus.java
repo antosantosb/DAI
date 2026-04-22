@@ -25,7 +25,7 @@ public class Bus
     private Route route;
 
     @Column(nullable = false)
-    private String status = "ACTIVE";
+    private String status = "STOPPED";
 
     @Column(name = "last_sync")
     private Instant lastSync;

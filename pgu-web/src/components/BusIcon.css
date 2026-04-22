@@ -25,6 +25,11 @@
   border-color: rgba(245, 158, 11, 0.25);
 }
 
+.bus-icon-wrap--stopping-at-stop {
+  background: linear-gradient(180deg, #fffbeb 60%, #fef3c7 100%);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
 .bus-icon-wrap--stopped {
   background: linear-gradient(180deg, #f8fafc 60%, #f1f5f9 100%);
   border-color: var(--color-border);
@@ -82,6 +87,7 @@
 .bus-icon-wrap--active .bus-body { fill: var(--color-success); }
 .bus-icon-wrap--at-stop .bus-body { fill: var(--color-primary); }
 .bus-icon-wrap--stopping .bus-body { fill: var(--color-warning); }
+.bus-icon-wrap--stopping-at-stop .bus-body { fill: var(--color-warning); }
 .bus-icon-wrap--stopped .bus-body { fill: var(--color-text-light); }
 .bus-icon-wrap--unknown .bus-body { fill: var(--color-border-medium); }
 
@@ -199,4 +205,9 @@
   z-index: 3;
   line-height: 1;
   box-shadow: 0 1px 3px rgba(99, 102, 241, 0.4);
+}
+
+.bus-icon-wrap--stopping-at-stop .bus-icon-stop-sign {
+  background: var(--color-warning);
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.4);
 }

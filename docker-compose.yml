@@ -278,6 +278,22 @@ services:
     networks:
       - osrm_net
 
+  # ==========================================
+  # 11. FRONTEND (React SPA + Nginx)
+  # ==========================================
+  pgu-web:
+    build:
+      context: ./pgu-web
+      dockerfile: Dockerfile
+    container_name: pgu-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - spring-boot-backend
+    networks:
+      - etl_net
+
 # ==========================================
 # REDES (Micro-Segmentação Zero Trust)
 # ==========================================

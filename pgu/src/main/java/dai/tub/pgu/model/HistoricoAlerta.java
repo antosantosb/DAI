@@ -1,3 +1,5 @@
+package dai.tub.pgu.model;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 

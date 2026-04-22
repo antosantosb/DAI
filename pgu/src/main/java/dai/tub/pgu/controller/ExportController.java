@@ -1,5 +1,6 @@
 package dai.tub.pgu.controller;
 
+import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.domain.ExportJob;
 import dai.tub.pgu.dto.ExportJobDTO;
 import dai.tub.pgu.dto.ExportRequestDTO;
@@ -46,6 +47,7 @@ public class ExportController
     }
 
     @PostMapping("/telemetry")
+    @LogActivity(action = "Submeter exportação")
     public ResponseEntity<ExportJobDTO> submit(@RequestBody ExportRequestDTO req,
                                                @AuthenticationPrincipal Jwt jwt)
     {
@@ -71,6 +73,7 @@ public class ExportController
     }
 
     @DeleteMapping("/{uuid}")
+    @LogActivity(action = "Eliminar exportação")
     public ResponseEntity<Void> delete(@PathVariable UUID uuid)
     {
         try

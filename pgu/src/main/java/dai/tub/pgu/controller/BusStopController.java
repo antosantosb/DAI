@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.dto.BusStopDTO;
 import dai.tub.pgu.dto.StopPanelDTO;
 import dai.tub.pgu.service.BusStopService;
@@ -37,18 +38,21 @@ public class BusStopController
     }
 
     @PostMapping
+    @LogActivity(action = "Criar paragem")
     public ResponseEntity<BusStopDTO> create(@RequestBody BusStopDTO dto)
     {
         return ResponseEntity.status(201).body(busStopService.create(dto));
     }
 
     @PatchMapping("/{id}")
+    @LogActivity(action = "Atualizar paragem")
     public ResponseEntity<BusStopDTO> update(@PathVariable Long id, @RequestBody BusStopDTO dto)
     {
         return ResponseEntity.ok(busStopService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @LogActivity(action = "Eliminar paragem")
     public ResponseEntity<Void> delete(@PathVariable Long id)
     {
         busStopService.delete(id);

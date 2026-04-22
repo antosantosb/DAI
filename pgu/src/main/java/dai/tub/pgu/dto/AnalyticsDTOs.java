@@ -32,4 +32,20 @@ public class AnalyticsDTOs {
             double avgPassengers,
             int maxPassengers
     ) {}
+
+    public record SpeedOverTimeData(
+            String minute,
+            double avgSpeed
+    ) {}
+
+    public record CongestionData(
+            String busId,
+            double lat,
+            double lng,
+            double speedKmh,
+            int passengerCount,
+            String recordedAt,
+            String routeCode,
+            String routeName
+    ) {}
 }

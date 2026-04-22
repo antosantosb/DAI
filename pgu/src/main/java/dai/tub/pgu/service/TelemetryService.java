@@ -28,6 +28,7 @@ public class TelemetryService
     private final BusRepository busRepository;
     private final GeometryFactory geometryFactory;
     private final JdbcTemplate jdbc;
+    private final AlertaService alertaService;
 
     /**
      * Intervalo esperado (em segundos) entre publicações de telemetria por autocarro.
@@ -51,11 +52,13 @@ public class TelemetryService
 
     public TelemetryService(TelemetryRepository telemetryRepository,
                             BusRepository busRepository,
-                            JdbcTemplate jdbc)
+                            JdbcTemplate jdbc,
+                            AlertaService alertaService)
     {
         this.telemetryRepository = telemetryRepository;
         this.busRepository = busRepository;
         this.jdbc = jdbc;
+        this.alertaService = alertaService;
         // SRID 4326 é o standard WGS84 (usado pelo GPS e Google Maps)
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
     }
@@ -82,6 +85,9 @@ public class TelemetryService
             bus.setLastSync(Instant.now());
             busRepository.save(bus);
         });
+
+        // Avaliar alertas críticos (ex: AVARIADO)
+        alertaService.processarTelemetria(dto);
     }
 
     public List<TelemetryDTO> getAllTelemetry()
@@ -102,7 +108,10 @@ public class TelemetryService
         List<Bus> buses = busRepository.findAll();
         Instant now = Instant.now();
 
-        return buses.stream().map(bus -> {
+        // Autocarros parados não devem aparecer na saúde da rede
+        return buses.stream()
+            .filter(bus -> !"STOPPED".equals(bus.getStatus()))
+            .map(bus -> {
             String status = "No Data";
             if (bus.getLastSync() != null) {
                 long minutes = Duration.between(bus.getLastSync(), now).toMinutes();
@@ -112,7 +121,10 @@ public class TelemetryService
                     status = "Partial Information";
                 }
             }
-            int uptime = calculateUptimePercentage(bus.getBusCode());
+            // lastSync null = acabou de ser reativado, uptime começa do zero
+            int uptime = bus.getLastSync() != null
+                ? calculateUptimePercentage(bus.getBusCode())
+                : 0;
             return new BusHealthDTO(bus.getBusCode(), bus.getLastSync(), status, uptime);
         }).toList();
     }

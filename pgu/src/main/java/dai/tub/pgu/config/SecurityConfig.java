@@ -39,6 +39,8 @@ public class SecurityConfig
                 .requestMatchers("/ws-telemetry/**").permitAll()
                 // Actuator
                 .requestMatchers("/actuator/**").permitAll()
+                // Swagger / SpringDoc
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
@@ -78,7 +80,7 @@ public class SecurityConfig
     {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

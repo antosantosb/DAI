@@ -28,5 +28,30 @@
   "name": "pgu.telemetry.uptime-window-hours",
   "type": "java.lang.String",
   "description": "Janela de Uptime em horas"
+},
+{
+  "name": "pgu.export.retention-days",
+  "type": "java.lang.String",
+  "description": "Dias até apagar pedidos de exportação"
+},
+{
+  "name": "pgu.internal.api-key",
+  "type": "java.lang.String",
+  "description": "Chave da API interna do sistema"
+},
+{
+  "name": "pgu.alertas.cooldown-minutes",
+  "type": "java.lang.String",
+  "description": "Cooldown entre alertas repetidos do mesmo autocarro (minutos)"
+},
+{
+  "name": "pgu.alertas.email.destinatario",
+  "type": "java.lang.String",
+  "description": "Destinatário dos emails de alerta (vazio = email desativado)"
+},
+{
+  "name": "pgu.alertas.email.remetente",
+  "type": "java.lang.String",
+  "description": "Remetente dos emails de alerta"
 }]
 }

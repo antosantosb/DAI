@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.dto.RouteDTO;
 import dai.tub.pgu.service.RouteService;
 
@@ -33,18 +34,21 @@ public class RouteController
     }
 
     @PostMapping
+    @LogActivity(action = "Criar rota")
     public ResponseEntity<RouteDTO> create(@RequestBody RouteDTO dto)
     {
         return ResponseEntity.status(201).body(routeService.create(dto));
     }
 
     @PatchMapping("/{id}")
+    @LogActivity(action = "Atualizar rota")
     public ResponseEntity<RouteDTO> update(@PathVariable Long id, @RequestBody RouteDTO dto)
     {
         return ResponseEntity.ok(routeService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @LogActivity(action = "Eliminar rota")
     public ResponseEntity<Void> delete(@PathVariable Long id)
     {
         routeService.delete(id);

@@ -5,7 +5,7 @@ export const DEFAULT_ZOOM = 14;
 
 export const WS_URL = import.meta.env.VITE_WS_URL
   ? `${import.meta.env.VITE_WS_URL}/ws-telemetry/websocket`
-  : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8081/ws-telemetry/websocket`;
+  : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry/websocket`;
 
 export const STATUS_CONFIG = {
   active:      { color: '#22c55e', label: 'Em Viagem',   ring: 'rgba(34,197,94,0.3)' },

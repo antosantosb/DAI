@@ -1,6 +1,8 @@
 package dai.tub.pgu.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
 
@@ -59,7 +61,13 @@ public class BusService
         if (dto.getBusCode() != null) bus.setBusCode(dto.getBusCode());
         if (dto.getLicensePlate() != null) bus.setLicensePlate(dto.getLicensePlate());
         if (dto.getCapacity() != null) bus.setCapacity(dto.getCapacity());
-        if (dto.getStatus() != null) bus.setStatus(dto.getStatus());
+        if (dto.getStatus() != null) {
+            // Reset lastSync ao reativar — saúde da rede começa limpa
+            if ("ACTIVE".equals(dto.getStatus()) && !"ACTIVE".equals(bus.getStatus())) {
+                bus.setLastSync(null);
+            }
+            bus.setStatus(dto.getStatus());
+        }
         if (dto.getRouteId() != null)
         {
             Route route = routeRepository.findById(dto.getRouteId())
@@ -68,6 +76,48 @@ public class BusService
         }
 
         return toDTO(busRepository.save(bus));
+    }
+
+    public List<BusDTO> createBatch(int count)
+    {
+        List<Route> routes = routeRepository.findAll();
+        if (routes.isEmpty()) {
+            throw new RuntimeException("Não existem rotas para atribuir aos autocarros.");
+        }
+
+        // Encontrar o maior número de bus code existente
+        int maxNum = busRepository.findAll().stream()
+            .map(b -> b.getBusCode().replaceAll("\\D", ""))
+            .filter(s -> !s.isEmpty())
+            .mapToInt(Integer::parseInt)
+            .max()
+            .orElse(0);
+
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        List<BusDTO> created = new ArrayList<>();
+
+        for (int i = 1; i <= count; i++) {
+            int num = maxNum + i;
+            Bus bus = new Bus();
+            bus.setBusCode("TUB-" + String.format("%03d", num));
+            bus.setLicensePlate(randomPlate(rng));
+            bus.setCapacity(rng.nextInt(30, 61)); // 30-60
+            bus.setRoute(routes.get(rng.nextInt(routes.size())));
+            // status default = STOPPED (definido na entidade)
+
+            created.add(toDTO(busRepository.save(bus)));
+        }
+
+        return created;
+    }
+
+    private String randomPlate(ThreadLocalRandom rng)
+    {
+        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String digits = "0123456789";
+        return "" + letters.charAt(rng.nextInt(26)) + letters.charAt(rng.nextInt(26))
+             + "-" + digits.charAt(rng.nextInt(10)) + digits.charAt(rng.nextInt(10))
+             + "-" + letters.charAt(rng.nextInt(26)) + letters.charAt(rng.nextInt(26));
     }
 
     public void delete(Long id)

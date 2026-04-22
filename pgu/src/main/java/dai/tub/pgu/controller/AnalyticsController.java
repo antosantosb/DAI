@@ -4,6 +4,8 @@ import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
 import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
 import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
+import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
+import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
 import dai.tub.pgu.service.AnalyticsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,6 +45,18 @@ public class AnalyticsController {
     @GetMapping("/bus-efficiency")
     public ResponseEntity<List<BusEfficiencyData>> getBusEfficiency() {
         List<BusEfficiencyData> data = analyticsService.getBusEfficiency();
+        return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/speed-over-time")
+    public ResponseEntity<List<SpeedOverTimeData>> getSpeedOverTime() {
+        List<SpeedOverTimeData> data = analyticsService.getSpeedOverTime();
+        return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/congestion")
+    public ResponseEntity<List<CongestionData>> getCongestion() {
+        List<CongestionData> data = analyticsService.getCongestion();
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 }

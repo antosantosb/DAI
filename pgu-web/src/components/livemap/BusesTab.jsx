@@ -14,11 +14,16 @@ export default function BusesTab({
   setBusSort,
 }) {
   const busList = useMemo(() =>
-    Object.values(buses).map(bus => {
-      const backend = backendBuses[bus.busId];
-      const displayStatus = getBusDisplayStatus(backend?.status, bus.status);
-      return { ...bus, displayStatus, backend };
-    }),
+    Object.values(buses)
+      .filter(bus => {
+        const backend = backendBuses[bus.busId];
+        return backend && backend.status !== 'STOPPED';
+      })
+      .map(bus => {
+        const backend = backendBuses[bus.busId];
+        const displayStatus = getBusDisplayStatus(backend?.status, bus.status);
+        return { ...bus, displayStatus, backend };
+      }),
     [buses, backendBuses]
   );
 

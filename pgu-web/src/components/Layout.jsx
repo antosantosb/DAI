@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
-  IconStop, IconRoute, IconExport,
+  IconStop, IconRoute, IconExport, IconAudit,
 } from './NavIcon';
 import './Layout.css';
 
@@ -56,6 +56,10 @@ export default function Layout() {
           <NavLink to="/backoffice/exports">
             <span className="nav-icon"><IconExport /></span>
             Exportações
+          </NavLink>
+          <NavLink to="/backoffice/audit">
+            <span className="nav-icon"><IconAudit /></span>
+            Logs
           </NavLink>
         </nav>
         <div className="sidebar-footer">

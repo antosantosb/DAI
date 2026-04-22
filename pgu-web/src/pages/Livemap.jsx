@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
 import { Client } from '@stomp/stompjs';
 import api from '../services/api';
 import {
@@ -39,6 +40,10 @@ export default function Livemap() {
   const [busSort, setBusSort] = useState('route');
   const [routeSearch, setRouteSearch] = useState('');
   const [routeSort, setRouteSort] = useState('name');
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showCongestion, setShowCongestion] = useState(false);
+  const heatLayerRef = useRef(null);
+  const congestionLayerRef = useRef(null);
 
   // ─── Map initialization ───
   useEffect(() => {
@@ -89,6 +94,15 @@ export default function Livemap() {
     if (!map || !telemetry.latitude || !telemetry.longitude) return;
 
     const backend = backendBusesRef.current[telemetry.busId];
+    // Autocarros parados ou sem registo no backend não aparecem no mapa
+    if (backend?.status === 'STOPPED' || (Object.keys(backendBusesRef.current).length > 0 && !backend)) {
+      const existing = busMarkersRef.current[telemetry.busId];
+      if (existing) {
+        mapInstance.current.removeLayer(existing);
+        delete busMarkersRef.current[telemetry.busId];
+      }
+      return;
+    }
     const displayStatus = getBusDisplayStatus(backend?.status, telemetry.status);
     const popup = busPopupHtml(telemetry, displayStatus);
     const newLatLng = L.latLng(telemetry.latitude, telemetry.longitude);
@@ -150,6 +164,29 @@ export default function Livemap() {
     return () => clearInterval(interval);
   }, []);
 
+  // ─── Remove markers of STOPPED or deleted buses whenever backend state updates ───
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !Object.keys(backendBuses).length) return;
+    Object.entries(busMarkersRef.current).forEach(([busId, marker]) => {
+      const backend = backendBuses[busId];
+      // Remove se: parado, ou não existe no backend (descomissionado/eliminado)
+      if (!backend || backend.status === 'STOPPED') {
+        if (map.hasLayer(marker)) map.removeLayer(marker);
+        delete busMarkersRef.current[busId];
+        delete busStatusRef.current[busId];
+      }
+    });
+    setBuses(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(busId => {
+        const backend = backendBuses[busId];
+        if (!backend || backend.status === 'STOPPED') delete next[busId];
+      });
+      return next;
+    });
+  }, [backendBuses]);
+
   // ─── WebSocket connection ───
   useEffect(() => {
     api.get('/telemetry/latest').then(r => {
@@ -169,6 +206,9 @@ export default function Livemap() {
         setWsConnected(true);
         client.subscribe('/topic/telemetry', (message) => {
           const telemetry = JSON.parse(message.body);
+          // Ignorar telemetria de autocarros parados ou sem registo
+          const b = backendBusesRef.current[telemetry.busId];
+          if (b?.status === 'STOPPED' || (Object.keys(backendBusesRef.current).length > 0 && !b)) return;
           setBuses(prev => ({ ...prev, [telemetry.busId]: telemetry }));
           updateBusMarker(telemetry);
         });
@@ -187,6 +227,154 @@ export default function Livemap() {
       busMarkersRef.current = {};
     };
   }, [updateBusMarker]);
+
+  // ─── Heatmap layer toggle ───
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    if (!showHeatmap) {
+      // Restaurar camadas normais
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+      if (stopLayerGroup.current && !map.hasLayer(stopLayerGroup.current)) {
+        map.addLayer(stopLayerGroup.current);
+      }
+      if (routeLayerGroup.current && !map.hasLayer(routeLayerGroup.current)) {
+        map.addLayer(routeLayerGroup.current);
+      }
+      Object.values(busMarkersRef.current).forEach(m => {
+        if (!map.hasLayer(m)) map.addLayer(m);
+      });
+      return;
+    }
+
+    // Esconder tudo para o heatmap ficar limpo
+    if (stopLayerGroup.current && map.hasLayer(stopLayerGroup.current)) {
+      map.removeLayer(stopLayerGroup.current);
+    }
+    if (routeLayerGroup.current && map.hasLayer(routeLayerGroup.current)) {
+      map.removeLayer(routeLayerGroup.current);
+    }
+    Object.values(busMarkersRef.current).forEach(m => {
+      if (map.hasLayer(m)) map.removeLayer(m);
+    });
+
+    const abort = new AbortController();
+    const fetchHeatmap = async () => {
+      try {
+        const res = await api.get('/analytics/heatmap', { signal: abort.signal });
+        const raw = res.data || [];
+        const maxPax = raw.reduce((m, p) => Math.max(m, p.passengerCount || 0), 0) || 1;
+        const points = raw.map(p => [p.lat, p.lng, p.passengerCount / maxPax]);
+
+        if (heatLayerRef.current) {
+          map.removeLayer(heatLayerRef.current);
+          heatLayerRef.current = null;
+        }
+
+        if (points.length > 0) {
+          heatLayerRef.current = L.heatLayer(points, {
+            radius: 22,
+            blur: 18,
+            maxZoom: 16,
+            max: 1.0,
+            minOpacity: 0.35,
+            gradient: {
+              0.2: '#6366f1',
+              0.5: '#10b981',
+              0.75: '#f59e0b',
+              1.0: '#ef4444',
+            },
+          }).addTo(map);
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Error fetching heatmap', err);
+        }
+      }
+    };
+
+    fetchHeatmap();
+    const iv = setInterval(fetchHeatmap, 60_000);
+    return () => {
+      abort.abort();
+      clearInterval(iv);
+      if (heatLayerRef.current && map) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+    };
+  }, [showHeatmap]);
+
+  // ─── Congestion layer toggle ───
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    if (!showCongestion) {
+      if (congestionLayerRef.current) {
+        map.removeLayer(congestionLayerRef.current);
+        congestionLayerRef.current = null;
+      }
+      return;
+    }
+
+    const abort = new AbortController();
+    const fetchCongestion = async () => {
+      try {
+        const res = await api.get('/analytics/congestion', { signal: abort.signal });
+        const raw = res.data || [];
+
+        if (congestionLayerRef.current) {
+          map.removeLayer(congestionLayerRef.current);
+          congestionLayerRef.current = null;
+        }
+
+        if (raw.length > 0) {
+          const group = L.layerGroup();
+          raw.forEach(c => {
+            if (!c.lat || !c.lng) return;
+            const circle = L.circleMarker([c.lat, c.lng], {
+              radius: 10,
+              fillColor: '#ef4444',
+              color: '#fff',
+              weight: 2,
+              fillOpacity: 0.7,
+              className: 'congestion-pulse',
+            });
+            circle.bindPopup(
+              `<div style="font-size:13px">
+                <strong>${c.busId}</strong>${c.routeCode ? ` · <span style="color:#6366f1">${c.routeCode}</span>` : ''}<br/>
+                <span style="color:#ef4444;font-weight:600">${(c.speedKmh || 0).toFixed(1)} km/h</span> · ${c.passengerCount} pax<br/>
+                <span style="color:#94a3b8">${c.recordedAt}</span>
+              </div>`
+            );
+            group.addLayer(circle);
+          });
+          congestionLayerRef.current = group;
+          group.addTo(map);
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Error fetching congestion', err);
+        }
+      }
+    };
+
+    fetchCongestion();
+    const iv = setInterval(fetchCongestion, 60_000);
+    return () => {
+      abort.abort();
+      clearInterval(iv);
+      if (congestionLayerRef.current && map) {
+        map.removeLayer(congestionLayerRef.current);
+        congestionLayerRef.current = null;
+      }
+    };
+  }, [showCongestion]);
 
   // ─── Pre-compute map data ───
   const stopMap = useMemo(() => {
@@ -381,7 +569,31 @@ export default function Livemap() {
 
   return (
     <div className="livemap-wrapper">
-      <div className="livemap-map" ref={mapRef} />
+      <div className="livemap-map-wrap">
+        <div className="livemap-map" ref={mapRef} />
+        <div className="livemap-overlay-controls">
+          <button
+            className={`livemap-overlay-btn${showHeatmap ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => { setShowHeatmap(h => !h); if (!showHeatmap) setShowCongestion(false); }}
+            title={showHeatmap ? 'Desativar heatmap' : 'Heatmap de passageiros'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2c-4 4-8 7.5-8 12a8 8 0 0 0 16 0c0-4.5-4-8-8-12z" />
+            </svg>
+            Heatmap
+          </button>
+          <button
+            className={`livemap-overlay-btn livemap-overlay-btn--danger${showCongestion ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setShowCongestion(c => !c)}
+            title={showCongestion ? 'Desativar congestionamento' : 'Pontos de congestionamento'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Trânsito
+          </button>
+        </div>
+      </div>
 
       <div className="livemap-sidebar">
         <div className="livemap-header">

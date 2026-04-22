@@ -3,7 +3,7 @@ import './BusIcon.css';
 export default function BusIcon({ status = 'stopped' }) {
   const isMoving = status === 'active' || status === 'stopping';
   const isStopped = status === 'stopped';
-  const isAtStop = status === 'at-stop';
+  const isAtStop = status === 'at-stop' || status === 'stopping-at-stop';
 
   return (
     <div className={`bus-icon-wrap bus-icon-wrap--${status}`}>

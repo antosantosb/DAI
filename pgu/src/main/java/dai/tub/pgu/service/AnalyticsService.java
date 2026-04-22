@@ -4,6 +4,8 @@ import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
 import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
 import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
+import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
+import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -94,6 +96,57 @@ public class AnalyticsService {
                 rs.getString("bus_id"),
                 rs.getDouble("avg_passengers"),
                 rs.getInt("max_passengers")
+        ));
+    }
+
+    /**
+     * Velocidade média da frota ao longo do tempo (última hora).
+     * Agrega todos os autocarros por minuto.
+     */
+    public List<SpeedOverTimeData> getSpeedOverTime() {
+        String sql = """
+                SELECT TO_CHAR(minute AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS minute_label,
+                       AVG(avg_speed) AS avg_speed
+                FROM v_speed_over_time
+                WHERE minute >= NOW() - INTERVAL '2 hours'
+                GROUP BY minute, minute_label
+                ORDER BY minute DESC
+                LIMIT 60
+                """;
+        List<SpeedOverTimeData> reversed = jdbcTemplate.query(sql, (rs, rowNum) -> new SpeedOverTimeData(
+                rs.getString("minute_label"),
+                rs.getDouble("avg_speed")
+        ));
+        java.util.Collections.reverse(reversed);
+        return reversed;
+    }
+
+    /**
+     * Pontos de congestionamento (baixa velocidade + alta ocupação), últimas 2h.
+     */
+    public List<CongestionData> getCongestion() {
+        String sql = """
+                SELECT bus_id,
+                       ST_Y(location::geometry) AS lat,
+                       ST_X(location::geometry) AS lng,
+                       speed_kmh,
+                       passenger_count,
+                       TO_CHAR(recorded_at AT TIME ZONE 'Europe/Lisbon', 'HH24:MI') AS recorded_at_label,
+                       route_code,
+                       route_name
+                FROM v_congestion_analysis
+                ORDER BY recorded_at DESC
+                LIMIT 200
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new CongestionData(
+                rs.getString("bus_id"),
+                rs.getDouble("lat"),
+                rs.getDouble("lng"),
+                rs.getDouble("speed_kmh"),
+                rs.getInt("passenger_count"),
+                rs.getString("recorded_at_label"),
+                rs.getString("route_code"),
+                rs.getString("route_name")
         ));
     }
 }

@@ -15,7 +15,11 @@ export default function Buses() {
   const [form, setForm] = useState({ busCode: '', licensePlate: '', capacity: '', routeId: '' });
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
   const [modal, setModal] = useState({ open: false });
+  const [showBatch, setShowBatch] = useState(false);
+  const [batchCount, setBatchCount] = useState('5');
+  const [batchLoading, setBatchLoading] = useState(false);
 
   const showModal = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
@@ -123,6 +127,26 @@ export default function Buses() {
     api.patch(`/buses/${bus.id}`, { status: 'ACTIVE' }).then(load);
   };
 
+  const handleBatch = () => {
+    const n = parseInt(batchCount);
+    if (!n || n < 1 || n > 50) {
+      showModal({ type: 'warning', title: 'Valor inválido', message: 'A quantidade deve ser entre 1 e 50.' });
+      return;
+    }
+    setBatchLoading(true);
+    api.post(`/buses/batch?count=${n}`)
+      .then(() => {
+        setShowBatch(false);
+        setBatchCount('5');
+        load();
+        showModal({ type: 'success', title: 'Sucesso', message: `${n} autocarros criados com sucesso.` });
+      })
+      .catch(err => {
+        showModal({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message });
+      })
+      .finally(() => setBatchLoading(false));
+  };
+
   const handleDecommission = (bus) => {
     if (bus.routeId && bus.status !== 'STOPPED') {
       showModal({ type: 'warning', title: 'Acao indisponivel', message: 'O autocarro tem de estar parado para ser descomissionado.' });
@@ -143,19 +167,34 @@ export default function Buses() {
   const getStatusInfo = (bus) => {
     const t = telemetry[bus.busCode];
     if (bus.status === 'STOPPED') return { label: 'Parado', cls: 'stopped', icon: '&#9632;' };
-    if (bus.status === 'STOPPING') return { label: 'A Parar', cls: 'stopping', icon: '&#9888;' };
+    if (bus.status === 'STOPPING') {
+      if (t && t.status === 'stopped') return { label: 'A Parar — Em Paragem', cls: 'stopping-at-stop', icon: '&#9679;' };
+      return { label: 'A Parar', cls: 'stopping', icon: '&#9888;' };
+    }
     if (!t) return { label: 'Sem Dados', cls: 'unknown', icon: '?' };
     if (t.status === 'stopped') return { label: 'Em Paragem', cls: 'at-stop', icon: '&#9679;' };
     return { label: 'Em Viagem', cls: 'active', icon: '&#9654;' };
   };
 
-  const filtered = buses.filter(bus => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return bus.busCode?.toLowerCase().includes(s) ||
-           bus.licensePlate?.toLowerCase().includes(s) ||
-           bus.routeCode?.toLowerCase().includes(s);
-  });
+  const filtered = buses
+    .filter(bus => {
+      if (filter === 'active') return bus.status !== 'STOPPED';
+      if (filter === 'stopped') return bus.status === 'STOPPED';
+      return true;
+    })
+    .filter(bus => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return bus.busCode?.toLowerCase().includes(s) ||
+             bus.licensePlate?.toLowerCase().includes(s) ||
+             bus.routeCode?.toLowerCase().includes(s);
+    })
+    .sort((a, b) => {
+      const aStoped = a.status === 'STOPPED' ? 1 : 0;
+      const bStoped = b.status === 'STOPPED' ? 1 : 0;
+      if (aStoped !== bStoped) return aStoped - bStoped;
+      return (a.busCode || '').localeCompare(b.busCode || '');
+    });
 
   const activeCount = buses.filter(b => b.routeId && (b.status === 'ACTIVE' || b.status === 'STOPPING')).length;
   const stoppingCount = buses.filter(b => b.status === 'STOPPING').length;
@@ -180,9 +219,14 @@ export default function Buses() {
           <p className="page-subtitle">{buses.length} autocarros registados</p>
         </div>
         {isAdmin && (
-          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            + Novo Autocarro
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-secondary" onClick={() => setShowBatch(true)}>
+              Gerar Batch
+            </button>
+            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+              + Novo Autocarro
+            </button>
+          </div>
         )}
       </div>
 
@@ -198,7 +242,7 @@ export default function Buses() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search & Filters */}
       <div className="bus-toolbar">
         <div className="search-bar">
           <span className="search-bar-icon">&#128269;</span>
@@ -208,7 +252,47 @@ export default function Buses() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <div className="bus-filters">
+          <button className={`btn btn-filter${filter === 'all' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('all')}>
+            Todos ({buses.length})
+          </button>
+          <button className={`btn btn-filter${filter === 'active' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('active')}>
+            Ativos ({buses.length - stoppedCount})
+          </button>
+          <button className={`btn btn-filter${filter === 'stopped' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('stopped')}>
+            Parados ({stoppedCount})
+          </button>
+        </div>
       </div>
+
+      {showBatch && (
+        <div className="form-overlay">
+          <div className="form-card">
+            <h3>Gerar Autocarros em Batch</h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', margin: '0 0 16px' }}>
+              Cria N autocarros com matrículas, capacidades e rotas aleatórias. Todos começam parados.
+            </p>
+            <div className="form-group">
+              <label>Quantidade (1-50)</label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={batchCount}
+                onChange={e => setBatchCount(e.target.value)}
+              />
+            </div>
+            <div className="form-actions">
+              <button className="btn btn-primary" onClick={handleBatch} disabled={batchLoading}>
+                {batchLoading ? 'A criar...' : `Criar ${batchCount || '?'} Autocarros`}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowBatch(false)} disabled={batchLoading}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="form-overlay">
