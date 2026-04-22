@@ -49,14 +49,13 @@ services:
       dockerfile: Dockerfile
     container_name: airflow
     restart: unless-stopped
-    ports:
-      - "8082:8080"
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY}
+      - AIRFLOW__WEBSERVER__BASE_URL=https://${DOMAIN}/airflow
       - _AIRFLOW_DB_MIGRATE=true
       - _AIRFLOW_WWW_USER_CREATE=true
       - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_ADMIN_USER}
@@ -83,10 +82,10 @@ services:
     image: apache/nifi:2.0.0
     container_name: nifi
     restart: unless-stopped
-    ports:
-      - "8443:8443"
     environment:
       - NIFI_WEB_HTTPS_HOST=0.0.0.0
+      - NIFI_WEB_PROXY_HOST=${DOMAIN}
+      - NIFI_WEB_PROXY_CONTEXT_PATH=/nifi
       - SINGLE_USER_CREDENTIALS_USERNAME=${NIFI_USERNAME}
       - SINGLE_USER_CREDENTIALS_PASSWORD=${NIFI_PASSWORD}
       - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
@@ -193,8 +192,9 @@ services:
       KC_DB_PASSWORD: ${TOOLS_DB_PASSWORD}
       KEYCLOAK_ADMIN: ${IAM_ADMIN_USER}
       KEYCLOAK_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD}
-    ports:
-      - "8080:8080"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
     volumes:
       - ./keycloak/pgu-realm-realm.json:/opt/keycloak/data/import/pgu-realm-realm.json:ro
       - ./keycloak/themes/pgu:/opt/keycloak/themes/pgu:ro
@@ -212,8 +212,6 @@ services:
     image: metabase/metabase:v0.52.4
     container_name: metabase
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       MB_DB_TYPE: postgres
       MB_DB_HOST: toolsbd
@@ -221,6 +219,7 @@ services:
       MB_DB_DBNAME: ${METABASE_DB_NAME}
       MB_DB_USER: ${TOOLS_DB_USER}
       MB_DB_PASS: ${TOOLS_DB_PASSWORD}
+      MB_SITE_URL: https://${DOMAIN}/metabase
     depends_on:
       postgres_postgis:
         condition: service_healthy
@@ -239,8 +238,6 @@ services:
       dockerfile: Dockerfile
     container_name: spring-boot-backend
     restart: unless-stopped
-    ports:
-      - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - DW_USER=${DW_USER}
@@ -273,8 +270,6 @@ services:
       dockerfile: Dockerfile
     container_name: osrm
     restart: unless-stopped
-    ports:
-      - "5000:5000"
     networks:
       - osrm_net
 
@@ -299,6 +294,9 @@ services:
       - spring-boot-backend
     networks:
       - etl_net
+      - auth_net
+      - tools_db_net
+      - dw_net
 
 # ==========================================
 # REDES (Micro-Segmentação Zero Trust)
