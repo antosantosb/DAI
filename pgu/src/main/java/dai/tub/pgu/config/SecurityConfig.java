@@ -60,6 +60,7 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/routes/**").hasRole("admin")
                 // Apagar exportações — apenas admin
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/exports/**").hasRole("admin")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/config/**").hasRole("admin")
                 // Tudo o resto — autenticado
                 .anyRequest().authenticated()
             )

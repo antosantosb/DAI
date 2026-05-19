@@ -122,6 +122,13 @@
 			<artifactId>opencsv</artifactId>
 			<version>5.9</version>
 		</dependency>
+
+		<!-- Testes de telemetria -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build> 
