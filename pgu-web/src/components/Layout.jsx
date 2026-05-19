@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
-  IconStop, IconRoute, IconExport, IconAudit,
+  IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs,
 } from './NavIcon';
 import './Layout.css';
 
@@ -11,7 +11,7 @@ export default function Layout() {
   const navigate = useNavigate();
 
   const isAdmin = roles.includes('admin');
-  const displayRole = isAdmin ? 'Administrador' : 'Operador';
+  const displayRole = isAdmin ? 'Administrador' : 'Funcionario';
   const avatarLetter = username ? username.charAt(0).toUpperCase() : '?';
 
   return (
@@ -61,6 +61,19 @@ export default function Layout() {
             <span className="nav-icon"><IconAudit /></span>
             Logs
           </NavLink>
+          {isAdmin && (
+            <>
+              <span className="sidebar-section-label">Administração</span>
+              <NavLink to="/backoffice/gtfs">
+                <span className="nav-icon"><IconGtfs /></span>
+                Dados GTFS
+              </NavLink>
+              <NavLink to="/backoffice/users">
+                <span className="nav-icon"><IconUsers /></span>
+                Utilizadores
+              </NavLink>
+            </>
+          )}
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-footer-user">

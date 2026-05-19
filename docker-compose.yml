@@ -44,43 +44,6 @@ services:
       - osrm_net
 
   # ==========================================
-  # 2.1 ORQUESTRADOR ETL (Apache Airflow)
-  # ==========================================
-  airflow:
-    build:
-      context: ./airflow
-      dockerfile: Dockerfile
-    container_name: airflow
-    restart: unless-stopped
-    environment:
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${TOOLS_DB_USER}:${TOOLS_DB_PASSWORD}@toolsbd:5432/${AIRFLOW_DB_NAME}
-      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
-      - AIRFLOW__CORE__LOAD_EXAMPLES=false
-      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY}
-      - AIRFLOW__WEBSERVER__BASE_URL=https://${DOMAIN}/airflow
-      - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=True
-      - _AIRFLOW_DB_MIGRATE=true
-      - _AIRFLOW_WWW_USER_CREATE=true
-      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_ADMIN_USER}
-      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
-      - BACKEND_URL=http://spring-boot-backend:8081
-      - GTFS_URL=https://www.tub.pt/developer/gtfs/feed/tub.zip
-      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
-    command: bash -c "airflow db migrate && airflow users create --username $${_AIRFLOW_WWW_USER_USERNAME} --password $${_AIRFLOW_WWW_USER_PASSWORD} --firstname Admin --lastname PGU --role Admin --email admin@pgu.local 2>/dev/null; airflow webserver -D && airflow scheduler"
-    depends_on:
-      toolsbd:
-        condition: service_healthy
-      spring-boot-backend:
-        condition: service_started
-      osrm:
-        condition: service_started
-    networks:
-      - tools_db_net
-      - etl_net
-      - osrm_net
-
-  # ==========================================
   # 3. MOTOR ETL (Apache NiFi)
   # ==========================================
   nifi:

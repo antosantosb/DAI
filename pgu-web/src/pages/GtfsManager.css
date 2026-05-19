@@ -1,0 +1,458 @@
+/* ═══════════════════════════════════════════════════════
+   GTFS Manager — Importação e gestão de dados GTFS
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Stats Cards ─── */
+.gtfs-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.gtfs-stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.gtfs-stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.gtfs-stat-card:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.gtfs-stat-card:hover::after { opacity: 1; }
+
+.gtfs-stat-card--total::after    { background: var(--color-primary); }
+.gtfs-stat-card--completed::after { background: var(--color-success); }
+.gtfs-stat-card--processing::after { background: var(--color-warning); }
+.gtfs-stat-card--failed::after    { background: var(--color-danger); }
+
+.gtfs-stat-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.gtfs-stat-icon--total      { background: rgba(99, 102, 241, 0.1); color: var(--color-primary); }
+.gtfs-stat-icon--completed  { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
+.gtfs-stat-icon--processing { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+.gtfs-stat-icon--failed     { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
+
+.gtfs-stat-content { display: flex; flex-direction: column; gap: 2px; }
+.gtfs-stat-value {
+  font-size: 26px; font-weight: 800;
+  color: var(--color-text-heading);
+  letter-spacing: -0.5px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.gtfs-stat-label {
+  font-size: 12px; font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* ─── Tabs ─── */
+.gtfs-tabs {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 24px;
+}
+.gtfs-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 18px;
+  font-size: 14px; font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.gtfs-tab:hover { color: var(--color-text); }
+.gtfs-tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ─── Panel ─── */
+.gtfs-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+/* ─── Upload Grid ─── */
+.gtfs-upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.gtfs-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600;
+  color: var(--color-text-heading);
+  margin: 0 0 16px;
+}
+
+/* ─── Dropzone ─── */
+.gtfs-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.gtfs-dropzone:hover,
+.gtfs-dropzone--active {
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.04);
+}
+.gtfs-dropzone--has-file {
+  border-color: var(--color-success);
+  background: rgba(16, 185, 129, 0.04);
+}
+.gtfs-dropzone-icon { color: var(--color-text-secondary); opacity: 0.5; }
+.gtfs-dropzone-text {
+  font-size: 15px; font-weight: 500;
+  color: var(--color-text);
+}
+.gtfs-dropzone-hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Preview ─── */
+.gtfs-preview {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.gtfs-preview-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 600;
+  color: var(--color-text-heading);
+  margin: 0 0 12px;
+}
+.gtfs-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.gtfs-preview-item {
+  text-align: center;
+  padding: 10px 8px;
+  background: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+.gtfs-preview-value {
+  display: block;
+  font-size: 22px; font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+.gtfs-preview-label {
+  display: block;
+  font-size: 11px; font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+
+/* ─── Warnings ─── */
+.gtfs-warnings {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 12px;
+}
+.gtfs-warning {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-warning);
+}
+
+.gtfs-preview-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 12px;
+}
+
+/* ─── TUB Sync Card ─── */
+.gtfs-tub-card {
+  padding: 24px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.gtfs-tub-description {
+  font-size: 14px; line-height: 1.6;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.gtfs-tub-url {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.gtfs-tub-url-label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.gtfs-tub-url-value {
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+/* ─── Buttons ─── */
+.gtfs-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px;
+  font-size: 14px; font-weight: 500;
+  border: none; border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.gtfs-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.gtfs-btn--primary {
+  background: var(--color-primary); color: #fff;
+}
+.gtfs-btn--primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+.gtfs-btn--secondary {
+  background: var(--color-bg); color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.gtfs-btn--secondary:hover:not(:disabled) { background: var(--color-surface); }
+
+.gtfs-btn--accent {
+  background: linear-gradient(135deg, #2A9D8F, #264653);
+  color: #fff;
+  padding: 12px 24px;
+  font-size: 15px;
+}
+.gtfs-btn--accent:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+
+.gtfs-btn--danger {
+  background: var(--color-danger); color: #fff;
+}
+.gtfs-btn--danger:hover:not(:disabled) { filter: brightness(1.1); }
+
+.gtfs-btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: 1px solid var(--color-border);
+  border-radius: 6px; cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: all var(--transition);
+}
+.gtfs-btn-icon:hover { background: var(--color-bg); }
+.gtfs-btn-icon--danger:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ─── Table ─── */
+.gtfs-table-wrapper { overflow-x: auto; }
+.gtfs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.gtfs-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+.gtfs-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+.gtfs-table tbody tr:hover { background: var(--color-bg); }
+.gtfs-row--reverted { opacity: 0.5; }
+.gtfs-cell-id { font-weight: 600; color: var(--color-text-secondary); font-size: 13px; }
+.gtfs-cell-date { white-space: nowrap; font-size: 13px; }
+.gtfs-cell-user { font-size: 13px; color: var(--color-text-secondary); }
+.gtfs-cell-num { font-variant-numeric: tabular-nums; }
+.gtfs-cell-actions { display: flex; gap: 4px; }
+
+.gtfs-num-created {
+  display: inline-block;
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+.gtfs-num-updated {
+  display: inline-block;
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 12px; font-weight: 500;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  margin-left: 4px;
+}
+
+/* ─── Badges ─── */
+.gtfs-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+}
+.gtfs-badge--processing { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+.gtfs-badge--completed  { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
+.gtfs-badge--failed     { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
+.gtfs-badge--reverted   { background: rgba(107, 114, 128, 0.1); color: var(--color-text-secondary); }
+
+.gtfs-source-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px; font-weight: 500;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+/* ─── Schedule ─── */
+.gtfs-schedule-card {
+  max-width: 640px;
+}
+.gtfs-schedule-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 20px;
+}
+.gtfs-schedule-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600;
+  color: var(--color-text-heading);
+}
+.gtfs-schedule-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.gtfs-schedule-dot--active {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+.gtfs-schedule-dot--inactive {
+  background: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.gtfs-schedule-body {
+  display: flex; flex-direction: column; gap: 20px;
+}
+.gtfs-schedule-field { display: flex; flex-direction: column; gap: 8px; }
+.gtfs-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.gtfs-interval-options {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.gtfs-interval-btn {
+  padding: 8px 16px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.gtfs-interval-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.gtfs-interval-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.gtfs-url-input-group {
+  display: flex; gap: 8px;
+}
+.gtfs-input {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: border-color var(--transition);
+}
+.gtfs-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.gtfs-schedule-next {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-primary);
+}
+
+/* ─── Empty state ─── */
+.gtfs-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-text-secondary);
+}
+.gtfs-empty p { margin-top: 12px; font-size: 15px; }
+
+.gtfs-loading {
+  text-align: center;
+  padding: 48px;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .gtfs-stats { grid-template-columns: repeat(2, 1fr); }
+  .gtfs-upload-grid { grid-template-columns: 1fr; }
+  .gtfs-preview-grid { grid-template-columns: repeat(2, 1fr); }
+}

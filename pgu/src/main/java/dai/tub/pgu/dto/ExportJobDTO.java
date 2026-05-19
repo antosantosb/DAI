@@ -11,6 +11,7 @@ import java.util.UUID;
 public class ExportJobDTO
 {
     private UUID                jobUuid;
+    private ExportJob.DataType  dataType;
     private ExportJob.Format    format;
     private ExportJob.Status    status;
     private String              fileName;
@@ -26,6 +27,7 @@ public class ExportJobDTO
     {
         ExportJobDTO d = new ExportJobDTO();
         d.jobUuid      = j.getJobUuid();
+        d.dataType     = j.getDataType();
         d.format       = j.getFormat();
         d.status       = j.getStatus();
         d.fileName     = j.getFileName();
@@ -39,6 +41,7 @@ public class ExportJobDTO
     }
 
     public UUID                getJobUuid()      { return jobUuid; }
+    public ExportJob.DataType  getDataType()     { return dataType; }
     public ExportJob.Format    getFormat()       { return format; }
     public ExportJob.Status    getStatus()       { return status; }
     public String              getFileName()     { return fileName; }
@@ -48,8 +51,9 @@ public class ExportJobDTO
     public Instant             getCreatedAt()    { return createdAt; }
     public Instant             getCompletedAt()  { return completedAt; }
 
-    public void setJobUuid(UUID v)              { this.jobUuid = v; }
-    public void setFormat(ExportJob.Format v)   { this.format = v; }
+    public void setJobUuid(UUID v)                { this.jobUuid = v; }
+    public void setDataType(ExportJob.DataType v) { this.dataType = v; }
+    public void setFormat(ExportJob.Format v)     { this.format = v; }
     public void setStatus(ExportJob.Status v)   { this.status = v; }
     public void setFileName(String v)           { this.fileName = v; }
     public void setRowCount(Long v)             { this.rowCount = v; }

@@ -10,6 +10,11 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
       },
+      '/ws-telemetry': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })

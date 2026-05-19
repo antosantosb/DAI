@@ -18,6 +18,7 @@ import dai.tub.pgu.dto.RouteStopDTO;
 import dai.tub.pgu.repository.BusStopRepository;
 import dai.tub.pgu.repository.RouteRepository;
 import dai.tub.pgu.repository.RouteSegmentRepository;
+import dai.tub.pgu.repository.RouteStopRepository;
 import jakarta.persistence.EntityManager;
 
 @Service
@@ -28,16 +29,18 @@ public class RouteService
     private final RouteRepository routeRepository;
     private final BusStopRepository busStopRepository;
     private final RouteSegmentRepository segmentRepository;
+    private final RouteStopRepository routeStopRepository;
     private final OsrmService osrmService;
     private final EntityManager entityManager;
 
     public RouteService(RouteRepository routeRepository, BusStopRepository busStopRepository,
-                        RouteSegmentRepository segmentRepository, OsrmService osrmService,
-                        EntityManager entityManager)
+                        RouteSegmentRepository segmentRepository, RouteStopRepository routeStopRepository,
+                        OsrmService osrmService, EntityManager entityManager)
     {
         this.routeRepository = routeRepository;
         this.busStopRepository = busStopRepository;
         this.segmentRepository = segmentRepository;
+        this.routeStopRepository = routeStopRepository;
         this.osrmService = osrmService;
         this.entityManager = entityManager;
     }
@@ -57,10 +60,25 @@ public class RouteService
     @Transactional
     public RouteDTO create(RouteDTO dto)
     {
-        Route route = new Route();
+        // Upsert com pessimistic lock: serializa acessos concorrentes à mesma rota
+        Route route = (dto.getCode() != null)
+            ? routeRepository.findByCodeForUpdate(dto.getCode()).orElse(new Route())
+            : new Route();
+
         route.setName(dto.getName());
         route.setCode(dto.getCode());
         route.setColor(dto.getColor());
+
+        if (route.getId() != null)
+        {
+            routeStopRepository.deleteByRouteId(route.getId());
+            entityManager.flush();
+            entityManager.clear();
+            route = routeRepository.findById(route.getId()).orElseThrow();
+            route.setName(dto.getName());
+            route.setCode(dto.getCode());
+            route.setColor(dto.getColor());
+        }
 
         if (dto.getStops() != null)
         {
@@ -102,8 +120,13 @@ public class RouteService
 
         if (dto.getStops() != null)
         {
-            route.getRouteStops().clear();
-            entityManager.flush(); // Force DELETE before INSERT to avoid unique constraint violation
+            routeStopRepository.deleteByRouteId(route.getId());
+            entityManager.flush();
+            entityManager.clear();
+            route = routeRepository.findById(id).orElseThrow();
+            if (dto.getName() != null) route.setName(dto.getName());
+            if (dto.getCode() != null) route.setCode(dto.getCode());
+            if (dto.getColor() != null) route.setColor(dto.getColor());
             for (RouteStopDTO rsDto : dto.getStops())
             {
                 BusStop stop = busStopRepository.findById(rsDto.getStopId())

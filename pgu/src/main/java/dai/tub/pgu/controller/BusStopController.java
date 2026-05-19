@@ -2,6 +2,9 @@ package dai.tub.pgu.controller;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +18,7 @@ import dai.tub.pgu.service.StopPanelService;
 @RequestMapping("/api/v1/stops")
 public class BusStopController
 {
+    private static final Logger log = LoggerFactory.getLogger(BusStopController.class);
     private final BusStopService busStopService;
     private final StopPanelService stopPanelService;
 
@@ -41,7 +45,15 @@ public class BusStopController
     @LogActivity(action = "Criar paragem")
     public ResponseEntity<BusStopDTO> create(@RequestBody BusStopDTO dto)
     {
-        return ResponseEntity.status(201).body(busStopService.create(dto));
+        try
+        {
+            return ResponseEntity.status(201).body(busStopService.create(dto));
+        }
+        catch (DataIntegrityViolationException e)
+        {
+            log.info("[UPSERT] Paragem '{}' criada por outro thread, a fazer retry", dto.getCode());
+            return ResponseEntity.ok(busStopService.create(dto));
+        }
     }
 
     @PatchMapping("/{id}")

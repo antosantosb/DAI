@@ -13,6 +13,8 @@ import dai.tub.pgu.domain.ExportJob;
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.ExportJobDTO;
 import dai.tub.pgu.dto.ExportRequestDTO;
+import dai.tub.pgu.model.AuditLog;
+import dai.tub.pgu.repository.AuditLogRepository;
 import dai.tub.pgu.repository.ExportJobRepository;
 import dai.tub.pgu.repository.TelemetryRepository;
 import jakarta.annotation.PostConstruct;
@@ -58,6 +60,7 @@ public class ExportService
 
     private final ExportJobRepository   jobRepo;
     private final TelemetryRepository   telemetryRepo;
+    private final AuditLogRepository    auditLogRepo;
     private final SimpMessagingTemplate ws;
     private final ExportService         self; // proxy para @Async funcionar
 
@@ -70,13 +73,15 @@ public class ExportService
 
     public ExportService(ExportJobRepository jobRepo,
                          TelemetryRepository telemetryRepo,
+                         AuditLogRepository auditLogRepo,
                          SimpMessagingTemplate ws,
                          @Lazy ExportService self)
     {
         this.jobRepo       = jobRepo;
         this.telemetryRepo = telemetryRepo;
+        this.auditLogRepo  = auditLogRepo;
         this.ws            = ws;
-        this.self           = self;
+        this.self          = self;
     }
 
     @PostConstruct
@@ -92,6 +97,7 @@ public class ExportService
     public ExportJob submit(ExportRequestDTO req)
     {
         ExportJob job = new ExportJob();
+        job.setDataType(req.getDataType() != null ? req.getDataType() : ExportJob.DataType.TELEMETRY);
         job.setFormat(req.getFormat());
         job.setStatus(ExportJob.Status.PENDING);
         job.setBusIdFilter(req.getBusId());
@@ -116,6 +122,23 @@ public class ExportService
     public List<ExportJobDTO> listAll()
     {
         return jobRepo.findAll().stream()
+            .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+            .map(ExportJobDTO::fromEntity)
+            .toList();
+    }
+
+    public List<ExportJobDTO> listByType(ExportJob.DataType dataType)
+    {
+        // Jobs antigos sem dataType são tratados como TELEMETRY
+        if (dataType == ExportJob.DataType.TELEMETRY)
+        {
+            return jobRepo.findAll().stream()
+                .filter(j -> j.getDataType() == null || j.getDataType() == ExportJob.DataType.TELEMETRY)
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .map(ExportJobDTO::fromEntity)
+                .toList();
+        }
+        return jobRepo.findByDataType(dataType).stream()
             .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
             .map(ExportJobDTO::fromEntity)
             .toList();
@@ -204,35 +227,71 @@ public class ExportService
 
         try
         {
-            // 1. Query telemetria (filtros aplicados em Java para manter simples;
-            //    num passo posterior mudar para @Query paginada por janela temporal)
-            List<VehicleTelemetry> rows = telemetryRepo.findAll().stream()
-                .filter(t -> job.getBusIdFilter() == null || job.getBusIdFilter().equals(t.getBusId()))
-                .filter(t -> job.getFromTs() == null || !t.getRecordedAt().isBefore(job.getFromTs()))
-                .filter(t -> job.getToTs()   == null || !t.getRecordedAt().isAfter(job.getToTs()))
-                .toList();
+            String ts  = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+                            .withZone(java.time.ZoneOffset.UTC).format(Instant.now());
+            String ext = job.getFormat() == ExportJob.Format.CSV ? "csv" : "pdf";
+            long rowCount;
+            String prefix;
+            Path outPath;
 
-            // 2. Escrever ficheiro
-            String ts       = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-                                .withZone(java.time.ZoneOffset.UTC).format(Instant.now());
-            String ext      = job.getFormat() == ExportJob.Format.CSV ? "csv" : "pdf";
-            String fileName = "telemetry-" + ts + "-" + jobUuid + "." + ext;
-            Path   outPath  = Paths.get(exportDir, fileName);
-
-            try (OutputStream os = new FileOutputStream(outPath.toFile()))
+            if (job.getDataType() == ExportJob.DataType.AUDIT_LOG)
             {
-                if (job.getFormat() == ExportJob.Format.CSV)  writeCsv(os, rows);
-                else                                          writePdf(os, rows, job);
+                // ── Exportação de Audit Logs ──
+                java.time.LocalDateTime fromLocal = job.getFromTs() != null
+                    ? java.time.LocalDateTime.ofInstant(job.getFromTs(), ZoneId.of("Europe/Lisbon")) : null;
+                java.time.LocalDateTime toLocal = job.getToTs() != null
+                    ? java.time.LocalDateTime.ofInstant(job.getToTs(), ZoneId.of("Europe/Lisbon")) : null;
+
+                List<AuditLog> logs;
+                if (fromLocal != null && toLocal != null) {
+                    logs = auditLogRepo.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanEqualOrderByCreatedAtDesc(fromLocal, toLocal);
+                } else if (fromLocal != null) {
+                    logs = auditLogRepo.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(fromLocal);
+                } else if (toLocal != null) {
+                    logs = auditLogRepo.findByCreatedAtLessThanEqualOrderByCreatedAtDesc(toLocal);
+                } else {
+                    logs = auditLogRepo.findAllByOrderByCreatedAtDesc();
+                }
+                prefix   = "audit-logs";
+                String fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
+                outPath  = Paths.get(exportDir, fileName);
+
+                try (OutputStream os = new FileOutputStream(outPath.toFile()))
+                {
+                    if (job.getFormat() == ExportJob.Format.CSV) writeAuditCsv(os, logs);
+                    else                                         writeAuditPdf(os, logs, job);
+                }
+                rowCount = logs.size();
+            }
+            else
+            {
+                // ── Exportação de Telemetria (existente) ──
+                List<VehicleTelemetry> rows = telemetryRepo.findAll().stream()
+                    .filter(t -> job.getBusIdFilter() == null || job.getBusIdFilter().equals(t.getBusId()))
+                    .filter(t -> job.getFromTs() == null || !t.getRecordedAt().isBefore(job.getFromTs()))
+                    .filter(t -> job.getToTs()   == null || !t.getRecordedAt().isAfter(job.getToTs()))
+                    .toList();
+
+                prefix   = "telemetry";
+                String fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
+                outPath  = Paths.get(exportDir, fileName);
+
+                try (OutputStream os = new FileOutputStream(outPath.toFile()))
+                {
+                    if (job.getFormat() == ExportJob.Format.CSV) writeCsv(os, rows);
+                    else                                         writePdf(os, rows, job);
+                }
+                rowCount = rows.size();
             }
 
-            // 3. Marcar como concluído
+            // Marcar como concluído
             job.setStatus(ExportJob.Status.COMPLETED);
             job.setFilePath(outPath.toString());
-            job.setFileName(fileName);
-            job.setRowCount((long) rows.size());
+            job.setFileName(outPath.getFileName().toString());
+            job.setRowCount(rowCount);
             job.setCompletedAt(Instant.now());
             jobRepo.save(job);
-            log.info("[EXPORT] Job {} concluído ({} linhas, {})", jobUuid, rows.size(), fileName);
+            log.info("[EXPORT] Job {} concluído ({} linhas, {})", jobUuid, rowCount, outPath.getFileName());
         }
         catch (Exception ex)
         {
@@ -501,6 +560,162 @@ public class ExportService
         c.setPaddingTop(5); c.setPaddingBottom(5); c.setPaddingLeft(8); c.setPaddingRight(8);
         c.setHorizontalAlignment(Element.ALIGN_LEFT);
         t.addCell(c);
+    }
+
+    // ------------------------------------------------------------------
+    // Geradores para Audit Logs
+    // ------------------------------------------------------------------
+    private static final DateTimeFormatter LOG_DT_FMT =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private void writeAuditCsv(OutputStream os, List<AuditLog> logs) throws Exception
+    {
+        try (BufferedWriter w = new BufferedWriter(new java.io.OutputStreamWriter(os, StandardCharsets.UTF_8)))
+        {
+            w.write('﻿'); // BOM for Excel
+            w.write("id,data,utilizador,acao,classe,metodo,sucesso,erro");
+            w.newLine();
+            for (AuditLog l : logs)
+            {
+                w.write(String.join(",",
+                    String.valueOf(l.getId()),
+                    l.getCreatedAt() != null ? l.getCreatedAt().format(LOG_DT_FMT) : "",
+                    csv(l.getUsername()),
+                    csv(l.getAction()),
+                    csv(l.getClassName()),
+                    csv(l.getMethod()),
+                    l.isSuccess() ? "Sim" : "Não",
+                    csv(l.getErrorMsg())
+                ));
+                w.newLine();
+            }
+        }
+    }
+
+    private void writeAuditPdf(OutputStream os, List<AuditLog> logs, ExportJob job) throws Exception
+    {
+        Document doc = new Document(PageSize.A4.rotate(), 36, 36, 96, 48);
+        PdfWriter writer = PdfWriter.getInstance(doc, os);
+        writer.setPageEvent(new BrandFooter());
+        doc.open();
+
+        drawAuditHeader(writer, doc, job);
+        addAuditMetadataBlock(doc, job, logs);
+        doc.add(Chunk.NEWLINE);
+        addAuditDataTable(doc, logs);
+
+        doc.close();
+    }
+
+    private void drawAuditHeader(PdfWriter writer, Document doc, ExportJob job)
+    {
+        PdfContentByte cb = writer.getDirectContentUnder();
+        float x0 = 0;
+        float x1 = doc.getPageSize().getWidth();
+        float y1 = doc.getPageSize().getHeight();
+        float height = 64;
+
+        cb.setColorFill(BRAND_PRIMARY);
+        cb.rectangle(x0, y1 - height, x1 - x0, height);
+        cb.fill();
+        cb.setColorFill(BRAND_ACCENT);
+        cb.rectangle(x0, y1 - height - 3, x1 - x0, 3);
+        cb.fill();
+
+        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.WHITE);
+        Font subFont   = FontFactory.getFont(FontFactory.HELVETICA, 10, new Color(0xE0E7FF));
+
+        com.lowagie.text.pdf.ColumnText.showTextAligned(
+            cb, Element.ALIGN_LEFT,
+            new Phrase("PGU-TUB · Logs de Auditoria", titleFont),
+            doc.left(), y1 - 28, 0);
+        com.lowagie.text.pdf.ColumnText.showTextAligned(
+            cb, Element.ALIGN_LEFT,
+            new Phrase("Exportação de registos de atividade do sistema", subFont),
+            doc.left(), y1 - 46, 0);
+
+        Font tagFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, Color.WHITE);
+        com.lowagie.text.pdf.ColumnText.showTextAligned(
+            cb, Element.ALIGN_RIGHT,
+            new Phrase("RELATÓRIO INTERNO", tagFont),
+            doc.right(), y1 - 28, 0);
+        com.lowagie.text.pdf.ColumnText.showTextAligned(
+            cb, Element.ALIGN_RIGHT,
+            new Phrase(TS_FMT.format(Instant.now()), subFont),
+            doc.right(), y1 - 46, 0);
+    }
+
+    private void addAuditMetadataBlock(Document doc, ExportJob job, List<AuditLog> logs) throws DocumentException
+    {
+        long successCount = logs.stream().filter(AuditLog::isSuccess).count();
+        long errorCount   = logs.size() - successCount;
+
+        PdfPTable meta = new PdfPTable(new float[]{1f, 2.2f, 1f, 2.2f});
+        meta.setWidthPercentage(100);
+        meta.setSpacingBefore(4);
+        meta.setSpacingAfter(12);
+
+        metaCell(meta, "Job ID",         shortUuid(job.getJobUuid()));
+        metaCell(meta, "Gerado",         TS_FMT.format(Instant.now()));
+        metaCell(meta, "Total registos", String.format("%,d", logs.size()));
+        metaCell(meta, "Sucesso/Erros",  String.format("%,d / %,d", successCount, errorCount));
+
+        String janela = (job.getFromTs() == null && job.getToTs() == null)
+            ? "Sem filtro temporal"
+            : fmtTs(job.getFromTs()) + "   →   " + fmtTs(job.getToTs());
+        metaCell(meta, "Janela",         janela);
+        metaCell(meta, "Solicitado por", job.getRequestedBy() == null ? "—" : job.getRequestedBy());
+
+        doc.add(meta);
+    }
+
+    private void addAuditDataTable(Document doc, List<AuditLog> logs) throws DocumentException
+    {
+        PdfPTable table = new PdfPTable(new float[]{1.8f, 1.2f, 1.8f, 1.8f, 0.8f, 2.5f});
+        table.setWidthPercentage(100);
+        table.setHeaderRows(1);
+        table.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+
+        String[] headers = {"Data", "Utilizador", "Ação", "Método", "Estado", "Erro"};
+        Font hFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
+        for (String h : headers)
+        {
+            PdfPCell c = new PdfPCell(new Phrase(h, hFont));
+            c.setBackgroundColor(BRAND_PRIMARY);
+            c.setBorder(Rectangle.NO_BORDER);
+            c.setPaddingTop(8); c.setPaddingBottom(8); c.setPaddingLeft(8); c.setPaddingRight(8);
+            c.setHorizontalAlignment(Element.ALIGN_LEFT);
+            table.addCell(c);
+        }
+
+        Font cFont = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_BODY);
+        Font mFont = FontFactory.getFont(FontFactory.COURIER, 8, TEXT_BODY);
+        Font errFont = FontFactory.getFont(FontFactory.HELVETICA, 7, STATUS_DANGER);
+        int i = 0;
+        for (AuditLog l : logs)
+        {
+            Color bg = (i++ % 2 == 0) ? Color.WHITE : ROW_ZEBRA;
+
+            addBodyCell(table, l.getCreatedAt() != null ? l.getCreatedAt().format(LOG_DT_FMT) : "—", mFont, bg, Element.ALIGN_LEFT);
+            addBodyCell(table, nullSafe(l.getUsername()), cFont, bg, Element.ALIGN_LEFT);
+            addBodyCell(table, nullSafe(l.getAction()), cFont, bg, Element.ALIGN_LEFT);
+            addBodyCell(table, nullSafe(l.getMethod()), mFont, bg, Element.ALIGN_LEFT);
+
+            // Status badge
+            Font statusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8,
+                l.isSuccess() ? STATUS_ACTIVE : STATUS_DANGER);
+            PdfPCell sc = new PdfPCell(new Phrase(l.isSuccess() ? "OK" : "Erro", statusFont));
+            sc.setBackgroundColor(bg);
+            sc.setBorder(Rectangle.BOTTOM);
+            sc.setBorderColor(BORDER_LIGHT);
+            sc.setBorderWidth(0.3f);
+            sc.setPaddingTop(5); sc.setPaddingBottom(5); sc.setPaddingLeft(8); sc.setPaddingRight(8);
+            table.addCell(sc);
+
+            addBodyCell(table, nullSafe(l.getErrorMsg()), l.getErrorMsg() != null ? errFont : cFont, bg, Element.ALIGN_LEFT);
+        }
+
+        doc.add(table);
     }
 
     private static String shortUuid(UUID u) { return u == null ? "—" : u.toString().substring(0, 8) + "…"; }

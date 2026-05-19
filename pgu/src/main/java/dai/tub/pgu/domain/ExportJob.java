@@ -10,6 +10,7 @@ public class ExportJob
 {
     public enum Format { CSV, PDF }
     public enum Status { PENDING, PROCESSING, COMPLETED, FAILED }
+    public enum DataType { TELEMETRY, AUDIT_LOG }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,6 +21,10 @@ public class ExportJob
 
     @Column(name = "requested_by")
     private String requestedBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_type", length = 16)
+    private DataType dataType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
@@ -67,13 +72,15 @@ public class ExportJob
         if (this.createdAt == null) this.createdAt = Instant.now();
         if (this.jobUuid == null)   this.jobUuid   = UUID.randomUUID();
         if (this.status == null)    this.status    = Status.PENDING;
+        if (this.dataType == null)  this.dataType  = DataType.TELEMETRY;
     }
 
     // GET
     public Long    getId()           { return id; }
-    public UUID    getJobUuid()      { return jobUuid; }
-    public String  getRequestedBy()  { return requestedBy; }
-    public Format  getFormat()       { return format; }
+    public UUID     getJobUuid()      { return jobUuid; }
+    public String   getRequestedBy()  { return requestedBy; }
+    public DataType getDataType()     { return dataType; }
+    public Format   getFormat()       { return format; }
     public Status  getStatus()       { return status; }
     public String  getBusIdFilter()  { return busIdFilter; }
     public Instant getFromTs()       { return fromTs; }
@@ -90,6 +97,7 @@ public class ExportJob
     public void setId(Long id)                       { this.id = id; }
     public void setJobUuid(UUID jobUuid)             { this.jobUuid = jobUuid; }
     public void setRequestedBy(String requestedBy)   { this.requestedBy = requestedBy; }
+    public void setDataType(DataType dataType)       { this.dataType = dataType; }
     public void setFormat(Format format)             { this.format = format; }
     public void setStatus(Status status)             { this.status = status; }
     public void setBusIdFilter(String busIdFilter)   { this.busIdFilter = busIdFilter; }

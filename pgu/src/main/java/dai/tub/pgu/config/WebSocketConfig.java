@@ -23,8 +23,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry)
     {
+        // Endpoint STOMP puro (sem SockJS) — @stomp/stompjs v7 usa WebSocket nativo
         registry.addEndpoint("/ws-telemetry")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+                .setAllowedOriginPatterns("*");
     }
 }

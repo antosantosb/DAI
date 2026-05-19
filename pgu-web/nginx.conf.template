@@ -43,8 +43,8 @@ server {
     # ─────────────────────────────────────────
     # WebSocket (Telemetria)
     # ─────────────────────────────────────────
-    location ^~ /ws-telemetry/ {
-        proxy_pass http://spring-boot-backend:8081/ws-telemetry/;
+    location ^~ /ws-telemetry {
+        proxy_pass http://spring-boot-backend:8081/ws-telemetry;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

@@ -52,8 +52,17 @@ export default function AuthProvider({ children }) {
 
   const login = () => keycloak.login({ redirectUri: window.location.origin });
 
-  const logout = () =>
-    keycloak.logout({ redirectUri: window.location.origin });
+  const logout = () => {
+    const params = new URLSearchParams({
+      post_logout_redirect_uri: window.location.origin,
+      client_id: keycloak.clientId,
+    });
+    // id_token_hint evita a pagina de confirmacao do Keycloak
+    if (keycloak.idToken) {
+      params.set('id_token_hint', keycloak.idToken);
+    }
+    window.location.href = `${keycloak.authServerUrl}/realms/${keycloak.realm}/protocol/openid-connect/logout?${params}`;
+  };
 
   const hasRole = (role) =>
     keycloak.hasRealmRole?.(role) ?? false;
@@ -63,7 +72,7 @@ export default function AuthProvider({ children }) {
 
   const roles =
     keycloak.tokenParsed?.realm_access?.roles?.filter(
-      (r) => r === 'admin' || r === 'operator'
+      (r) => r === 'admin' || r === 'funcionario'
     ) ?? [];
 
   const value = {

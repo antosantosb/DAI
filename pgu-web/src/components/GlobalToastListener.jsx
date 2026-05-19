@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 
 /**
  * Subscreve tópicos STOMP globais e emite toasts:
@@ -13,8 +12,9 @@ import SockJS from 'sockjs-client';
  */
 export default function GlobalToastListener() {
   useEffect(() => {
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS(`${window.location.origin}/ws-telemetry`),
+      brokerURL: wsUrl,
       reconnectDelay: 5000,
       onConnect: () => {
         console.log('Global Toast Listener connected via SockJS');

@@ -41,28 +41,47 @@ public class ExportController
     }
 
     @GetMapping
-    public List<ExportJobDTO> list()
+    public List<ExportJobDTO> list(@RequestParam(required = false) String type)
     {
+        if (type != null) {
+            try {
+                ExportJob.DataType dt = ExportJob.DataType.valueOf(type.toUpperCase());
+                return exportService.listByType(dt);
+            } catch (IllegalArgumentException ignored) {}
+        }
         return exportService.listAll();
     }
 
     @PostMapping("/telemetry")
-    @LogActivity(action = "Submeter exportação")
-    public ResponseEntity<ExportJobDTO> submit(@RequestBody ExportRequestDTO req,
-                                               @AuthenticationPrincipal Jwt jwt)
+    @LogActivity(action = "Submeter exportação de telemetria")
+    public ResponseEntity<ExportJobDTO> submitTelemetry(@RequestBody ExportRequestDTO req,
+                                                        @AuthenticationPrincipal Jwt jwt)
     {
         if (req.getFormat() == null)
             return ResponseEntity.badRequest().build();
 
-        // Extrair username do JWT (mais seguro do que confiar no frontend)
         String username = jwt.getClaimAsString("preferred_username");
         if (username != null) req.setRequestedBy(username);
+        req.setDataType(ExportJob.DataType.TELEMETRY);
 
         ExportJob job = exportService.submit(req);
-        // 202 Accepted — o trabalho está em processamento
-        return ResponseEntity
-            .accepted()
-            .body(ExportJobDTO.fromEntity(job));
+        return ResponseEntity.accepted().body(ExportJobDTO.fromEntity(job));
+    }
+
+    @PostMapping("/logs")
+    @LogActivity(action = "Submeter exportação de logs")
+    public ResponseEntity<ExportJobDTO> submitLogs(@RequestBody ExportRequestDTO req,
+                                                    @AuthenticationPrincipal Jwt jwt)
+    {
+        if (req.getFormat() == null)
+            return ResponseEntity.badRequest().build();
+
+        String username = jwt.getClaimAsString("preferred_username");
+        if (username != null) req.setRequestedBy(username);
+        req.setDataType(ExportJob.DataType.AUDIT_LOG);
+
+        ExportJob job = exportService.submit(req);
+        return ResponseEntity.accepted().body(ExportJobDTO.fromEntity(job));
     }
 
     @GetMapping("/{uuid}")

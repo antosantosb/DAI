@@ -5,7 +5,7 @@ export default function AccountTab() {
   const { username, roles, logout } = useAuth();
   const navigate = useNavigate();
 
-  const roleLabel = roles.includes('admin') ? 'Administrador' : 'Operador';
+  const roleLabel = roles.includes('admin') ? 'Administrador' : 'Funcionario';
 
   return (
     <div className="livemap-account">

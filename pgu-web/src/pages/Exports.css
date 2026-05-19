@@ -1,44 +1,130 @@
-.exports-page {
-  padding: 24px 32px;
-  max-width: 1100px;
-  margin: 0 auto;
+/* ═══════════════════════════════════════════════════════
+   Exports Page — Exportação Massiva
+   UI/UX Pro Max audit applied
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Stats Cards ─── */
+.export-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.exports-header h1 {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text-heading);
+.export-stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
 }
-.exports-header p {
-  margin: 0 0 24px;
+
+.export-stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.export-stat-card:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.export-stat-card:hover::after { opacity: 1; }
+
+.export-stat-card--total::after { background: var(--color-primary); }
+.export-stat-card--completed::after { background: var(--color-success); }
+.export-stat-card--pending::after { background: var(--color-warning); }
+.export-stat-card--failed::after { background: var(--color-danger); }
+
+.export-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.export-stat-icon--total {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+}
+.export-stat-icon--completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+.export-stat-icon--pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
+}
+.export-stat-icon--failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+}
+
+.export-stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.export-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-text-heading);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.export-stat-label {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  font-size: 14px;
-  max-width: 720px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 /* ─── Form ─── */
-.exports-form {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr) auto;
-  gap: 12px;
-  align-items: end;
+.export-form {
   background: var(--color-surface);
-  padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-xs);
+  padding: 20px 24px;
   margin-bottom: 28px;
+  box-shadow: var(--shadow-xs);
 }
 
-.exports-field {
+.export-form-fields {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.export-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  position: relative;
 }
 
-.exports-field label {
+.export-field label {
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -46,11 +132,11 @@
   letter-spacing: 0.04em;
 }
 
-.exports-field input,
-.exports-field select {
+.export-field input,
+.export-field select {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 9px 10px;
+  padding: 9px 12px;
   font-size: 14px;
   background: var(--color-surface);
   color: var(--color-text);
@@ -58,29 +144,34 @@
   transition: border-color var(--transition), box-shadow var(--transition);
   min-height: 40px;
 }
-.exports-field input:focus,
-.exports-field select:focus {
+
+.export-field input:focus,
+.export-field select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
-.exports-hint {
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  line-height: 1.4;
+.export-submit-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 14px;
+  gap: 8px;
 }
 
-/* ─── Combobox de autocarros ─── */
-.exports-combobox {
+/* ─── Combobox ─── */
+.export-combobox {
   position: relative;
 }
-.exports-combobox input {
+
+.export-combobox input {
   width: 100%;
-  padding-right: 56px; /* espaço para os botões */
+  padding-right: 56px;
   box-sizing: border-box;
 }
-.exports-combobox-clear,
-.exports-combobox-toggle {
+
+.export-combobox-clear,
+.export-combobox-toggle {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -95,29 +186,32 @@
   border-radius: var(--radius-sm);
   transition: background var(--transition), color var(--transition);
 }
-.exports-combobox-clear {
+
+.export-combobox-clear {
   right: 30px;
-  width: 20px;
-  height: 20px;
-  font-size: 18px;
-  line-height: 1;
+  width: 22px;
+  height: 22px;
 }
-.exports-combobox-clear:hover {
+
+.export-combobox-clear:hover {
   color: var(--color-danger);
-  background: var(--color-danger-light);
+  background: rgba(239, 68, 68, 0.08);
 }
-.exports-combobox-toggle {
+
+.export-combobox-toggle {
   right: 8px;
   width: 22px;
   height: 22px;
 }
-.exports-combobox-toggle:hover { color: var(--color-primary); }
-.exports-combobox.is-open .exports-combobox-toggle svg {
+
+.export-combobox-toggle:hover { color: var(--color-primary); }
+
+.export-combobox.is-open .export-combobox-toggle svg {
   transform: rotate(180deg);
   transition: transform var(--transition);
 }
 
-.exports-combobox-list {
+.export-combobox-list {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -131,9 +225,10 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md, 0 6px 16px -4px rgba(0,0,0,0.12));
+  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.12);
 }
-.exports-combobox-item {
+
+.export-combobox-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -145,16 +240,19 @@
   color: var(--color-text);
   transition: background var(--transition);
 }
-.exports-combobox-item.is-active,
-.exports-combobox-item:hover {
+
+.export-combobox-item.is-active,
+.export-combobox-item:hover {
   background: var(--color-primary-light);
   color: var(--color-primary-hover);
 }
-.exports-combobox-code {
+
+.export-combobox-code {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 600;
 }
-.exports-combobox-meta {
+
+.export-combobox-meta {
   font-size: 11px;
   color: var(--color-text-secondary);
   text-align: right;
@@ -164,8 +262,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.exports-combobox-item.is-active .exports-combobox-meta { color: var(--color-primary-hover); }
-.exports-combobox-empty {
+
+.export-combobox-item.is-active .export-combobox-meta { color: var(--color-primary-hover); }
+
+.export-combobox-empty {
   padding: 10px;
   font-size: 12px;
   font-style: italic;
@@ -173,78 +273,132 @@
   text-align: center;
 }
 
-.exports-submit {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  padding: 0 18px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  height: 40px;
-  transition: background var(--transition), transform var(--transition);
-  white-space: nowrap;
-}
-.exports-submit:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-.exports-submit:active:not(:disabled) { transform: scale(0.98); }
-.exports-submit:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-primary-glow);
-}
-.exports-submit:disabled {
-  background: var(--color-text-light);
-  cursor: not-allowed;
+/* ─── Spinner ─── */
+.export-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: export-spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
-/* ─── História ─── */
-.exports-history h2 {
+@keyframes export-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── History Section ─── */
+.export-history {
+  margin-top: 4px;
+}
+
+.export-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.export-history-header h2 {
+  margin: 0;
   font-size: 16px;
-  margin: 0 0 12px;
+  font-weight: 700;
   color: var(--color-text-heading);
 }
 
-.exports-empty {
-  color: var(--color-text-light);
-  font-style: italic;
-  font-size: 14px;
+.export-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.exports-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  font-size: 14px;
-  box-shadow: var(--shadow-xs);
-}
-.exports-table th,
-.exports-table td {
-  padding: 12px 16px;
-  text-align: left;
-  vertical-align: middle;
-}
-.exports-table thead {
-  background: var(--color-bg);
+.export-retention-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
+  color: var(--color-text-light);
+}
+
+/* ─── Format Badge ─── */
+.export-format-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-secondary);
 }
-.exports-table thead th {
-  font-weight: 600;
-  border-bottom: 1px solid var(--color-border);
+
+.export-format--csv {
+  background: rgba(99, 102, 241, 0.08);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.15);
 }
-.exports-table tbody tr {
-  border-top: 1px solid var(--color-border-light);
-  transition: background var(--transition);
+
+.export-format--pdf {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.15);
 }
-.exports-table tbody tr:hover { background: var(--color-border-light); }
-.exports-filename {
+
+/* ─── Status ─── */
+.export-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.export-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.export-status--completed { color: var(--color-success-hover); }
+.export-status--completed .export-status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.export-status--pending { color: var(--color-text-secondary); }
+.export-status--pending .export-status-dot {
+  background: var(--color-text-light);
+}
+
+.export-status--processing { color: var(--color-warning-hover); }
+.export-status--processing .export-status-dot {
+  background: var(--color-warning);
+  animation: export-pulse 1.5s ease-in-out infinite;
+}
+
+.export-status--failed { color: var(--color-danger-hover); }
+.export-status--failed .export-status-dot {
+  background: var(--color-danger);
+}
+
+@keyframes export-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ─── Numbers ─── */
+.export-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ─── Filename ─── */
+.export-filename {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 12px;
   color: var(--color-text-secondary);
@@ -256,110 +410,562 @@
   cursor: help;
 }
 
-/* Badges por estado */
-.exports-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+/* ─── Actions ─── */
+.export-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.exports-badge-PENDING    { background: var(--color-border); color: var(--color-text-secondary); }
-.exports-badge-PROCESSING { background: var(--color-warning-light); color: var(--color-warning-hover); }
-.exports-badge-COMPLETED  { background: var(--color-success-light); color: var(--color-success-hover); }
-.exports-badge-FAILED     { background: var(--color-danger-light); color: var(--color-danger-hover); }
 
-.exports-view,
-.exports-download {
+.export-error-hint {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #fff;
-  padding: 6px 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background var(--transition);
-}
-.exports-download { background: var(--color-primary); }
-.exports-download:hover { background: var(--color-primary-hover); }
-.exports-view { background: var(--color-primary); }
-.exports-view:hover { background: var(--color-primary-hover); }
-.exports-view:focus-visible,
-.exports-download:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-primary-glow);
-}
-
-.exports-error {
   color: var(--color-danger-hover);
   font-size: 12px;
   cursor: help;
   text-decoration: underline dotted;
 }
 
-/* Header da secção de histórico com nota de retenção ao lado */
-.exports-history-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-.exports-history-head h2 { margin: 0; }
-.exports-retention-note {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-light);
-  font-style: italic;
-}
-
-/* Agrupar ações da linha (descarregar + apagar) */
-.exports-actions {
+.export-processing-hint {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 200px;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-light);
 }
 
-/* Botão apagar — ícone discreto; fica vermelho no hover porque é destrutivo */
-.exports-delete {
+.export-processing-hint .export-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: var(--color-border);
+  border-top-color: var(--color-warning);
+}
+
+/* ─── Delete Button ─── */
+.export-delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border-radius: var(--radius-xs);
+  border-radius: 6px;
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-text-light);
   cursor: pointer;
   transition: all var(--transition);
 }
-.exports-delete:hover {
-  background: var(--color-danger-light, #fee2e2);
-  border-color: var(--color-danger, #ef4444);
-  color: var(--color-danger, #ef4444);
-}
-.exports-delete:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-danger-glow, rgba(239, 68, 68, 0.25));
-}
-.exports-delete:active { transform: scale(0.94); }
 
+.export-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.export-delete-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.export-delete-btn:active { transform: scale(0.94); }
+
+/* ─── Checkbox ─── */
+.export-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.export-checkbox-label input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.export-checkbox-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-checkbox-box::after {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.15s ease;
+}
+
+.export-checkbox-label input:checked + .export-checkbox-box {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.export-checkbox-label input:checked + .export-checkbox-box::after {
+  opacity: 1;
+  transform: scale(1);
+  background: #fff;
+  /* checkmark via clip-path */
+  clip-path: polygon(20% 55%, 40% 75%, 80% 30%, 85% 35%, 40% 85%, 15% 60%);
+  width: 12px;
+  height: 12px;
+}
+
+.export-checkbox-label input:indeterminate + .export-checkbox-box {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.export-checkbox-label input:indeterminate + .export-checkbox-box::after {
+  opacity: 1;
+  transform: scale(1);
+  background: #fff;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  clip-path: none;
+}
+
+.export-checkbox-label input:focus-visible + .export-checkbox-box {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.export-checkbox-label input:disabled + .export-checkbox-box {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.export-checkbox-placeholder {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── Checkbox column ─── */
+.export-checkbox-cell {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  width: 44px;
+  padding: 12px 8px 12px 16px !important;
+}
+
+/* ─── Selected Row ─── */
+.export-row--selected {
+  background: rgba(99, 102, 241, 0.04) !important;
+}
+
+/* ─── Empty State ─── */
+.export-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.export-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-light);
+}
+
+.export-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.export-empty-text {
+  font-size: 13px;
+  color: var(--color-text-light);
+  max-width: 360px;
+}
+
+/* ─── Tabs ─── */
+.export-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0;
+}
+
+.export-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  min-height: 44px;
+}
+
+.export-tab:hover {
+  color: var(--color-text);
+  background: var(--color-border-light);
+}
+
+.export-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.export-tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.export-tab--active:hover {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.export-tab svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity var(--transition);
+}
+
+.export-tab--active svg {
+  opacity: 1;
+}
+
+/* ─── Logs Section ─── */
+.export-logs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.export-logs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.export-logs-toolbar .search-bar {
+  flex: 1;
+  min-width: 200px;
+}
+
+.export-logs-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ─── Log Table Cells ─── */
+.export-log-date {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.export-log-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-border-light);
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.export-log-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.export-log-method {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-log-error {
+  font-size: 12px;
+  color: var(--color-danger-hover);
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.5;
+  max-width: 300px;
+}
+
+/* ─── Error Row Highlight ─── */
+.export-log-row--error {
+  background: rgba(239, 68, 68, 0.03) !important;
+}
+
+.export-log-row--error:hover {
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+/* ─── Logs Form (3 cols instead of 4) ─── */
+.export-form-fields--logs {
+  grid-template-columns: 140px 1fr 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Log Viewer — UI/UX Pro Max
+   ═══════════════════════════════════════════════════════ */
+.log-viewer {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 2px solid var(--color-border);
+}
+
+.log-viewer-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.log-viewer-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.log-viewer-subtitle {
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+/* ─── Log Stats (compact inline) ─── */
+.log-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.log-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+}
+
+.log-stat:hover {
+  box-shadow: var(--shadow-xs);
+  transform: translateY(-1px);
+}
+
+.log-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.log-stat-icon--total {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+}
+
+.log-stat-icon--success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+
+.log-stat-icon--error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+}
+
+.log-stat-icon--users {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
+}
+
+.log-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.log-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-text-heading);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.3px;
+}
+
+.log-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ─── Log Viewer Toolbar ─── */
+.log-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.log-viewer-toolbar .search-bar {
+  flex: 1;
+  min-width: 200px;
+}
+
+.log-viewer-filters {
+  display: flex;
+  gap: 6px;
+}
+
+/* ─── Responsive ─── */
 @media (max-width: 900px) {
-  .exports-page { padding: 16px; }
-  .exports-form { grid-template-columns: 1fr 1fr; }
-  .exports-submit { grid-column: 1 / -1; }
-  .exports-table { font-size: 13px; }
-  .exports-table th,
-  .exports-table td { padding: 10px 12px; }
+  .export-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .export-form-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .export-history-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .export-history-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .export-form-fields--logs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .log-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .log-viewer-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .log-viewer-filters {
+    width: 100%;
+  }
+
+  .log-viewer-filters .btn-filter {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .export-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .export-form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .export-form-fields--logs {
+    grid-template-columns: 1fr;
+  }
+
+  .export-stat-card {
+    padding: 14px 16px;
+  }
+
+  .export-stat-value {
+    font-size: 22px;
+  }
+
+  .export-tabs {
+    gap: 0;
+  }
+
+  .export-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .log-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .export-log-method {
+    max-width: 120px;
+  }
+
+  .export-log-error {
+    max-width: none;
+  }
 }

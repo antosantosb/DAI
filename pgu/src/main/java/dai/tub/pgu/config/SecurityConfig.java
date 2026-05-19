@@ -45,10 +45,12 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
                 .requestMatchers(HttpMethod.POST, "/api/v1/exports/**").authenticated()
+                // Gestão de utilizadores — apenas admin
+                .requestMatchers("/api/v1/users/**").hasRole("admin")
                 // Escrita em recursos de gestão — apenas admin
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/buses/**").hasRole("admin")
-                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "operator")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "funcionario")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/stops/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/stops/**").hasRole("admin")

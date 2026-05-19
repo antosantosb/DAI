@@ -37,12 +37,17 @@ public class BusStopService
 
     public BusStopDTO create(BusStopDTO dto)
     {
-        BusStop stop = new BusStop();
+        // Upsert: se já existir paragem com este código, atualizar em vez de falhar
+        BusStop stop = (dto.getCode() != null)
+            ? busStopRepository.findByCode(dto.getCode()).orElse(new BusStop())
+            : new BusStop();
+
         stop.setName(dto.getName());
         stop.setCode(dto.getCode());
         stop.setMaxBusesDisplay(dto.getMaxBusesDisplay() != null ? dto.getMaxBusesDisplay() : 3);
         stop.setPanelMessage(dto.getPanelMessage());
-        stop.setLocation(geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude())));
+        if (dto.getLatitude() != null && dto.getLongitude() != null)
+            stop.setLocation(geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude())));
 
         return toDTO(busStopRepository.save(stop));
     }

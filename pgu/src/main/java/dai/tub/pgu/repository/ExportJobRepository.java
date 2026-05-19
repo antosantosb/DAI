@@ -14,6 +14,8 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, Long>
 {
     Optional<ExportJob> findByJobUuid(UUID jobUuid);
 
+    List<ExportJob> findByDataType(ExportJob.DataType dataType);
+
     /** Usado pela purga automática: jobs concluídos/falhados há mais de X. */
     List<ExportJob> findByCompletedAtBefore(Instant cutoff);
 }

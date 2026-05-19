@@ -40,7 +40,7 @@ export default function Landing() {
                 Bem-vindo, <strong>{username}</strong>
               </span>
               <span className="landing-user-role">
-                {roles.includes('admin') ? 'Administrador' : 'Operador'}
+                {roles.includes('admin') ? 'Administrador' : 'Funcionário'}
               </span>
             </div>
 

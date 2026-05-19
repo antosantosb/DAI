@@ -13,6 +13,9 @@ ehthumbs.db
 .env
 .env.*
 !.env.example
+!pgu-web/.env.development
+!pgu-web/.env.production
+docker-compose.override.yml
 
 # ==========================================
 # LOGS E DADOS LOCAIS
