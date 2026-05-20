@@ -1,5 +1,5 @@
 CREATE TABLE global_config (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     delay_limit_minutes INT NOT NULL DEFAULT 5,
     soc_tolerance_percent INT NOT NULL DEFAULT 10,
     iot_integration_limit INT NOT NULL DEFAULT 1000,
