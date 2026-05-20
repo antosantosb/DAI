@@ -166,12 +166,19 @@ services:
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
     volumes:
       - ./keycloak/pgu-realm-realm.json:/opt/keycloak/data/import/pgu-realm-realm.json:ro
       - ./keycloak/themes/pgu:/opt/keycloak/themes/pgu:ro
     depends_on:
       toolsbd:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
     networks:
       - tools_db_net
       - auth_net
@@ -224,7 +231,7 @@ services:
       postgres_postgis:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       osrm:
         condition: service_started
     networks:

@@ -119,6 +119,21 @@
 }
 .pgu-toast-action:hover { background: var(--color-success-hover, #059669); }
 
+/* ─── Barra de progresso inline (GTFS sync, etc.) ─── */
+.pgu-progress-track {
+  margin-top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border, rgba(0,0,0,0.08));
+  overflow: hidden;
+}
+.pgu-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary, #6366f1);
+  transition: width 0.4s ease;
+}
+
 @media (max-width: 520px) {
   .Toastify__toast-container { width: calc(100vw - 16px); padding: 8px; }
 }

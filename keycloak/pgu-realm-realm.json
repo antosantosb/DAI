@@ -7,7 +7,7 @@
   "roles": {
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },
-      { "name": "funcionario", "description": "Acesso ao backoffice — operações do dia-a-dia" }
+      { "name": "operador", "description": "Acesso ao backoffice - operações do dia-a-dia" }
     ]
   },
   "clients": [
@@ -45,19 +45,19 @@
       "realmRoles": ["admin"]
     },
     {
-      "username": "funcionario",
+      "username": "operador",
       "enabled": true,
-      "email": "funcionario@pgu.local",
-      "firstName": "Funcionário",
+      "email": "operador@pgu.local",
+      "firstName": "Operador",
       "lastName": "PGU",
       "credentials": [
         {
           "type": "password",
-          "value": "funcionario123",
+          "value": "operador123",
           "temporary": false
         }
       ],
-      "realmRoles": ["funcionario"]
+      "realmRoles": ["operador"]
     }
   ]
 }

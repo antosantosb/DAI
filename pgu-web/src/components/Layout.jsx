@@ -28,7 +28,7 @@ export default function Layout() {
   }, []);
 
   const isAdmin = roles.includes('admin');
-  const displayRole = isAdmin ? 'Administrador' : 'Funcionario';
+  const displayRole = isAdmin ? 'Administrador' : 'Operador';
   const avatarLetter = username ? username.charAt(0).toUpperCase() : '?';
 
   return (

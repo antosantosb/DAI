@@ -64,7 +64,7 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasRole("admin")
 
                 .requestMatchers(HttpMethod.PUT, "/api/v1/buses/**").hasRole("admin")
-                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "funcionario")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "operador")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/stops/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/stops/**").hasRole("admin")

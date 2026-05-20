@@ -4,14 +4,14 @@ import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import './Users.css';
 
-// Apenas funcionário — contas admin são geridas diretamente no Keycloak
+// Apenas operador — contas admin são geridas diretamente no Keycloak
 const ROLE_OPTIONS = [
-  { value: 'funcionario', label: 'Funcionário' },
+  { value: 'operador', label: 'Operador' },
 ];
 
 const EMPTY_FORM = {
   username: '', email: '', firstName: '', lastName: '',
-  password: '', role: 'funcionario', enabled: true,
+  password: '', role: 'operador', enabled: true,
 };
 
 export default function Users() {
@@ -93,7 +93,7 @@ export default function Users() {
       firstName: user.firstName || '',
       lastName: user.lastName || '',
       password: '',
-      role: user.roles?.[0] || 'funcionario',
+      role: user.roles?.[0] || 'operador',
       enabled: user.enabled,
     });
     setEditing(user.id);
@@ -138,13 +138,13 @@ export default function Users() {
   const getRoleLabel = (roles) => {
     if (!roles?.length) return 'Sem role';
     if (roles.includes('admin')) return 'Admin';
-    if (roles.includes('funcionario')) return 'Funcionário';
+    if (roles.includes('operador')) return 'Operador';
     return roles[0];
   };
 
   const getRoleCls = (roles) => {
     if (roles?.includes('admin')) return 'user-role--admin';
-    if (roles?.includes('funcionario')) return 'user-role--func';
+    if (roles?.includes('operador')) return 'user-role--func';
     return 'user-role--none';
   };
 

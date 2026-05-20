@@ -14,6 +14,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import com.opencsv.CSVReaderBuilder;
 import dai.tub.pgu.domain.*;
 import dai.tub.pgu.dto.GtfsConfigDTO;
 import dai.tub.pgu.dto.GtfsImportDTO;
+import dai.tub.pgu.dto.GtfsProgressDTO;
 import dai.tub.pgu.dto.StopScheduleDTO;
 import dai.tub.pgu.repository.*;
 
@@ -49,6 +51,7 @@ public class GtfsService
     private final RouteSegmentRepository segmentRepository;
     private final StopScheduleRepository scheduleRepository;
     private final BusRepository busRepository;
+    private final SimpMessagingTemplate ws;
     private final GeometryFactory geometryFactory;
     private final ObjectMapper objectMapper;
 
@@ -60,7 +63,8 @@ public class GtfsService
                        RouteStopRepository routeStopRepository,
                        RouteSegmentRepository segmentRepository,
                        StopScheduleRepository scheduleRepository,
-                       BusRepository busRepository)
+                       BusRepository busRepository,
+                       SimpMessagingTemplate ws)
     {
         this.importRepository = importRepository;
         this.importEntityRepository = importEntityRepository;
@@ -71,8 +75,23 @@ public class GtfsService
         this.segmentRepository = segmentRepository;
         this.scheduleRepository = scheduleRepository;
         this.busRepository = busRepository;
+        this.ws = ws;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         this.objectMapper = new ObjectMapper();
+    }
+
+    /** Envia progresso GTFS via WebSocket. */
+    private void broadcastProgress(Long importId, String step, String message, int progress)
+    {
+        try
+        {
+            ws.convertAndSend("/topic/gtfs/progress",
+                    new GtfsProgressDTO(importId, step, message, progress));
+        }
+        catch (Exception e)
+        {
+            log.debug("[GTFS] Falha ao enviar progresso WS: {}", e.getMessage());
+        }
     }
 
     // ================================================================
@@ -136,14 +155,17 @@ public class GtfsService
     public void processUpload(byte[] zipBytes, String filename, String username)
     {
         GtfsImport imp = createImportRecord("UPLOAD", filename, username);
+        broadcastProgress(imp.getId(), "PROCESSING_STOPS", "A processar ficheiro " + filename + "…", 10);
         try
         {
             Map<String, byte[]> files = extractZip(zipBytes);
             processGtfsFiles(imp, files);
+            broadcastProgress(imp.getId(), "COMPLETED", "Importação concluída com sucesso", 100);
         }
         catch (Exception e)
         {
             failImport(imp, e);
+            broadcastProgress(imp.getId(), "FAILED", "Erro: " + e.getMessage(), 0);
         }
     }
 
@@ -154,24 +176,49 @@ public class GtfsService
         if (!syncInProgress.compareAndSet(false, true))
         {
             log.warn("[GTFS] Sincronização TUB já em curso, a ignorar pedido duplicado");
+            broadcastProgress(null, "SKIPPED", "Já existe uma sincronização em curso", 0);
             return;
         }
         try
         {
+            // ── Skip se dados recentes (qualquer fonte, não revertida) ──
             GtfsConfig config = getOrCreateConfig();
+            List<GtfsImport> recent = importRepository.findLastCompleted();
+            if (!recent.isEmpty())
+            {
+                Instant lastCompleted = recent.get(0).getFinishedAt();
+                if (lastCompleted != null)
+                {
+                    long hoursSinceLast = java.time.Duration.between(lastCompleted, Instant.now()).toHours();
+                    if (hoursSinceLast < config.getIntervalHours())
+                    {
+                        log.info("[GTFS] Dados GTFS ainda recentes (há {}h, intervalo={}h) — a saltar",
+                                hoursSinceLast, config.getIntervalHours());
+                        broadcastProgress(null, "SKIPPED",
+                                "Dados GTFS atualizados (última sync há " + hoursSinceLast + "h)", 0);
+                        return;
+                    }
+                }
+            }
+
+            // ── Download + processamento ────────────────────────
             GtfsImport imp = createImportRecord(source, "tub.zip", username);
+            broadcastProgress(imp.getId(), "DOWNLOADING", "A descarregar dados GTFS dos TUB…", 5);
             try
             {
                 log.info("[GTFS] A descarregar de {} ...", config.getGtfsUrl());
                 byte[] zipBytes = URI.create(config.getGtfsUrl()).toURL().openStream().readAllBytes();
                 log.info("[GTFS] Download completo ({} KB)", zipBytes.length / 1024);
 
+                broadcastProgress(imp.getId(), "PROCESSING_STOPS", "A processar paragens…", 20);
                 Map<String, byte[]> files = extractZip(zipBytes);
                 processGtfsFiles(imp, files);
+                broadcastProgress(imp.getId(), "COMPLETED", "Sincronização GTFS concluída", 100);
             }
             catch (Exception e)
             {
                 failImport(imp, e);
+                broadcastProgress(imp.getId(), "FAILED", "Erro: " + e.getMessage(), 0);
             }
         }
         finally
@@ -431,6 +478,8 @@ public class GtfsService
                         imp.getId(), stopsCreated, stopsUpdated);
             }
 
+            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A mapear viagens e horários…", 40);
+
             // 2. CONSTRUIR MAPA ROTA → PARAGENS + HORÁRIOS
             Map<String, List<String[]>> routeStopsMap = new HashMap<>(); // route_id → [(stop_id, sequence)]
             Map<String, String> routeShapeMap = new HashMap<>(); // route_id → shape_id
@@ -563,6 +612,8 @@ public class GtfsService
                 shapesLoaded = shapesMap.size();
                 log.info("[GTFS] #{}: {} shapes carregados", imp.getId(), shapesLoaded);
             }
+
+            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A importar rotas e horários…", 60);
 
             // 4. CARREGAR ROTAS
             if (files.containsKey("routes.txt"))
@@ -709,6 +760,8 @@ public class GtfsService
                 log.info("[GTFS] #{}: Rotas — {} criadas, {} atualizadas",
                         imp.getId(), routesCreated, routesUpdated);
             }
+
+            broadcastProgress(imp.getId(), "PROCESSING_SCHEDULES", "A finalizar…", 90);
 
             // Finalizar importação
             imp.setStopsCreated(stopsCreated);

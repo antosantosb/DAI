@@ -153,13 +153,13 @@ export default function GtfsManager() {
   };
 
   // ─── Schedule config ───
-  const handleConfigUpdate = async (updates) => {
+  const handleConfigUpdate = async (updates, { silent = false } = {}) => {
     if (savingConfig) return;
     setSavingConfig(true);
     try {
       const { data } = await api.put('/gtfs/config', { ...config, ...updates });
       setConfig(data);
-      toast.success('Configuração atualizada');
+      if (!silent) toast.success('Configuração atualizada');
       if (updates.scheduleActive) fetchImports();          // refresh lista se ativou
     } catch (err) {
       toast.error('Erro: ' + (err.response?.data?.error || err.message));
@@ -475,7 +475,7 @@ export default function GtfsManager() {
                   {[6, 12, 24, 48, 168].map(h => (
                     <button key={h}
                       className={`gtfs-interval-btn ${config.intervalHours === h ? 'gtfs-interval-btn--active' : ''}`}
-                      onClick={() => handleConfigUpdate({ intervalHours: h })}
+                      onClick={() => handleConfigUpdate({ intervalHours: h }, { silent: true })}
                     >
                       {h < 24 ? `${h}h` : h === 24 ? '1 dia' : h === 48 ? '2 dias' : '1 semana'}
                     </button>

@@ -3,12 +3,8 @@ import { toast } from 'react-toastify';
 import { Client } from '@stomp/stompjs';
 
 /**
- * Subscreve tópicos STOMP globais e emite toasts:
- *   /topic/telemetry  - emergências no terreno
- *   /topic/exports    - avisos do Motor de Exportação Massiva
- *                       (PROCESSING / COMPLETED / FAILED)
- *
- * Invisível. Colocar uma única vez no Layout do Backoffice.
+ * Subscreve tópicos STOMP globais e emite toasts.
+ * Invisível — montar uma única vez no Layout.
  */
 export default function GlobalToastListener() {
   useEffect(() => {
@@ -17,128 +13,111 @@ export default function GlobalToastListener() {
       brokerURL: wsUrl,
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log('Global Toast Listener connected via SockJS');
 
         // ─── Emergências de terreno ───
         stompClient.subscribe('/topic/telemetry', (message) => {
           if (!message.body) return;
           try {
-            const payload = JSON.parse(message.body);
-            if (payload.status === 'emergency') {
-              toast.error(
-                `Emergência no terreno - Autocarro ${payload.busId}`,
-                {
-                  position: "top-right",
-                  autoClose: 10000,
-                  hideProgressBar: false,
-                  closeOnClick: true,
-                  pauseOnHover: true,
-                  draggable: true,
-                }
-              );
+            const p = JSON.parse(message.body);
+            if (p.status === 'emergency') {
+              toast.error(`Emergência — Autocarro ${p.busId}`, {
+                autoClose: 10000,
+                toastId: `emergency-${p.busId}`,
+              });
             }
-          } catch (e) {
-            console.error("Erro no parser global (telemetry)", e);
-          }
+          } catch (e) { /* ignore */ }
         });
 
-        // ─── Motor de Exportação Massiva ───
+        // ─── Exportações ───
         stompClient.subscribe('/topic/exports', (message) => {
           if (!message.body) return;
           try {
             const job = JSON.parse(message.body);
-            const fmt = job.format || '';
-
-            // NOTA: o toast de "submetido" é emitido em Exports.jsx
-            // (ao criar o pedido). Aqui só anunciamos estados terminais
-            // para evitar ruído quando o job passa por PROCESSING.
             if (job.status === 'COMPLETED') {
-              const rows = job.rowCount != null ? ` · ${job.rowCount} linhas` : '';
               toast.success(
                 ({ closeToast }) => (
                   <div>
-                    <div className="pgu-toast-title">
-                      Relatório {fmt} pronto
-                    </div>
-                    {job.fileName && (
-                      <div className="pgu-toast-sub">{job.fileName}</div>
-                    )}
-                    <a
-                      href={job.downloadUrl}
-                      onClick={() => closeToast()}
-                      className="pgu-toast-action"
-                    >
+                    <div className="pgu-toast-title">Relatório {job.format} pronto</div>
+                    {job.fileName && <div className="pgu-toast-sub">{job.fileName}</div>}
+                    <a href={job.downloadUrl} onClick={() => closeToast()} className="pgu-toast-action">
                       Descarregar
                     </a>
                   </div>
                 ),
-                {
-                  autoClose: 15000,
-                  closeOnClick: false,
-                  toastId: `exp-${job.jobUuid}`,
-                }
+                { autoClose: 15000, closeOnClick: false, toastId: `exp-${job.jobUuid}` }
               );
             }
             if (job.status === 'FAILED') {
-              toast.error(
-                `Exportação ${fmt} falhou: ${job.errorMessage || 'erro desconhecido'}`,
-                { autoClose: 10000, toastId: `exp-${job.jobUuid}` }
-              );
+              toast.error(`Exportação falhou`, {
+                autoClose: 8000,
+                toastId: `exp-${job.jobUuid}`,
+              });
             }
-          } catch (e) {
-            console.error("Erro no parser global (exports)", e);
-          }
+          } catch (e) { /* ignore */ }
         });
 
-        // ─── Ocorrências / Alertas ───
+        // ─── Ocorrências ───
         stompClient.subscribe('/topic/alertas', (message) => {
           if (!message.body) return;
           try {
-            const ocorrencia = JSON.parse(message.body);
-            if (ocorrencia.estado === 'ABERTA') {
+            const o = JSON.parse(message.body);
+            if (o.estado === 'ABERTA') {
               toast.error(
                 <div>
-                  <strong>🚨 Novo alarme: {ocorrencia.tipoAnomalia} — Ativo {ocorrencia.ativoId}</strong>
-                  <div style={{ marginTop: '6px' }}>
-                    <a href={`/backoffice/ocorrencias/${ocorrencia.id}`} className="pgu-toast-action">
-                      Ver Ocorrência
-                    </a>
-                  </div>
+                  <div className="pgu-toast-title">{o.tipoAnomalia}</div>
+                  <div className="pgu-toast-sub">Ativo {o.ativoId}</div>
+                  <a href={`/backoffice/ocorrencias/${o.id}`} className="pgu-toast-action">
+                    Ver
+                  </a>
                 </div>,
-                {
-                  autoClose: 0,
-                  closeOnClick: false,
-                  toastId: `alerta-${ocorrencia.id}`
-                }
+                { autoClose: false, closeOnClick: false, toastId: `alerta-${o.id}` }
               );
             }
-          } catch (e) {
-            console.error("Erro no parser global (alertas)", e);
-          }
+          } catch (e) { /* ignore */ }
         });
 
-        // ─── Alertas de Escalada ───
+        // ─── GTFS Progress ───
+        stompClient.subscribe('/topic/gtfs/progress', (message) => {
+          if (!message.body) return;
+          try {
+            const p = JSON.parse(message.body);
+            const id = 'gtfs-progress';
+
+            if (p.step === 'COMPLETED') {
+              toast.dismiss(id);
+              toast.success('Sincronização GTFS concluída', { autoClose: 5000, toastId: 'gtfs-done' });
+            } else if (p.step === 'FAILED') {
+              toast.dismiss(id);
+              toast.error('Sincronização GTFS falhou', { autoClose: 8000, toastId: 'gtfs-fail' });
+            } else if (p.step === 'SKIPPED') {
+              toast.info('Dados GTFS já atualizados', { autoClose: 3000, toastId: 'gtfs-skip' });
+            } else {
+              toast.loading(
+                <div>
+                  <div className="pgu-toast-title">Sincronização GTFS</div>
+                  <div className="pgu-toast-sub" style={{ fontFamily: 'inherit' }}>{p.message}</div>
+                  <div className="pgu-progress-track">
+                    <div className="pgu-progress-fill" style={{ width: `${p.progress}%` }}/>
+                  </div>
+                </div>,
+                { toastId: id, autoClose: false, closeOnClick: false, closeButton: false }
+              );
+            }
+          } catch (e) { /* ignore */ }
+        });
+
+        // ─── Escalada ───
         stompClient.subscribe('/topic/alertas-escalada', (message) => {
           if (!message.body) return;
           try {
-            toast.warn(
-              <div>
-                <strong>⚠️ Escalamento Crítico!</strong>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}>{message.body}</div>
-              </div>,
-              {
-                autoClose: 0,
-                closeOnClick: true,
-                toastId: `escalada-${Date.now()}`
-              }
-            );
-          } catch (e) {
-            console.error("Erro no parser global (alertas-escalada)", e);
-          }
+            toast.warn('Escalamento crítico', {
+              autoClose: false,
+              toastId: `esc-${Date.now()}`,
+            });
+          } catch (e) { /* ignore */ }
         });
       },
     });
-
 
     stompClient.activate();
     return () => stompClient.deactivate();

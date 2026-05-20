@@ -38,7 +38,7 @@ public class KeycloakAdminService
     private String adminPassword;
 
     // Roles que o sistema reconhece (para filtrar roles internas do Keycloak)
-    private static final List<String> SYSTEM_ROLES = List.of("admin", "funcionario");
+    private static final List<String> SYSTEM_ROLES = List.of("admin", "operador");
 
     public KeycloakAdminService()
     {
