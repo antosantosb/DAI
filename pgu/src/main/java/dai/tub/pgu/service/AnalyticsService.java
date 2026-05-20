@@ -23,27 +23,27 @@ public class AnalyticsService {
     private void appendFilters(StringBuilder sql, List<Object> args, String startDate, String endDate, String startHour, String endHour, String defaultFilter) {
         boolean hasFilter = false;
         if (startDate != null && !startDate.trim().isEmpty()) {
-            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::date >= ?::date");
+            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::date >= ?::date\n");
             args.add(startDate.trim());
             hasFilter = true;
         }
         if (endDate != null && !endDate.trim().isEmpty()) {
-            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::date <= ?::date");
+            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::date <= ?::date\n");
             args.add(endDate.trim());
             hasFilter = true;
         }
         if (startHour != null && !startHour.trim().isEmpty()) {
-            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::time >= ?::time");
+            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::time >= ?::time\n");
             args.add(startHour.trim());
             hasFilter = true;
         }
         if (endHour != null && !endHour.trim().isEmpty()) {
-            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::time <= ?::time");
+            sql.append(" AND (t.recorded_at AT TIME ZONE 'Europe/Lisbon')::time <= ?::time\n");
             args.add(endHour.trim());
             hasFilter = true;
         }
         if (!hasFilter && defaultFilter != null) {
-            sql.append(" AND ").append(defaultFilter);
+            sql.append(" AND ").append(defaultFilter).append("\n");
         }
     }
 
