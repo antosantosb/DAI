@@ -211,6 +211,7 @@ services:
     restart: unless-stopped
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres_postgis:5432/${DW_NAME}
       - DW_USER=${DW_USER}
       - DW_PASSWORD=${DW_PASSWORD}
       - OSRM_URL=http://osrm:5000
