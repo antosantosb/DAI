@@ -471,10 +471,49 @@ def main():
     def on_connect(c, userdata, flags, rc, properties=None):
         if rc == 0:
             print(f"[SIM] Ligado ao broker MQTT ({BROKER}:{PORT})")
+            c.subscribe("tub/dispatch/+")
+            print("[SIM] Subscrito ao tópico de despacho: tub/dispatch/+")
         else:
             print(f"[SIM] Falha na ligação MQTT. Código: {rc}")
 
+    def on_message(c, userdata, msg):
+        try:
+            topic = msg.topic
+            payload = json.loads(msg.payload.decode("utf-8"))
+            parts = topic.split("/")
+            if len(parts) >= 3 and parts[0] == "tub" and parts[1] == "dispatch":
+                bus_id = parts[2]
+                message_id = payload.get("messageId")
+                content = payload.get("content")
+                operador = payload.get("operador")
+                
+                print(f"\n[CM - {bus_id}] Mensagem recebida de {operador}: \"{content}\"")
+                
+                # 1. Enviar ACK DELIVERED imediatamente
+                ack_delivered = {
+                    "messageId": message_id,
+                    "type": "DELIVERED"
+                }
+                c.publish(f"tub/dispatch/{bus_id}/ack", json.dumps(ack_delivered), qos=1)
+                print(f"[CM - {bus_id}] ACK DELIVERED enviado para mensagem {message_id}")
+                
+                # 2. Agendar ACK READ após 2 segundos
+                import threading
+                def send_read_ack():
+                    time.sleep(2)
+                    ack_read = {
+                        "messageId": message_id,
+                        "type": "READ"
+                    }
+                    c.publish(f"tub/dispatch/{bus_id}/ack", json.dumps(ack_read), qos=1)
+                    print(f"[CM - {bus_id}] ACK READ enviado para mensagem {message_id}")
+                
+                threading.Thread(target=send_read_ack, daemon=True).start()
+        except Exception as e:
+            print(f"[SIM] Erro ao processar mensagem recebida no simulador: {e}")
+
     client.on_connect = on_connect
+    client.on_message = on_message
     client.connect(BROKER, PORT)
     client.loop_start()
 

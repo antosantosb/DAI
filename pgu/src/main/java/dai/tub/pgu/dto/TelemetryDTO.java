@@ -15,6 +15,10 @@ public class TelemetryDTO
     private Instant timestamp;
     private String nextStop;
     private Integer stopsRemaining;
+    private Double temperaturaMotor;
+    private Double nivelBateria;
+    private String statusCarregador;
+    private Integer delayMinutes;
 
     public TelemetryDTO() {}
 
@@ -28,6 +32,10 @@ public class TelemetryDTO
     public Instant getTimestamp()      { return this.timestamp; }
     public String  getNextStop()       { return this.nextStop; }
     public Integer getStopsRemaining() { return this.stopsRemaining; }
+    public Double  getTemperaturaMotor() { return this.temperaturaMotor; }
+    public Double  getNivelBateria()     { return this.nivelBateria; }
+    public String  getStatusCarregador() { return this.statusCarregador; }
+    public Integer getDelayMinutes()     { return this.delayMinutes; }
 
     // SET
     public void setBusId(String busId)             { this.busId = busId; }
@@ -39,6 +47,10 @@ public class TelemetryDTO
     public void setTimestamp(Instant timestamp)            { this.timestamp = timestamp; }
     public void setNextStop(String nextStop)               { this.nextStop = nextStop; }
     public void setStopsRemaining(Integer stopsRemaining)  { this.stopsRemaining = stopsRemaining; }
+    public void setTemperaturaMotor(Double temperaturaMotor) { this.temperaturaMotor = temperaturaMotor; }
+    public void setNivelBateria(Double nivelBateria)         { this.nivelBateria = nivelBateria; }
+    public void setStatusCarregador(String statusCarregador) { this.statusCarregador = statusCarregador; }
+    public void setDelayMinutes(Integer delayMinutes)        { this.delayMinutes = delayMinutes; }
 
     @Override
     public String toString()
@@ -51,6 +63,10 @@ public class TelemetryDTO
                 ", speed=" + speed +
                 ", status='" + status + '\'' +
                 ", timestamp='" + timestamp + '\'' +
+                ", temperaturaMotor=" + temperaturaMotor +
+                ", nivelBateria=" + nivelBateria +
+                ", statusCarregador='" + statusCarregador + '\'' +
                 '}';
     }
+
 }

@@ -123,6 +123,13 @@
 			<version>5.9</version>
 		</dependency>
 
+		<!-- Eclipse Paho MQTT client (despacho via MQTT) -->
+		<dependency>
+			<groupId>org.eclipse.paho</groupId>
+			<artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+			<version>1.2.5</version>
+		</dependency>
+
 		<!-- Testes de telemetria -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

@@ -251,3 +251,181 @@
   .analytics-tabs { overflow-x: auto; }
   .congestion-summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── Filtros Dinâmicos ─── */
+.analytics-filter-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 16px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.filter-group input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-heading);
+  background: var(--color-bg);
+  min-width: 150px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.filter-group input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-filter, .btn-clear {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+}
+
+.btn-filter {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-filter:hover {
+  background: #4338ca;
+}
+
+.btn-clear {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-clear:hover {
+  background: var(--color-bg);
+  color: var(--color-text-heading);
+}
+
+/* ─── KPI Cards ─── */
+.analytics-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.analytics-kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Card Header Actions & Metric Toggles ─── */
+.card-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-header-actions h3 {
+  margin: 0;
+}
+
+.metric-toggle {
+  display: flex;
+  background: var(--color-primary-light);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.btn-toggle {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle.active {
+  background: #fff;
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Progress Bar for Occupancy ─── */
+.occupancy-progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 120px;
+}
+
+.occupancy-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  flex-grow: 1;
+}
+
+.occupancy-progress-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  min-width: 32px;
+  text-align: right;
+}
+

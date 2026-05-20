@@ -7,6 +7,7 @@ import './Dashboard.css';
 export default function Dashboard() {
   const [stats, setStats] = useState({ buses: 0, stops: 0, routes: 0, active: 0, stopping: 0, stopped: 0 });
   const [recentTelemetry, setRecentTelemetry] = useState([]);
+  const [activeAlarms, setActiveAlarms] = useState([]);
 
   const load = useCallback(() => {
     Promise.all([
@@ -14,7 +15,8 @@ export default function Dashboard() {
       api.get('/stops').catch(() => ({ data: [] })),
       api.get('/routes').catch(() => ({ data: [] })),
       api.get('/telemetry/latest').catch(() => ({ data: [] })),
-    ]).then(([buses, stops, routes, telemetry]) => {
+      api.get('/ocorrencias?estado=ABERTA').catch(() => ({ data: [] })),
+    ]).then(([buses, stops, routes, telemetry, ocorrencias]) => {
       const busData = buses.data || [];
       setStats({
         buses: busData.length,
@@ -26,6 +28,7 @@ export default function Dashboard() {
       });
       const activeCodes = new Set(busData.filter(b => b.status === 'ACTIVE' || b.status === 'STOPPING').map(b => b.busCode));
       setRecentTelemetry((telemetry.data || []).filter(t => activeCodes.has(t.busId)).slice(0, 6));
+      setActiveAlarms(ocorrencias.data || []);
     });
   }, []);
 
@@ -88,6 +91,32 @@ export default function Dashboard() {
             <div className="fleet-bars">
               <FleetBar label="Ativos" count={stats.active} total={stats.buses} color="var(--color-success)" />
               <FleetBar label="Parados" count={stats.stopped} total={stats.buses} color="#94a3b8" />
+            </div>
+          </div>
+        </div>
+
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3>Alarmes Ativos</h3>
+            {activeAlarms.some(a => a.prioridade === 'CRITICA') && (
+              <span className="pulse-badge">Crítico</span>
+            )}
+          </div>
+          <div className="dash-panel-body">
+            <div className="alarmes-widget">
+              <div className="alarmes-status-row">
+                <span>Ocorrências Abertas</span>
+                <span className="alarmes-count-badge">{activeAlarms.length}</span>
+              </div>
+              <div className="alarmes-status-row">
+                <span>Alarmes Críticos</span>
+                <span className="alarmes-count-badge" style={{ color: activeAlarms.filter(a => a.prioridade === 'CRITICA').length > 0 ? '#ef4444' : '#64748b' }}>
+                  {activeAlarms.filter(a => a.prioridade === 'CRITICA').length}
+                </span>
+              </div>
+              <a href="/backoffice/ocorrencias" className="link-ocorrencias">
+                Ir para Gestão de Ocorrências →
+              </a>
             </div>
           </div>
         </div>

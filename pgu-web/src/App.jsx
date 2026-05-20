@@ -13,14 +13,17 @@ import AuditLogs from './pages/AuditLogs';
 import Users from './pages/Users';
 import GtfsManager from './pages/GtfsManager';
 import Livemap from './pages/Livemap';
+import GlobalConfig from './pages/GlobalConfig';
+import Ocorrencias from './pages/Ocorrencias';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './toast-overrides.css';
 
+
 export default function App() {
-  return (
+  return (  
     <BrowserRouter>
       <ToastContainer
         position="top-right"
@@ -58,6 +61,8 @@ export default function App() {
           <Route path="audit" element={<AuditLogs />} />
           <Route path="gtfs" element={<GtfsManager />} />
           <Route path="users" element={<Users />} />
+          <Route path="configuracoes" element={<GlobalConfig />} />
+          <Route path="ocorrencias" element={<Ocorrencias />} />
         </Route>
         <Route
           path="/livemap"

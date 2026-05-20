@@ -956,3 +956,331 @@
   text-align: right;
   font-family: monospace;
 }
+
+/* ─── Message Dispatch Button ─── */
+.livemap-msg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+
+.livemap-msg-btn:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: scale(1.1);
+}
+
+.livemap-msg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+/* ─── Message Panel (Sidebar) ─── */
+.livemap-message-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 4px 0;
+  height: 100%;
+}
+
+.livemap-message-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--color-border-light);
+}
+
+.livemap-message-panel-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-text-heading);
+}
+
+.livemap-message-panel-close {
+  border: none;
+  background: none;
+  color: var(--color-text-light);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.livemap-message-panel-close:hover {
+  color: var(--color-text);
+}
+
+/* Offline banner */
+.livemap-msg-offline-banner {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border: 1px dashed var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+/* Textarea input area */
+.livemap-msg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.livemap-msg-textarea-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.livemap-msg-textarea {
+  width: 100%;
+  height: 80px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  resize: none;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.livemap-msg-textarea:focus:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.livemap-msg-textarea.error {
+  border-color: var(--color-danger) !important;
+  background: var(--color-danger-light, #fef2f2) !important;
+}
+
+.livemap-msg-textarea.error:focus {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+.livemap-msg-textarea:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.livemap-msg-counter {
+  align-self: flex-end;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-light);
+  margin-top: 4px;
+}
+
+.livemap-msg-counter.warning {
+  color: var(--color-danger);
+  animation: pulse-warn 1s infinite alternate;
+}
+
+@keyframes pulse-warn {
+  from { opacity: 0.8; }
+  to { opacity: 1; }
+}
+
+.livemap-msg-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.livemap-msg-btn-send {
+  flex: 1;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.livemap-msg-btn-send:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.livemap-msg-btn-send:disabled {
+  background: #cbd5e1;
+  color: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.livemap-msg-btn-cancel {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.livemap-msg-btn-cancel:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Status Indicator Area */
+.livemap-msg-status {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid transparent;
+}
+
+.livemap-msg-status.sending {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.livemap-msg-status.delivered {
+  background: var(--color-success-light);
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.2);
+}
+
+.livemap-msg-status.read {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: rgba(4, 120, 87, 0.2);
+}
+
+.livemap-msg-status.failed {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.livemap-msg-status-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.livemap-msg-status-retry,
+.livemap-msg-status-cancel {
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.livemap-msg-status-retry {
+  color: var(--color-danger);
+}
+.livemap-msg-status-retry:hover {
+  color: #b91c1c;
+}
+.livemap-msg-status-cancel {
+  color: var(--color-text-secondary);
+}
+.livemap-msg-status-cancel:hover {
+  color: var(--color-text);
+}
+
+/* History log */
+.livemap-msg-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.livemap-msg-history h5 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.livemap-msg-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.livemap-msg-history-item {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.livemap-msg-item-content {
+  font-size: 12px;
+  color: var(--color-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.livemap-msg-item-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.livemap-msg-badge-state {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+
+.livemap-msg-badge-state.enviada   { color: var(--color-primary); }
+.livemap-msg-badge-state.entregue  { color: var(--color-success); }
+.livemap-msg-badge-state.lida      { color: #047857; }
+.livemap-msg-badge-state.falhou    { color: var(--color-danger); }
+.livemap-msg-badge-state.cancelada { color: var(--color-text-light); }
+
