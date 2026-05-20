@@ -1,0 +1,129 @@
+/* drivers.css - Driver management specific styles */
+
+/* Status badge for driver state */
+.driver-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+}
+
+.driver-status--on-duty {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-success);
+}
+
+.driver-status--available {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-primary);
+}
+
+.driver-status--offline {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+}
+
+/* Current bus chip */
+.current-bus {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+/* Assignment select dropdown in table */
+.assign-select {
+  min-width: 130px;
+  padding: 6px 28px 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.assign-select:hover {
+  border-color: var(--color-primary);
+}
+
+.assign-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+/* Unassign button (already uses .btn-danger, but we add a subtle variant) */
+.btn-unassign {
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  transition: all var(--transition);
+}
+
+.btn-unassign:hover {
+  background: var(--color-danger);
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* History modal (optional) */
+.history-modal {
+  max-width: 700px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.history-table th,
+.history-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  text-align: left;
+}
+
+.history-table th {
+  background: var(--color-bg-subtle);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.history-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Driver form adjustments (optional) */
+.driver-form .form-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* Responsive table for small screens */
+@media (max-width: 768px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .assign-select {
+    min-width: 100px;
+    font-size: 11px;
+  }
+
+  .btn-sm {
+    padding: 4px 8px;
+  }
+}
