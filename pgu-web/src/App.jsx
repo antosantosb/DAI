@@ -17,6 +17,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './toast-overrides.css';
 
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -54,6 +55,11 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="exports" element={<Exports />} />
           <Route path="audit" element={<AuditLogs />} />
+          <Route path="/configuracoes" element={
+  <ProtectedRoute>
+    <GlobalConfig />
+  </ProtectedRoute>
+} />
         </Route>
         <Route
           path="/livemap"

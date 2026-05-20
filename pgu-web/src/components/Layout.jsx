@@ -61,6 +61,12 @@ export default function Layout() {
             <span className="nav-icon"><IconAudit /></span>
             Logs
           </NavLink>
+          {isAdmin && (
+            <NavLink to="/backoffice/configuracoes">
+              <span className="nav-icon">⚙️</span>
+              Parâmetros
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-footer-user">
