@@ -10,6 +10,7 @@ import dai.tub.pgu.service.AnalyticsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -25,38 +26,62 @@ public class AnalyticsController {
     }
 
     @GetMapping("/fleet-occupancy")
-    public ResponseEntity<List<FleetOccupancyData>> getFleetOccupancy() {
-        List<FleetOccupancyData> data = analyticsService.getFleetOccupancy();
+    public ResponseEntity<List<FleetOccupancyData>> getFleetOccupancy(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<FleetOccupancyData> data = analyticsService.getFleetOccupancy(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
     @GetMapping("/route-delays")
-    public ResponseEntity<List<RouteDelayData>> getRouteDelays() {
-        List<RouteDelayData> data = analyticsService.getRouteDelays();
+    public ResponseEntity<List<RouteDelayData>> getRouteDelays(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<RouteDelayData> data = analyticsService.getRouteDelays(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
     @GetMapping("/heatmap")
-    public ResponseEntity<List<HeatmapData>> getHeatmap() {
-        List<HeatmapData> data = analyticsService.getHeatmapData();
+    public ResponseEntity<List<HeatmapData>> getHeatmap(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<HeatmapData> data = analyticsService.getHeatmapData(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
     @GetMapping("/bus-efficiency")
-    public ResponseEntity<List<BusEfficiencyData>> getBusEfficiency() {
-        List<BusEfficiencyData> data = analyticsService.getBusEfficiency();
+    public ResponseEntity<List<BusEfficiencyData>> getBusEfficiency(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<BusEfficiencyData> data = analyticsService.getBusEfficiency(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
     @GetMapping("/speed-over-time")
-    public ResponseEntity<List<SpeedOverTimeData>> getSpeedOverTime() {
-        List<SpeedOverTimeData> data = analyticsService.getSpeedOverTime();
+    public ResponseEntity<List<SpeedOverTimeData>> getSpeedOverTime(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<SpeedOverTimeData> data = analyticsService.getSpeedOverTime(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
     @GetMapping("/congestion")
-    public ResponseEntity<List<CongestionData>> getCongestion() {
-        List<CongestionData> data = analyticsService.getCongestion();
+    public ResponseEntity<List<CongestionData>> getCongestion(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<CongestionData> data = analyticsService.getCongestion(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 }

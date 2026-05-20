@@ -11,6 +11,7 @@ import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import Exports from './pages/Exports';
 import AuditLogs from './pages/AuditLogs';
 import Livemap from './pages/Livemap';
+import GlobalConfig from './pages/GlobalConfig';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
@@ -19,7 +20,7 @@ import './toast-overrides.css';
 
 
 export default function App() {
-  return (
+  return (  
     <BrowserRouter>
       <ToastContainer
         position="top-right"
@@ -55,11 +56,7 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="exports" element={<Exports />} />
           <Route path="audit" element={<AuditLogs />} />
-          <Route path="/configuracoes" element={
-  <ProtectedRoute>
-    <GlobalConfig />
-  </ProtectedRoute>
-} />
+          <Route path="configuracoes" element={<GlobalConfig />} />
         </Route>
         <Route
           path="/livemap"

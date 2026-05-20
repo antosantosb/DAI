@@ -5,7 +5,8 @@ public class AnalyticsDTOs {
     public record FleetOccupancyData(
             String minute,
             long totalPassengers,
-            long activeBuses
+            long activeBuses,
+            double occupancyRate
     ) {}
 
     /**
@@ -30,7 +31,10 @@ public class AnalyticsDTOs {
     public record BusEfficiencyData(
             String busId,
             double avgPassengers,
-            int maxPassengers
+            int maxPassengers,
+            long capacity,
+            double avgOccupancyRate,
+            double maxOccupancyRate
     ) {}
 
     public record SpeedOverTimeData(
@@ -46,6 +50,8 @@ public class AnalyticsDTOs {
             int passengerCount,
             String recordedAt,
             String routeCode,
-            String routeName
+            String routeName,
+            long capacity,
+            double occupancyRate
     ) {}
 }

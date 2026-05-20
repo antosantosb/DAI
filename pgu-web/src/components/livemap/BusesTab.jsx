@@ -12,6 +12,7 @@ export default function BusesTab({
   setBusSearch,
   busSort,
   setBusSort,
+  onSendMessage,
 }) {
   const busList = useMemo(() =>
     Object.values(buses)
@@ -96,6 +97,13 @@ export default function BusesTab({
     });
   }, [filteredBusList, backendBuses, routes, busSort]);
 
+  const checkIfOnline = (bus) => {
+    if (!bus.timestamp) return false;
+    const lastTime = new Date(bus.timestamp).getTime();
+    const now = Date.now();
+    return (now - lastTime) < 30000; // 30s online check latency
+  };
+
   return (
     <>
       <div className="livemap-stats">
@@ -159,6 +167,8 @@ export default function BusesTab({
                     bus={bus}
                     isSelected={selectedBus === bus.busId}
                     onClick={() => onBusClick(bus)}
+                    onSendMessage={onSendMessage}
+                    isOnline={checkIfOnline(bus)}
                   />
                 ))}
               </div>
@@ -173,6 +183,8 @@ export default function BusesTab({
               bus={bus}
               isSelected={selectedBus === bus.busId}
               onClick={() => onBusClick(bus)}
+              onSendMessage={onSendMessage}
+              isOnline={checkIfOnline(bus)}
             />
           ))}
         </div>

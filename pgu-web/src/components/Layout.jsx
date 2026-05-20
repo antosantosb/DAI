@@ -1,14 +1,31 @@
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
-  IconStop, IconRoute, IconExport, IconAudit,
+  IconStop, IconRoute, IconExport, IconAudit, IconAlarm,
 } from './NavIcon';
+import { getOcorrencias } from '../services/ocorrenciasApi';
 import './Layout.css';
 
 export default function Layout() {
   const { logout, username, roles } = useAuth();
   const navigate = useNavigate();
+  const [alarmsCount, setAlarmsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchAlarmsCount = async () => {
+      try {
+        const response = await getOcorrencias({ estado: 'ABERTA' });
+        setAlarmsCount(response.data.length);
+      } catch (err) {
+        console.error('Erro ao buscar quantidade de alarmes ativos:', err);
+      }
+    };
+    fetchAlarmsCount();
+    const interval = setInterval(fetchAlarmsCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isAdmin = roles.includes('admin');
   const displayRole = isAdmin ? 'Administrador' : 'Operador';
@@ -44,6 +61,11 @@ export default function Layout() {
             <span className="nav-icon"><IconHealth /></span>
             Saúde da Rede
           </NavLink>
+          <NavLink to="/backoffice/ocorrencias">
+            <span className="nav-icon"><IconAlarm /></span>
+            Ocorrências
+            {alarmsCount > 0 && <span className="nav-badge">{alarmsCount}</span>}
+          </NavLink>
           <span className="sidebar-section-label">Gestão</span>
           <NavLink to="/backoffice/stops">
             <span className="nav-icon"><IconStop /></span>
@@ -68,6 +90,7 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
+
         <div className="sidebar-footer">
           <div className="sidebar-footer-user">
             <div className="sidebar-avatar">{avatarLetter}</div>

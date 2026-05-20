@@ -89,8 +89,56 @@ export default function GlobalToastListener() {
             console.error("Erro no parser global (exports)", e);
           }
         });
+
+        // ─── Ocorrências / Alertas ───
+        stompClient.subscribe('/topic/alertas', (message) => {
+          if (!message.body) return;
+          try {
+            const ocorrencia = JSON.parse(message.body);
+            if (ocorrencia.estado === 'ABERTA') {
+              toast.error(
+                <div>
+                  <strong>🚨 Novo alarme: {ocorrencia.tipoAnomalia} — Ativo {ocorrencia.ativoId}</strong>
+                  <div style={{ marginTop: '6px' }}>
+                    <a href={`/backoffice/ocorrencias/${ocorrencia.id}`} className="pgu-toast-action">
+                      Ver Ocorrência
+                    </a>
+                  </div>
+                </div>,
+                {
+                  autoClose: 0,
+                  closeOnClick: false,
+                  toastId: `alerta-${ocorrencia.id}`
+                }
+              );
+            }
+          } catch (e) {
+            console.error("Erro no parser global (alertas)", e);
+          }
+        });
+
+        // ─── Alertas de Escalada ───
+        stompClient.subscribe('/topic/alertas-escalada', (message) => {
+          if (!message.body) return;
+          try {
+            toast.warn(
+              <div>
+                <strong>⚠️ Escalamento Crítico!</strong>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>{message.body}</div>
+              </div>,
+              {
+                autoClose: 0,
+                closeOnClick: true,
+                toastId: `escalada-${Date.now()}`
+              }
+            );
+          } catch (e) {
+            console.error("Erro no parser global (alertas-escalada)", e);
+          }
+        });
       },
     });
+
 
     stompClient.activate();
     return () => stompClient.deactivate();

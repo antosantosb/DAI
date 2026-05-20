@@ -1,0 +1,130 @@
+# Relatório Técnico: Sistema de Despacho Operacional (Mensagens de Despacho CM)
+
+Este relatório detalha a arquitetura, implementação e segurança do **Sistema de Despacho Operacional** integrado no portal PGU da **TUB (Transportes Urbanos de Braga)**. Esta funcionalidade permite aos operadores na central de controlo comunicar em tempo real com as Consolas de Bordo dos Motoristas (CM) das viaturas, com controlo estrito de tempos de entrega, verificação de latência e auditoria de segurança completa.
+
+---
+
+## 1. Visão Geral da Arquitetura
+
+O sistema assenta sobre uma arquitetura reativa assíncrona orientada a eventos (*event-driven*), distribuída de forma limpa por quatro camadas principais, garantindo acoplamento nulo e máxima escalabilidade:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operador as Operador (React UI)
+    participant Back as Backend (Spring Boot)
+    participant Broker as Broker MQTT (Mosquitto)
+    participant CM as Consola Motorista (Viatura)
+
+    Operador->>Back: POST /api/v1/despacho/{busId}/mensagens (JWT)
+    Note over Back: Cria registo 'ENVIADA'<br/>Agenda Timeout (10s)
+    Back->>Broker: Publish: tub/dispatch/{busId} (payload)
+    Broker->>CM: Encaminha mensagem para a Viatura
+    
+    Note over CM: Recebe mensagem<br/>Gera ACK de Entrega
+    CM->>Broker: Publish: tub/dispatch/{busId}/ack (DELIVERED)
+    Broker->>Back: Evento MQTT: tub/dispatch/+/ack
+    Note over Back: Transação Isolada:<br/>Atualiza estado para 'ENTREGUE'
+    Back-->>Operador: WebSocket (STOMP): Estado 'ENTREGUE'
+    
+    Note over CM: Motorista marca como lida
+    CM->>Broker: Publish: tub/dispatch/{busId}/ack (READ)
+    Broker->>Back: Evento MQTT: tub/dispatch/+/ack
+    Note over Back: Transação Isolada:<br/>Atualiza estado para 'LIDA'
+    Back-->>Operador: WebSocket (STOMP): Estado 'LIDA'
+```
+
+---
+
+## 2. Detalhes de Implementação por Camada
+
+### A. Camada de Dados (JPA & Flyway)
+* **Estrutura**: A tabela [mensagens_despacho](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/resources/db/migration/V16__create_mensagens_despacho.sql) armazena a totalidade do ciclo de vida das mensagens.
+* **Campos Principais**:
+  * `id` (Chave Primária incremental)
+  * `bus_id` & `operador` (Auditabilidade operacional)
+  * `conteudo` (Restrito estritamente a 140 caracteres no banco de dados)
+  * `estado` (`ENVIADA`, `ENTREGUE`, `LIDA`, `FALHOU`, `CANCELADA`)
+  * `mqtt_message_id` (Correlation UUID para processamento assíncrono de ACKs)
+
+### B. Camada de Backend (Spring Boot & Mosquitto)
+* **Desacoplamento de Redes (Zero Circular Dependencies)**:
+  Para evitar dependência cíclica entre a receção de pacotes MQTT e o processamento de regras de negócio, a receção de ACKs publica internamente um [MqttAckEvent](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/MqttAckEvent.java) síncrono. O [DespachoService](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/DespachoService.java) escuta este evento sob transações isoladas, garantindo isolamento total.
+* **Validação de Latência de Viaturas**:
+  O sistema valida ativamente se a viatura está online. Um autocarro é considerado `ONLINE` apenas se a diferença entre a sua última telemetria registada na base de dados (`lastSync`) e o tempo do servidor for inferior a **30 segundos** (configurável em properties).
+* **Gestão Programática de Timeouts**:
+  Ao enviar uma mensagem, o sistema agenda um temporizador em background (`ScheduledExecutorService`). Decorridos **10 segundos**, caso a viatura não devolva um ACK de entrega, a mensagem transita automaticamente para `FALHOU` e notifica o operador via WebSockets.
+
+### C. Camada de Frontend (React/Vite & WebSockets)
+* **Interface Livemap Integrada**:
+  O sidebar reage dinamicamente. Ao selecionar o menu **"Motoristas"** e uma viatura online, o botão `livemap-msg-btn` fica ativo. Ao clicar, a listagem de motoristas dá lugar ao [MessagePanel](file:///c:/Users/Antonio/Desktop/DAI/pgu-web/src/components/livemap/MessagePanel.jsx), oferecendo foco total ao operador.
+* **Validadores no Cliente**:
+  * Contagem de caracteres em tempo real (`0/140`).
+  * Alertas visuais (cor vermelha intermitente) quando a mensagem ultrapassa **120 caracteres**.
+  * Desativação automática de inputs se a viatura perder a ligação à rede (*offline banner*).
+  * **Validação de Envio (Fluxo Alternativo A2)**: A submissão impede o envio caso a mensagem esteja vazia ou ultrapasse 140 caracteres, destacando o campo de texto com uma moldura vermelha (`error` class) e apresentando o alerta visual *"Mensagem inválida: o conteúdo não pode estar vazio e deve ter no máximo 140 caracteres"*. O erro e o destaque são limpos ao digitar ou ao trocar de viatura.
+* **Tratamento Reativo de Estados & Cancelamento (Fluxo Alternativo A1)**:
+  Através de subscrição WebSocket STOMP em tempo real ao canal `/topic/mensagens/{busId}`, a UI reage instantaneamente aos ACKs recebidos, pintando badges coloridos específicos para estados de envio, entrega, leitura e erro, permitindo ainda **Reenviar** ou **Cancelar** transmissões diretamente. Em caso de falha por timeout, a ação **"Cancelar"** limpa o rascunho de texto, anula a mensagem ativa e fecha o painel, regressando à telemetria base.
+
+### D. Camada de Simulação (CM / Consola de Bordo do Motorista)
+* **Subscrição Reativa**: O simulador (`simulator.py`) atua como a Consola de Bordo do Motorista (CM) subscrevendo o tópico `tub/dispatch/+`.
+* **Confirmação de Receção e Leitura (ACKs)**: Ao receber uma nova mensagem, a CM loga o conteúdo em consola, publica imediatamente o ACK `DELIVERED` no tópico `tub/dispatch/{busId}/ack` e, após 2 segundos, publica o ACK `READ` no mesmo tópico.
+
+---
+
+## 3. Segurança & Infraestrutura (Zero-Trust)
+
+### A. Restrições de Rota (SecurityConfig)
+As APIs de despacho estão seguras na classe [SecurityConfig.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/config/SecurityConfig.java). Apenas operadores autenticados com perfis `OPERATOR` e `ADMIN` extraídos dos tokens JWT Keycloak podem enviar, ler históricos, ou cancelar mensagens.
+
+### B. Segmentação de Tópicos MQTT (ACL Mosquitto)
+O broker Mosquitto foi blindado através de uma política de segurança estrita no ficheiro [acl.conf](file:///c:/Users/Antonio/Desktop/DAI/mosquitto/config/acl.conf):
+
+```ini
+# 1. Telemetria Geral (Simulator & ETL)
+topic readwrite tub/telemetry
+
+# 2. Spring Boot Backend
+topic write tub/dispatch/#
+topic read tub/dispatch/+/ack
+
+# 3. Consolas de Viatura (CM)
+topic read tub/dispatch/+
+topic write tub/dispatch/+/ack
+```
+
+Esta regra impede que viaturas simulem envios indevidos, interceptem mensagens destinadas a outras frotas, ou acedam a logs internos do sistema de despacho.
+
+---
+
+## 4. Auditoria de Eventos Semânticos
+
+Todos os passos do sistema de despacho são auditados na base de dados de logs (`audit_log`), registando as seguintes ações com o username extraído do JWT:
+
+| Evento Semântico | Origem do Disparo | Informação do Campo `details` | Sucesso |
+| :--- | :--- | :--- | :--- |
+| **`MENSAGEM_ENVIADA`** | `enviarMensagem`/`reenviarMensagem` | Conteúdo original da mensagem **truncado a 50 chars** | `true` |
+| **`MENSAGEM_ENTREGUE`** | `processarAck` (DELIVERED) | Timestamp ISO exato da confirmação de entrega física | `true` |
+| **`MENSAGEM_LIDA`** | `processarAck` (READ) | Timestamp ISO exato da leitura pelo motorista | `true` |
+| **`MENSAGEM_FALHOU`** | `verificarTimeout` (Timeout 10s) | Detalhe completo da falha de comunicação | `false` |
+| **`MENSAGEM_CANCELADA`**| `cancelarMensagem` (Manual) | ID da mensagem e indicação de cancelamento pelo operador | `true` |
+
+---
+
+## 5. Sugestões de Capturas de Ecrã (Prints para o Relatório Académico)
+
+Para ilustrar com excelência a sua entrega no relatório final, recomendamos tirar capturas de ecrã dos seguintes elementos de código e de UI:
+
+1. **Backend (Log de Auditoria no Banco de Dados)**:
+   * Abra a sua ferramenta de base de dados (ex: pgAdmin/DBeaver) e tire print à tabela `audit_log` contendo as linhas com as ações `MENSAGEM_ENVIADA`, `MENSAGEM_ENTREGUE`, e `MENSAGEM_LIDA` mapeadas ao username do operador.
+2. **Backend (Arquitetura Decoupled do Service)**:
+   * Recorte as linhas 77-110 de [DespachoService.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/DespachoService.java) onde se vê a validação `isBusOnline`, a persistência da mensagem em estado `ENVIADA`, o envio MQTT e o agendamento assíncrono do timeout.
+3. **Segurança (ACL Mosquitto)**:
+   * Recorte o ficheiro [acl.conf](file:///c:/Users/Antonio/Desktop/DAI/mosquitto/config/acl.conf) completo para demonstrar a aplicação de boas práticas de micro-segmentação de tópicos e privilégios mínimos.
+4. **Interface Gráfica (MessagePanel no Livemap)**:
+   * Tire print à UI do Livemap com o menu **"Motoristas"** ativo, viatura selecionada e o painel de mensagens aberto. Mostre:
+     * O contador de caracteres verde/vermelho.
+     * O badge de estado reativo correspondente à mensagem em tempo real (`⏳ A enviar...`, `✓ Entregue`, `✓✓ Lida`).
+     * O destaque vermelho (borda) e o aviso de erro do validador ao tentar enviar inputs vazios ou longos (A2).
+     * O botão de "Cancelar" que encerra o painel de rascunho em caso de falha de entrega (A1).
+     * A secção inferior do histórico de mensagens anteriores enviadas à viatura.
