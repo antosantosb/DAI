@@ -23,12 +23,16 @@ import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.model.HistoricoAlerta;
 import dai.tub.pgu.repository.HistoricoAlertaRepository;
 import dai.tub.pgu.repository.OcorrenciaRepository;
+import dai.tub.pgu.domain.GlobalConfig;
+import dai.tub.pgu.repository.GlobalConfigRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class AlertaService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertaService.class);
-
+@Autowired
+    private GlobalConfigRepository globalConfigRepository;
     private final HistoricoAlertaRepository historicoRepository;
     private final OcorrenciaRepository ocorrenciaRepository;
     private final OcorrenciaService ocorrenciaService;
@@ -73,30 +77,42 @@ public class AlertaService {
      * Avalia telemetria recebida e dispara ocorrências se status ou sensores forem críticos.
      * Aplica cooldown por ativo + tipo de anomalia para evitar spam de ocorrências.
      */
-    public void processarTelemetria(TelemetryDTO telemetria) {
+  public void processarTelemetria(TelemetryDTO telemetria) {
         if (telemetria == null) return;
 
         String busId = telemetria.getBusId();
         if (busId == null || busId.isBlank()) return;
+
+        // 0. CARREGAR PARÂMETROS GLOBAIS DA TUA TABELA
+        GlobalConfig config = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+        
+        // Se a tabela tiver valores, usamos esses; senão, usamos os de defeito da aplicação
+        double limiteBateria = (config != null) ? config.getSocTolerancePercent() : bateriaCritica;
+        int limiteAtraso = (config != null) ? config.getDelayLimitMinutes() : 5;
 
         // 1. Avariado
         if ("AVARIADO".equalsIgnoreCase(telemetria.getStatus())) {
             triggerOcorrencia(telemetria, "BUS", "AVARIADO", "O autocarro reportou que está avariado.");
         }
 
-        // 2. Temperatura elevada (Motor > temperaturaCritica)
+        // 2. Temperatura elevada
         if (telemetria.getTemperaturaMotor() != null && telemetria.getTemperaturaMotor() > temperaturaCritica) {
             triggerOcorrencia(telemetria, "BUS", "SOBREAQUECIMENTO", "Temperatura do motor elevada: " + telemetria.getTemperaturaMotor() + "°C.");
         }
 
-        // 3. Bateria crítica (Nível < bateriaCritica)
-        if (telemetria.getNivelBateria() != null && telemetria.getNivelBateria() < bateriaCritica) {
-            triggerOcorrencia(telemetria, "BUS", "BATERIA_CRITICA", "Nível de bateria crítico: " + telemetria.getNivelBateria() + "%.");
+        // 3. Bateria crítica (AGORA USA O VALOR DA TUA TABELA!)
+        if (telemetria.getNivelBateria() != null && telemetria.getNivelBateria() < limiteBateria) {
+            triggerOcorrencia(telemetria, "BUS", "BATERIA_CRITICA", "Nível de bateria crítico: " + telemetria.getNivelBateria() + "% (Abaixo do limite de " + limiteBateria + "%).");
         }
 
-        // 4. Falha de carregador (statusCarregador == FAULT)
+        // 4. Falha de carregador
         if ("FAULT".equalsIgnoreCase(telemetria.getStatusCarregador())) {
             triggerOcorrencia(telemetria, "CHARGER", "FALHA_CARREGADOR", "Falha crítica detetada no carregador associado.");
+        }
+        
+        // 5. Atraso Crítico (AGORA USA O TEU DELAY LIMIT DA TABELA!)
+        if (telemetria.getDelayMinutes() != null && telemetria.getDelayMinutes() > limiteAtraso) {
+             triggerOcorrencia(telemetria, "BUS", "ATRASO_CRITICO", "O autocarro regista um atraso de " + telemetria.getDelayMinutes() + " minutos (Acima do limite de " + limiteAtraso + " min).");
         }
     }
 
