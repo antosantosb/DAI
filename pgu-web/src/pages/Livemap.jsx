@@ -11,6 +11,7 @@ import {
 import BusesTab from '../components/livemap/BusesTab';
 import RoutesTab from '../components/livemap/RoutesTab';
 import AccountTab from '../components/livemap/AccountTab';
+import MessagePanel from '../components/livemap/MessagePanel';
 import './Livemap.css';
 
 export default function Livemap() {
@@ -44,6 +45,8 @@ export default function Livemap() {
   const [showCongestion, setShowCongestion] = useState(false);
   const heatLayerRef = useRef(null);
   const congestionLayerRef = useRef(null);
+  const stompClientRef = useRef(null);
+  const [messagingBus, setMessagingBus] = useState(null);
 
   // ─── Map initialization ───
   useEffect(() => {
@@ -203,6 +206,7 @@ export default function Livemap() {
       brokerURL: WS_URL,
       reconnectDelay: 5000,
       onConnect: () => {
+        stompClientRef.current = client;
         setWsConnected(true);
         client.subscribe('/topic/telemetry', (message) => {
           const telemetry = JSON.parse(message.body);
@@ -213,13 +217,20 @@ export default function Livemap() {
           updateBusMarker(telemetry);
         });
       },
-      onDisconnect: () => setWsConnected(false),
-      onStompError: () => setWsConnected(false),
+      onDisconnect: () => {
+        stompClientRef.current = null;
+        setWsConnected(false);
+      },
+      onStompError: () => {
+        stompClientRef.current = null;
+        setWsConnected(false);
+      },
     });
 
     client.activate();
 
     return () => {
+      stompClientRef.current = null;
       client.deactivate();
       Object.values(busMarkersRef.current).forEach(m => {
         if (mapInstance.current) mapInstance.current.removeLayer(m);
@@ -567,6 +578,28 @@ export default function Livemap() {
     }
   }, [selectedBus, selectedRoute, backendBuses]);
 
+  const handleSendMessage = useCallback((bus) => {
+    setMessagingBus(bus);
+  }, []);
+
+  const subscribeToMessages = useCallback((busId, callback) => {
+    if (!stompClientRef.current || !wsConnected) {
+      console.warn("STOMP client is not connected. Deferring message subscription.");
+      return null;
+    }
+    return stompClientRef.current.subscribe(`/topic/mensagens/${busId}`, (msg) => {
+      const update = JSON.parse(msg.body);
+      callback(update);
+    });
+  }, [wsConnected]);
+
+  const checkIfOnline = useCallback((bus) => {
+    if (!bus.timestamp) return false;
+    const lastTime = new Date(bus.timestamp).getTime();
+    const now = Date.now();
+    return (now - lastTime) < 30000; // 30s latency threshold
+  }, []);
+
   return (
     <div className="livemap-wrapper">
       <div className="livemap-map-wrap">
@@ -607,7 +640,7 @@ export default function Livemap() {
         <div className="livemap-tabs">
           <button className={`livemap-tab ${activeTab === 'buses' ? 'active' : ''}`} onClick={() => setActiveTab('buses')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z"/></svg>
-            Autocarros
+            Motoristas
           </button>
           <button className={`livemap-tab ${activeTab === 'routes' ? 'active' : ''}`} onClick={() => setActiveTab('routes')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-4h4v-2h-4V7h-2v4H7v2h4v4zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
@@ -621,17 +654,27 @@ export default function Livemap() {
 
         <div className="livemap-tab-content">
           {activeTab === 'buses' && (
-            <BusesTab
-              buses={buses}
-              backendBuses={backendBuses}
-              routes={routes}
-              selectedBus={selectedBus}
-              onBusClick={handleBusClick}
-              busSearch={busSearch}
-              setBusSearch={setBusSearch}
-              busSort={busSort}
-              setBusSort={setBusSort}
-            />
+            messagingBus ? (
+              <MessagePanel
+                bus={messagingBus}
+                isOnline={checkIfOnline(messagingBus)}
+                onClose={() => setMessagingBus(null)}
+                subscribeToMessages={subscribeToMessages}
+              />
+            ) : (
+              <BusesTab
+                buses={buses}
+                backendBuses={backendBuses}
+                routes={routes}
+                selectedBus={selectedBus}
+                onBusClick={handleBusClick}
+                busSearch={busSearch}
+                setBusSearch={setBusSearch}
+                busSort={busSort}
+                setBusSort={setBusSort}
+                onSendMessage={handleSendMessage}
+              />
+            )
           )}
           {activeTab === 'routes' && (
             <RoutesTab

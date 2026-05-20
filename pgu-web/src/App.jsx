@@ -11,6 +11,7 @@ import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import Exports from './pages/Exports';
 import AuditLogs from './pages/AuditLogs';
 import Livemap from './pages/Livemap';
+import Ocorrencias from './pages/Ocorrencias';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
@@ -54,7 +55,10 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsDashboard />} />
           <Route path="exports" element={<Exports />} />
           <Route path="audit" element={<AuditLogs />} />
+          <Route path="ocorrencias" element={<Ocorrencias />} />
+          <Route path="ocorrencias/:id" element={<Ocorrencias />} />
         </Route>
+
         <Route
           path="/livemap"
           element={

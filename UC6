@@ -1,0 +1,135 @@
+# Relatório Técnico: Sistema de Gestão de Ocorrências e Alarmes da Frota
+
+Este relatório detalha a arquitetura, implementação e segurança do **Sistema de Gestão de Ocorrências e Alarmes** integrado no portal PGU da **TUB (Transportes Urbanos de Braga)**. Esta funcionalidade permite aos operadores e à equipa de manutenção monitorizar falhas de sensores em tempo real (sobreaquecimento do motor, falhas em postos de carregamento, baterias críticas), registar ações de intervenção física, associar anexos de suporte, consultar telemetria histórica contextualizada e acompanhar o escalamento automático de ocorrências críticas.
+
+---
+
+## 1. Visão Geral da Arquitetura
+
+O sistema assenta sobre uma arquitetura orientada a eventos (*event-driven*), combinando comunicações síncronas REST para transições operacionais com subscrições assíncronas via WebSockets (STOMP/SockJS) para distribuição de notificações críticas:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operador as Operador / Manutenção (React UI)
+    participant Back as Backend (Spring Boot)
+    participant DB as Data Warehouse (PostgreSQL)
+    participant WS as WebSocket (STOMP)
+    participant Telemetry as Sistema Telemática (Ator Externo)
+
+    Telemetry->>Back: POST /api/v1/ocorrencias (Simulado via NiFi ou API)
+    Note over Back: Cria registo 'ABERTA'<br/>Infe Prioridade & Reincidência
+    Back->>DB: Persiste Ocorrência com Snapshot
+    Back->>WS: Broadcast /topic/alertas (Registo Criado)
+    WS-->>Operador: Alerta visual instantâneo (Toast de Novo Alarme)
+
+    Note over Operador: Consulta telemetria das últimas 24h para diagnóstico
+    Operador->>Back: GET /api/v1/ocorrencias/ativos/{ativoId}/telemetria
+    Back->>DB: Query histórico 24h
+    Back-->>Operador: JSON para Recharts Graph
+
+    Note over Operador: Técnico assume a ocorrência
+    Operador->>Back: POST /api/v1/ocorrencias/{id}/assumir (JWT)
+    Note over Back: Altera estado para 'EM_CURSO'
+    Back->>DB: Atualiza timestamps & responsável
+    Back->>WS: Broadcast /topic/alertas (Estado EM_CURSO)
+    
+    Note over Operador: Faz upload de anexo técnico de suporte
+    Operador->>Back: POST /api/v1/ocorrencias/{id}/anexos (Multipart File)
+    Note over Back: Valida < 20MB & formato (JPG, PNG, PDF)<br/>Grava no disco
+    Back->>DB: Regista anexo associado em tabela dedicada
+    
+    Note over Operador: Regista ação corretiva e encerra ocorrência
+    Operador->>Back: POST /api/v1/ocorrencias/{id}/fechar (RESOLVIDA/FALSO_POSITIVO)
+    Note over Back: Altera estado e arquiva
+    Back->>DB: Grava timestamps e justificações
+    Back->>WS: Broadcast /topic/alertas (Estado Resolvido)
+```
+
+---
+
+## 2. Detalhes de Implementação por Camada
+
+### A. Camada de Dados (JPA & Flyway)
+* **Estrutura de Ocorrências**: A tabela [ocorrencias](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/resources/db/migration/V15__create_ocorrencias.sql#L1-L21) armazena a ficha principal da anomalia:
+  * `id`: Chave primária auto-incremental.
+  * `ativo_id` & `tipo_ativo`: Identificador do veículo ou posto e respetiva categoria (BUS / CHARGER).
+  * `tipo_anomalia`: Tipo do alarme (ex: `SOBREAQUECIMENTO`, `FALHA_CARREGADOR`, `BATERIA_CRITICA`).
+  * `estado`: Ciclo de vida da ocorrência (`ABERTA`, `EM_CURSO`, `RESOLVIDA`, `FALSO_POSITIVO`).
+  * `prioridade`: Classificação do alarme (`CRITICA` ou `NORMAL`).
+  * `reincidencia`: Flag booleana que sinaliza alarmes idênticos no mesmo ativo num intervalo de 24 horas.
+  * `ocorrencia_pai_id`: Referência recursiva de chave estrangeira ao ticket causador original (em caso de reincidência).
+  * `telemetria_snapshot`: Campo `JSONB` que grava o estado exato dos sensores do ativo no momento em que a anomalia disparou.
+* **Tabela de Anexos**: A tabela [ocorrencia_anexos](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/resources/db/migration/V15__create_ocorrencias.sql#L29-L38) gere a documentação técnico-visual enviada em campo:
+  * `ocorrencia_id`: FK para a ocorrência associada com comportamento `ON DELETE CASCADE`.
+  * `nome_ficheiro`, `tamanho_bytes`, `mime_type` e `caminho` físico no sistema de ficheiros.
+
+### B. Camada de Backend (Spring Boot & Agendamentos)
+* **Inferencia de Prioridades**: Em [OcorrenciaService.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/OcorrenciaService.java#L230-L238), a prioridade do alarme é inferida automaticamente baseada no termo de anomalia. Se a anomalia contiver termos severos (como `SOBREAQUECIMENTO`, `FALHA`, `AVARIADO` ou `BATERIA_CRITICA`), é registada como `CRITICA`, caso contrário assume prioridade `NORMAL`.
+* **Deteção de Reincidências**: Na criação de um novo alarme, o sistema executa uma consulta temporal contra a base de dados retrocedendo 24 horas. Se encontrar qualquer ocorrência prévia fechada ou aberta com o mesmo `ativoId` e `tipoAnomalia`, assinala o novo ticket como `reincidencia = true` e referencia a ocorrência original como pai.
+* **Escala Automática (Scheduler)**: O método agendado `verificarEscaladasPendentes` corre a cada 60 segundos avaliando ocorrências em estado `ABERTA` que ainda não tenham técnico associado. O tempo limite configurado em `application.properties` é de:
+  * **10 minutos** para ocorrências de prioridade `CRITICA` (`pgu.alertas.escalada-critica-minutos`).
+  * **120 minutos (2 horas)** para ocorrências de prioridade `NORMAL` (`pgu.alertas.escalada-normal-minutos`).
+  Quando o tempo expira, uma mensagem de alerta de escalada estruturada é publicada no canal `/topic/alertas-escalada`.
+* **Upload Físico & Validação de Ficheiros**: O serviço [AnexoService.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/AnexoService.java#L66-L123) assegura a validação robusta dos anexos enviados pelos utilizadores:
+  * Rejeita uploads vazios.
+  * Valida o tamanho do ficheiro (limite máximo de 20MB / 20.971.520 bytes). Se ultrapassar, responde com erro: `"O ficheiro excede o tamanho máximo permitido de 20 MB."`.
+  * Valida extensões de ficheiro e tipos MIME. Apenas `jpg`, `jpeg`, `png`, e `pdf` são permitidos. Caso contrário, devolve erro: `"Formato de ficheiro não suportado. Formatos permitidos: JPG, PNG, PDF."`.
+  * Grava os ficheiros em subdiretórios numerados por ID de ocorrência para prevenir colisões, gerando nomes únicos via `UUID`.
+
+### C. Camada de Frontend (React/Vite & WebSockets)
+* **Notificação Persistente de Alarme**:
+  O ficheiro [GlobalToastListener.jsx](file:///c:/Users/Antonio/Desktop/DAI/pgu-web/src/components/GlobalToastListener.jsx#L94-L138) subscreve em segundo plano o tópico WebSocket STOMP `/topic/alertas`. Assim que um alarme entra em estado `ABERTA`, o operador é notificado com um Toast de erro persistente (`autoClose: 0`) que inclui um link de atalho direto para visualizar e intervir sobre o ticket. Adicionalmente, subscrições ao canal `/topic/alertas-escalada` disparam toasts de aviso amarelos persistentes alertando sobre tempos de resposta esgotados.
+* **Badges de Navegação Dinâmicos**:
+  Em [Layout.jsx](file:///c:/Users/Antonio/Desktop/DAI/pgu-web/src/components/Layout.jsx), um contador dinâmico ligado via REST à API de ocorrências abertas é consultado a cada 10 segundos, pintando um badge vermelho vibrante na barra lateral de navegação operacional.
+* **Painel de Controlo no Dashboard**:
+  O ficheiro [Dashboard.jsx](file:///c:/Users/Antonio/Desktop/DAI/pgu-web/src/pages/Dashboard.jsx) inclui o painel "Alarmes Ativos", apresentando cartões operacionais rápidos para cada ocorrência crítica ativa. Se houver alarmes críticos pendentes, o widget exibe um badge animado e pulsante em vermelho para prender a atenção visual do operador.
+* **Interface Ocorrências (Ocorrencias.jsx)**:
+  Fornece uma experiência premium completa dividida em:
+  * **Painel Superior**: Grelha rápida de alarmes em aberto com contadores de tempo decorrido dinâmicos.
+  * **Tabela Principal**: Filtros e paginação por estado da ocorrência (`ABERTA`, `EM_CURSO`, `RESOLVIDA`, `FALSO_POSITIVO`) e ativo afetado.
+  * **Slide-out Lateral (Glassmorphism Modal)**:
+    * Apresenta a timeline histórica da ocorrência, desde a sua génese até ao encerramento.
+    * Integração de gráficos lineares interativos **Recharts** que exibem as leituras históricas dos sensores (velocidade, temperatura do motor, nível de bateria) nas últimas 24h do ativo correspondente (Subflow: Consultar Telemetria).
+    * Controlos de estado contextuais: Botões para "Assumir Ocorrência", "Fechar como Resolvida" (introduzindo a ação corretiva), ou registar como "Falso Positivo" (introduzindo notas de justificação).
+    * **Drag and Drop de Anexos**: Zona reativa onde o utilizador pode arrastar ou clicar para fazer upload de ficheiros de suporte (Subflow: Adicionar Anexo). Os limites do tamanho (20MB) e do formato (`JPG`, `PNG`, `PDF`) são validados de imediato no cliente antes do envio, gerando as mensagens exatas prescritas: `"O ficheiro excede o tamanho máximo permitido de 20 MB."` ou `"Formato de ficheiro não suportado. Formatos permitidos: JPG, PNG, PDF."`.
+
+---
+
+## 3. Segurança & Infraestrutura (Zero-Trust)
+
+### A. Restrições de Rota (SecurityConfig)
+As APIs de ocorrências e anexos estão protegidas na classe [SecurityConfig.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/config/SecurityConfig.java). As permissões seguem o princípio do privilégio mínimo:
+* **Leitura, Criação, Assunção e Encerramento**: Apenas utilizadores autenticados com perfis `MAINTENANCE`, `OPERATOR` e `ADMIN` extraídos do token Keycloak podem aceder a `/api/v1/ocorrencias/**`.
+* A injeção do `@AuthenticationPrincipal Jwt jwt` no [OcorrenciaController.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/controller/OcorrenciaController.java) assegura que o campo `responsavel` e `criado_por` são preenchidos através do campo `preferred_username` verificado pelo servidor de autenticação, impedindo qualquer falsificação de utilizadores operacionais.
+
+---
+
+## 4. Auditoria de Eventos Semânticos
+
+O sistema executa auditoria de segurança e registo operacional de todas as transações através do interceptor `@LogActivity` declarado nos métodos de negócio de [OcorrenciaService.java](file:///c:/Users/Antonio/Desktop/DAI/pgu/src/main/java/dai/tub/pgu/service/OcorrenciaService.java):
+
+| Ação Auditada | Método Associado | Estado Registado | Dados Adicionais Gravados |
+| :--- | :--- | :--- | :--- |
+| **Criar Ocorrência** | `criarOcorrencia` | `ABERTA` | ID do ativo, tipo de anomalia, snapshot de telemetria e criador. |
+| **Assumir Ocorrência** | `assumirOcorrencia` | `EM_CURSO` | Username do técnico de manutenção responsável e timestamp de início. |
+| **Registar Ação Corretiva** | `registarAcaoCorretiva` | `EM_CURSO` | Descrição em texto da ação de intervenção física realizada. |
+| **Fechar Ocorrência** | `fecharOcorrencia` | `RESOLVIDA` / `FALSO_POSITIVO` | Timestamp de fecho, ação corretiva definitiva ou justificação de falso positivo. |
+| **Marcar Falso Positivo** | `marcarFalsoPositivo` | `FALSO_POSITIVO` | Texto com a fundamentação de fecho por erro de sensor. |
+
+---
+
+## 5. Sugestões de Capturas de Ecrã / Prints para o Relatório Académico
+
+Para documentação no relatório final do projeto, recomenda-se a captura dos seguintes ecrãs:
+
+1. **Painel Geral de Ocorrências (Ocorrencias.jsx)**:
+   * Print à listagem central de ocorrências com diferentes badges coloridos aplicados a cada estado.
+2. **Notificação de Escalamento Crítico (GlobalToastListener.jsx)**:
+   * Captura de ecrã do toast de aviso amarelo de escalamento ativo (exibindo a mensagem formatada de tempo excedido sem responsável).
+3. **Validação de Uploads de Ficheiros (Ocorrencias.jsx)**:
+   * Provocar um upload superior a 20MB ou de formato inválido (ex: `.zip`) e tirar print ao toast de erro vermelho exibindo a mensagem de aviso exata.
+4. **Detalhe e Gráfico de Telemetria (Recharts Panel)**:
+   * Captura de ecrã do slide-out de ocorrência aberto com o gráfico dinâmico a traçar as linhas de temperatura e bateria das últimas 24h para evidenciar o suporte à decisão operacional.
+5. **Timeline Histórica**:
+   * Print à secção de Timeline dentro do painel lateral mostrando uma ocorrência já resolvida ou assinalada como falso positivo, demonstrando a auditabilidade completa do ciclo de vida.

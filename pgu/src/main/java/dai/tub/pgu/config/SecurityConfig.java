@@ -41,12 +41,26 @@ public class SecurityConfig
                 .requestMatchers("/actuator/**").permitAll()
                 // Swagger / SpringDoc
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                // Despacho Operacional — Mensagens CM
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("operator", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operator", "admin")
+                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operator", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/ack").permitAll() // protegido pelo filtro de API key
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
+                // Ocorrências — Gestão e Escritas
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/assumir").hasAnyRole("maintenance", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/fechar").hasAnyRole("maintenance", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/acao-corretiva").hasAnyRole("maintenance", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("maintenance", "operator", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/anexos").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias").hasAnyRole("maintenance", "operator", "admin")
+                .requestMatchers("/api/v1/ocorrencias/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
                 .requestMatchers(HttpMethod.POST, "/api/v1/exports/**").authenticated()
                 // Escrita em recursos de gestão — apenas admin
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasRole("admin")
+
                 .requestMatchers(HttpMethod.PUT, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "operator")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/**").hasRole("admin")

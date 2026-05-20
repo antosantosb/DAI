@@ -103,6 +103,14 @@ public class TelemetryService
             .stream().map(TelemetryMapper::fromEntity).toList();
     }
 
+    public List<TelemetryDTO> get24hTelemetry(String busId)
+    {
+        Instant since = Instant.now().minus(24, java.time.temporal.ChronoUnit.HOURS);
+        return telemetryRepository.findByBusIdAndRecordedAtAfterOrderByRecordedAtDesc(busId, since)
+            .stream().map(TelemetryMapper::fromEntity).toList();
+    }
+
+
     public List<BusHealthDTO> getBusHealthStatuses()
     {
         List<Bus> buses = busRepository.findAll();

@@ -19,4 +19,7 @@ public interface TelemetryRepository extends JpaRepository<VehicleTelemetry, Lon
 
     @Query(value = "SELECT * FROM vehicle_telemetry WHERE bus_id = ?1 ORDER BY recorded_at DESC LIMIT 1", nativeQuery = true)
     VehicleTelemetry findLatestByBusId(String busId);
+
+    List<VehicleTelemetry> findByBusIdAndRecordedAtAfterOrderByRecordedAtDesc(String busId, java.time.Instant since);
 }
+
