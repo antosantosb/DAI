@@ -383,7 +383,7 @@ export default function GtfsManager() {
                     <th>Estado</th>
                     <th>Paragens</th>
                     <th>Rotas</th>
-                    <th>Shapes</th>
+                    <th>Horários</th>
                     <th>Por</th>
                     <th></th>
                   </tr>
@@ -414,7 +414,11 @@ export default function GtfsManager() {
                           {imp.routesUpdated > 0 && <span className="gtfs-num-updated">{imp.routesUpdated} upd</span>}
                           {imp.routesCreated === 0 && imp.routesUpdated === 0 && '—'}
                         </td>
-                        <td className="gtfs-cell-num">{imp.shapesLoaded || '—'}</td>
+                        <td className="gtfs-cell-num">
+                          {imp.schedulesLoaded > 0
+                            ? <span className="gtfs-num-created">{imp.schedulesLoaded.toLocaleString()}</span>
+                            : '—'}
+                        </td>
                         <td className="gtfs-cell-user">{imp.createdBy || '—'}</td>
                         <td className="gtfs-cell-actions">
                           {imp.canRevert && (

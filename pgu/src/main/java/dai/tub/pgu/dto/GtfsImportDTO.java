@@ -13,6 +13,7 @@ public class GtfsImportDTO
     private int routesCreated;
     private int routesUpdated;
     private int shapesLoaded;
+    private long schedulesLoaded;
     private String errorMessage;
     private String createdBy;
     private Instant createdAt;
@@ -32,6 +33,7 @@ public class GtfsImportDTO
     public int     getRoutesCreated()  { return routesCreated; }
     public int     getRoutesUpdated()  { return routesUpdated; }
     public int     getShapesLoaded()   { return shapesLoaded; }
+    public long    getSchedulesLoaded() { return schedulesLoaded; }
     public String  getErrorMessage()   { return errorMessage; }
     public String  getCreatedBy()      { return createdBy; }
     public Instant getCreatedAt()      { return createdAt; }
@@ -49,6 +51,7 @@ public class GtfsImportDTO
     public void setRoutesCreated(int v)              { this.routesCreated = v; }
     public void setRoutesUpdated(int v)              { this.routesUpdated = v; }
     public void setShapesLoaded(int v)               { this.shapesLoaded = v; }
+    public void setSchedulesLoaded(long v)           { this.schedulesLoaded = v; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public void setCreatedBy(String createdBy)       { this.createdBy = createdBy; }
     public void setCreatedAt(Instant createdAt)      { this.createdAt = createdAt; }

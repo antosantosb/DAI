@@ -829,6 +829,7 @@ public class GtfsService
         dto.setRoutesCreated(entity.getRoutesCreated());
         dto.setRoutesUpdated(entity.getRoutesUpdated());
         dto.setShapesLoaded(entity.getShapesLoaded());
+        dto.setSchedulesLoaded(scheduleRepository.countByImportId(entity.getId()));
         dto.setErrorMessage(entity.getErrorMessage());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());
