@@ -331,7 +331,7 @@ public class GtfsService
     }
 
     @Transactional
-    public GtfsConfigDTO updateConfig(GtfsConfigDTO dto)
+    public GtfsConfigDTO updateConfig(GtfsConfigDTO dto, String username)
     {
         GtfsConfig config = getOrCreateConfig();
         boolean wasInactive = !config.isScheduleActive();
@@ -344,8 +344,8 @@ public class GtfsService
         // Se acabou de ativar o agendamento, dispara sincronização imediata
         if (wasInactive && dto.isScheduleActive())
         {
-            log.info("[GTFS] Agendamento ativado — a iniciar sincronização imediata");
-            processTubDownload("TUB_SCHEDULED", "system-scheduler");
+            log.info("[GTFS] Agendamento ativado — a iniciar sincronização imediata por {}", username);
+            processTubDownload("TUB_SCHEDULED", username);
         }
 
         return getConfig();

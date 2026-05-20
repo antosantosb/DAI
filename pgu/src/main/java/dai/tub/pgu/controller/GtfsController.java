@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,6 +27,18 @@ public class GtfsController
     public GtfsController(GtfsService gtfsService)
     {
         this.gtfsService = gtfsService;
+    }
+
+    /** Extrai preferred_username do JWT Keycloak, ou fallback para auth.getName(). */
+    private String extractUsername(Authentication auth)
+    {
+        if (auth == null) return "anonymous";
+        if (auth.getPrincipal() instanceof Jwt jwt)
+        {
+            String preferred = jwt.getClaimAsString("preferred_username");
+            if (preferred != null && !preferred.isBlank()) return preferred;
+        }
+        return auth.getName();
     }
 
     // ─── Importações ────────────────────────────────────────
@@ -51,7 +64,7 @@ public class GtfsController
     {
         try
         {
-            String username = auth != null ? auth.getName() : "anonymous";
+            String username = extractUsername(auth);
             String filename = file.getOriginalFilename();
             log.info("[GTFS] Upload recebido: {} ({} KB) por {}",
                     filename, file.getSize() / 1024, username);
@@ -90,7 +103,7 @@ public class GtfsController
     @LogActivity(action = "Sincronizar GTFS TUB")
     public ResponseEntity<Map<String, String>> syncTub(Authentication auth)
     {
-        String username = auth != null ? auth.getName() : "anonymous";
+        String username = extractUsername(auth);
         log.info("[GTFS] Sincronização TUB manual por {}", username);
         gtfsService.processTubDownload("TUB_MANUAL", username);
         return ResponseEntity.accepted().body(Map.of("message", "Sincronização TUB iniciada"));
@@ -146,8 +159,9 @@ public class GtfsController
 
     @PutMapping("/config")
     @LogActivity(action = "Atualizar config GTFS")
-    public ResponseEntity<GtfsConfigDTO> updateConfig(@RequestBody GtfsConfigDTO dto)
+    public ResponseEntity<GtfsConfigDTO> updateConfig(@RequestBody GtfsConfigDTO dto, Authentication auth)
     {
-        return ResponseEntity.ok(gtfsService.updateConfig(dto));
+        String username = extractUsername(auth);
+        return ResponseEntity.ok(gtfsService.updateConfig(dto, username));
     }
 }
