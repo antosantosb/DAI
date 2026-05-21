@@ -1,15 +1,16 @@
 package dai.tub.pgu.service;
 
-import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
-import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
-import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
-import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
-import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
-import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
+import java.util.List;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
+import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
+import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
+import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
+import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
+import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
 
 @Service
 public class AnalyticsService {
@@ -88,12 +89,12 @@ public class AnalyticsService {
             sql.append(" LIMIT 500");
         }
 
-        List<FleetOccupancyData> reversed = jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new FleetOccupancyData(
+        List<FleetOccupancyData> reversed = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new FleetOccupancyData(
                 rs.getString("minute_label"),
                 rs.getLong("total_passengers"),
                 rs.getLong("active_buses"),
                 rs.getDouble("occupancy_rate")
-        ));
+        ), args.toArray());
         java.util.Collections.reverse(reversed);
         return reversed;
     }
@@ -127,14 +128,14 @@ public class AnalyticsService {
                 ORDER BY r.code
                 """);
 
-        return jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new RouteDelayData(
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new RouteDelayData(
                 rs.getString("route_code"),
                 rs.getLong("active_count"),
                 rs.getLong("at_stop_count"),
                 rs.getLong("stopping_count"),
                 rs.getLong("delayed_count"),
                 rs.getLong("stopped_count")
-        ));
+        ), args.toArray());
     }
 
     public List<RouteDelayData> getRouteDelays() {
@@ -162,11 +163,11 @@ public class AnalyticsService {
                 LIMIT 5000
                 """);
 
-        return jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new HeatmapData(
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new HeatmapData(
                 rs.getDouble("lat"),
                 rs.getDouble("lng"),
                 rs.getInt("passenger_count")
-        ));
+        ), args.toArray());
     }
 
     public List<HeatmapData> getHeatmapData() {
@@ -203,14 +204,14 @@ public class AnalyticsService {
                 ORDER BY t.bus_id
                 """);
 
-        return jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new BusEfficiencyData(
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new BusEfficiencyData(
                 rs.getString("bus_id"),
                 rs.getDouble("avg_passengers"),
                 rs.getInt("max_passengers"),
                 rs.getLong("capacity"),
                 rs.getDouble("avg_occupancy_rate"),
                 rs.getDouble("max_occupancy_rate")
-        ));
+        ), args.toArray());
     }
 
     public List<BusEfficiencyData> getBusEfficiency() {
@@ -249,10 +250,10 @@ public class AnalyticsService {
             sql.append(" LIMIT 500");
         }
 
-        List<SpeedOverTimeData> reversed = jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new SpeedOverTimeData(
+        List<SpeedOverTimeData> reversed = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new SpeedOverTimeData(
                 rs.getString("minute_label"),
                 rs.getDouble("avg_speed")
-        ));
+        ), args.toArray());
         java.util.Collections.reverse(reversed);
         return reversed;
     }
@@ -295,7 +296,7 @@ public class AnalyticsService {
                 LIMIT 500
                 """);
 
-        return jdbcTemplate.query(sql.toString(), args.toArray(), (rs, rowNum) -> new CongestionData(
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new CongestionData(
                 rs.getString("bus_id"),
                 rs.getDouble("lat"),
                 rs.getDouble("lng"),
@@ -306,7 +307,7 @@ public class AnalyticsService {
                 rs.getString("route_name"),
                 rs.getLong("capacity"),
                 rs.getDouble("occupancy_rate")
-        ));
+        ), args.toArray());
     }
 
     public List<CongestionData> getCongestion() {
