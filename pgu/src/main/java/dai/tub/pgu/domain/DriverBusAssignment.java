@@ -24,8 +24,8 @@ public class DriverBusAssignment {
     @JoinColumn(name = "driver_id", nullable = false)
     private Driver driver;
 
-    @Column(name = "bus_id", nullable = false, length = 50)
-    private String busId;
+    @Column(name = "bus_id", nullable = false)
+    private Long busId;
 
     @Column(name = "assigned_at", nullable = false)
     private Instant assignedAt = Instant.now();
@@ -38,7 +38,7 @@ public class DriverBusAssignment {
 
     public DriverBusAssignment() {}
 
-    public DriverBusAssignment(Driver driver, String busId) {
+    public DriverBusAssignment(Driver driver, Long busId) {
         this.driver = driver;
         this.busId = busId;
         this.assignedAt = Instant.now();
@@ -48,7 +48,7 @@ public class DriverBusAssignment {
     // Getters e Setters
     public Long getId() { return id; }
     public Driver getDriver() { return driver; }
-    public String getBusId() { return busId; }
+    public Long getBusId() { return busId; }
     public Instant getAssignedAt() { return assignedAt; }
     public Instant getUnassignedAt() { return unassignedAt; }
     public boolean isActive() { return active; }

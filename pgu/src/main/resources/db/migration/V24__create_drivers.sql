@@ -13,7 +13,7 @@ CREATE TABLE drivers (
 CREATE TABLE driver_bus_assignments (
     id BIGSERIAL PRIMARY KEY,
     driver_id BIGINT NOT NULL,
-    bus_id VARCHAR(50) NOT NULL, -- Alinha com o tipo do teu busId (String ou Long)
+    bus_id BIGINT NOT NULL, -- Alinha com o tipo do teu busId (String ou Long)
     assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     unassigned_at TIMESTAMP WITH TIME ZONE,
     active BOOLEAN NOT NULL DEFAULT TRUE,

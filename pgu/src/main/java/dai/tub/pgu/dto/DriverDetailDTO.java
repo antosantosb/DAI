@@ -7,7 +7,7 @@ public class DriverDetailDTO {
     private String name;
     private String mecanographicNumber;
     private String status;
-    private String busId;
+    private Long busId;
 
     public static DriverDetailDTO fromDriver(Driver driver, DriverBusAssignment currentAssignment) {
         DriverDetailDTO dto = new DriverDetailDTO();
@@ -28,7 +28,7 @@ public class DriverDetailDTO {
     public void setMecanographicNumber(String mecanographicNumber) { this.mecanographicNumber = mecanographicNumber; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public String getBusId() { return busId; }
-    public void setBusId(String busId) { this.busId = busId; }
+    public Long getBusId() { return busId; }
+    public void setBusId(Long busId) { this.busId = busId; }
 
 }

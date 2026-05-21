@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import dai.tub.pgu.domain.DriverBusAssignment;
 
 public interface DriverBusAssignmentRepository extends JpaRepository<DriverBusAssignment, Long> {
-    Optional<DriverBusAssignment> findByBusIdAndActiveTrue(String busId);
+    Optional<DriverBusAssignment> findByBusIdAndActiveTrue(Long busId);
     Optional<DriverBusAssignment> findByDriverIdAndActiveTrue(Long driverId);
     List<DriverBusAssignment> findByDriverIdOrderByAssignedAtDesc(Long driverId);
 }
