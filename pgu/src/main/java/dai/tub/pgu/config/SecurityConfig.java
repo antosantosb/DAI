@@ -37,6 +37,10 @@ public class SecurityConfig
             .authorizeHttpRequests(auth -> auth
                 // WebSocket endpoint — público (STOMP auth é concern separado)
                 .requestMatchers("/ws-telemetry/**").permitAll()
+                // Painel de bordo — endpoints consumidos pelo ecrã do motorista (sem JWT)
+                .requestMatchers(HttpMethod.GET, "/api/v1/buses/code/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/routes/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/*/mensagens").permitAll()
                 // Actuator
                 .requestMatchers("/actuator/**").permitAll()
                 // Swagger / SpringDoc

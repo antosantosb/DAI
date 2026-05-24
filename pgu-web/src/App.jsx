@@ -15,6 +15,7 @@ import GtfsManager from './pages/GtfsManager';
 import Livemap from './pages/Livemap';
 import GlobalConfig from './pages/GlobalConfig';
 import Ocorrencias from './pages/Ocorrencias';
+import PainelBordo from './pages/PainelBordo';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
@@ -72,6 +73,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* Painel de bordo — ecrã do motorista (sem auth do backoffice) */}
+        <Route path="/bordo/:busCode" element={<PainelBordo />} />
       </Routes>
     </BrowserRouter>
   );

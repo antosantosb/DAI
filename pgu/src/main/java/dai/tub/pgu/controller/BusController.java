@@ -33,6 +33,12 @@ public class BusController
         return ResponseEntity.ok(busService.getById(id));
     }
 
+    @GetMapping("/code/{busCode}")
+    public ResponseEntity<BusDTO> getByCode(@PathVariable String busCode)
+    {
+        return ResponseEntity.ok(busService.getByCode(busCode));
+    }
+
     @PostMapping
     @LogActivity(action = "Criar autocarro")
     public ResponseEntity<BusDTO> create(@RequestBody BusDTO dto)

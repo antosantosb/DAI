@@ -36,6 +36,13 @@ public class BusService
         return toDTO(bus);
     }
 
+    public BusDTO getByCode(String busCode)
+    {
+        Bus bus = busRepository.findByBusCode(busCode)
+                .orElseThrow(() -> new RuntimeException("Autocarro não encontrado: " + busCode));
+        return toDTO(bus);
+    }
+
     public BusDTO create(BusDTO dto)
     {
         Bus bus = new Bus();
