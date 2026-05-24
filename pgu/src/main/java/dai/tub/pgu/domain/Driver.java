@@ -29,6 +29,9 @@ public class Driver {
     @Column(nullable = false)
     private String status = "AVAILABLE"; // AVAILABLE, ON_DUTY, OFFLINE
 
+    @Column(name = "keycloak_user_id", unique = true, length = 100)
+    private String keycloakUserId;
+
     @Column(name = "created_at", updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -60,4 +63,7 @@ public class Driver {
     public void setStatus(String status) { this.status = status; }
 
     public Instant getCreatedAt() { return createdAt; }
+
+    public String getKeycloakUserId() { return keycloakUserId; }
+    public void setKeycloakUserId(String keycloakUserId) { this.keycloakUserId = keycloakUserId; }
 }

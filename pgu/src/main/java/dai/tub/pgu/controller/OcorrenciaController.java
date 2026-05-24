@@ -151,6 +151,35 @@ public class OcorrenciaController {
         return ResponseEntity.ok(telemetryService.get24hTelemetry(ativoId));
     }
 
+    /**
+     * Endpoint simplificado para motoristas reportarem alertas (avaria ou acidente).
+     * Preenche automaticamente tipoAtivo=BUS e prioridade conforme o tipo.
+     */
+    @PostMapping("/motorista")
+    public ResponseEntity<OcorrenciaDTO> createFromDriver(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
+        String username = "motorista:" + resolveUsername(jwt);
+        String tipo = body.getOrDefault("tipo", "AVARIA"); // AVARIA | ACIDENTE
+        String busCode = body.get("busCode");
+        String descricao = body.getOrDefault("descricao", "");
+
+        if (busCode == null || busCode.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "busCode é obrigatório.");
+        }
+
+        OcorrenciaRequestDTO.RegistarOcorrenciaRequest request = new OcorrenciaRequestDTO.RegistarOcorrenciaRequest();
+        request.setAtivoId(busCode);
+        request.setTipoAtivo("BUS");
+        request.setTipoAnomalia(tipo);
+        request.setDescricao(descricao.isBlank() ? tipo + " reportada pelo motorista" : descricao);
+        request.setPrioridade("ACIDENTE".equals(tipo) ? "CRITICA" : "NORMAL");
+        request.setNotasIniciais("Alerta do painel de bordo");
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ocorrenciaService.criarOcorrencia(request, username));
+    }
+
     private String resolveUsername(Jwt jwt) {
         if (jwt == null) return "sistema";
         String name = jwt.getClaimAsString("preferred_username");

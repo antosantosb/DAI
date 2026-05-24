@@ -42,4 +42,12 @@ public class MensagemDespacho {
 
     @Column(name = "mqtt_message_id", length = 100)
     private String mqttMessageId;
+
+    /**
+     * Indica se a mensagem foi lida pelo operador no backoffice.
+     * Para mensagens enviadas pelo operador é sempre true (foi ele que escreveu).
+     * Para mensagens vindas do motorista, fica false até ele abrir o chat.
+     */
+    @Column(name = "lida_pelo_operador", nullable = false)
+    private boolean lidaPeloOperador = false;
 }

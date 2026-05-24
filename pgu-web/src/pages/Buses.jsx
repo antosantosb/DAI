@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
-import BusIcon from '../components/BusIcon';
+import BusCard from '../components/BusCard';
+import BusDetailPanel from '../components/BusDetailPanel';
 import './Buses.css';
 
 export default function Buses() {
@@ -11,6 +12,9 @@ export default function Buses() {
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [telemetry, setTelemetry] = useState({});
+  const [drivers, setDrivers] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [selectedBus, setSelectedBus] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ busCode: '', licensePlate: '', capacity: '', routeId: '' });
   const [showForm, setShowForm] = useState(false);
@@ -27,6 +31,7 @@ export default function Buses() {
   const load = useCallback(() => {
     api.get('/buses').then(r => setBuses(r.data || [])).catch(() => setBuses([]));
     api.get('/routes').then(r => setRoutes(r.data || [])).catch(() => setRoutes([]));
+    api.get('/drivers').then(r => setDrivers(r.data || [])).catch(() => setDrivers([]));
   }, []);
 
   const loadTelemetry = useCallback(() => {
@@ -37,12 +42,28 @@ export default function Buses() {
     }).catch(() => {});
   }, []);
 
+  const loadUnreadCounts = useCallback(() => {
+    api.get('/despacho/unread-counts')
+      .then(r => setUnreadCounts(r.data || {}))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     load();
     loadTelemetry();
-    const interval = setInterval(loadTelemetry, 5000);
+    loadUnreadCounts();
+    const interval = setInterval(() => {
+      loadTelemetry();
+      loadUnreadCounts();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [load, loadTelemetry]);
+  }, [load, loadTelemetry, loadUnreadCounts]);
+
+  // Lookup: driverId atribuído a cada bus
+  const driverByBusId = {};
+  drivers.forEach(d => {
+    if (d.currentBusId) driverByBusId[d.currentBusId] = d;
+  });
 
   const formatPlate = (raw) => {
     const clean = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
@@ -162,6 +183,14 @@ export default function Buses() {
         api.delete(`/buses/${bus.id}`).then(load);
       },
     });
+  };
+
+  // Roteador de ações vindas do BusDetailPanel
+  const handlePanelAction = (action, bus) => {
+    if (action === 'stop')         handleStop(bus);
+    else if (action === 'activate') handleActivate(bus);
+    else if (action === 'edit')     { startEdit(bus); setSelectedBus(null); }
+    else if (action === 'decommission') handleDecommission(bus);
   };
 
   const getStatusInfo = (bus) => {
@@ -333,96 +362,16 @@ export default function Buses() {
       )}
 
       <div className="bus-grid">
-        {filtered.map((bus, idx) => {
-          const t = telemetry[bus.busCode];
-          const status = getStatusInfo(bus);
-          const isActive = bus.status === 'ACTIVE';
-          const isStopping = bus.status === 'STOPPING';
-          const isStopped = bus.status === 'STOPPED';
-
-          return (
-            <div
-              key={bus.id}
-              className={`bus-card bus-card--${status.cls}`}
-              style={{ animationDelay: `${idx * 0.04}s` }}
-            >
-              <div className="bus-card-header">
-                <div className="bus-card-title">
-                  <span className="bus-code">{bus.busCode}</span>
-                  <span className="bus-route-tag">{bus.routeCode || 'Sem rota'}</span>
-                </div>
-                <BusIcon status={status.cls} />
-              </div>
-
-              <div className="bus-card-body">
-                <div className="bus-meta">
-                  <div className="bus-meta-item">
-                    <span className="bus-meta-label">Matricula</span>
-                    <span className="bus-meta-value">{bus.licensePlate || '-'}</span>
-                  </div>
-                  <div className="bus-meta-item">
-                    <span className="bus-meta-label">Capacidade</span>
-                    <span className="bus-meta-value">{bus.capacity || '-'}</span>
-                  </div>
-                </div>
-
-                {t && !isStopped && (
-                  <div className="bus-telemetry">
-                    <div className="bus-telemetry-grid">
-                      <div className="telem-item">
-                        <span className="telem-value">{t.nextStop || '-'}</span>
-                        <span className="telem-label">Proxima Paragem</span>
-                      </div>
-                      <div className="telem-item">
-                        <span className="telem-value telem-value--num">{t.stopsRemaining != null ? t.stopsRemaining : '-'}</span>
-                        <span className="telem-label">Restantes</span>
-                      </div>
-                      <div className="telem-item">
-                        <span className="telem-value telem-value--num">{t.passengers}<span className="telem-unit">/{bus.capacity || '?'}</span></span>
-                        <span className="telem-label">Passageiros</span>
-                      </div>
-                      <div className="telem-item">
-                        <span className="telem-value telem-value--num">{t.speed?.toFixed(0) || '0'}<span className="telem-unit">km/h</span></span>
-                        <span className="telem-label">Velocidade</span>
-                      </div>
-                    </div>
-                    <div className="bus-last-update">
-                      {t.timestamp ? new Date(t.timestamp).toLocaleTimeString('pt-PT') : '-'}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="bus-card-footer">
-                {isActive && bus.routeId && (
-                  <button className="btn btn-warning btn-sm" onClick={() => handleStop(bus)}>
-                    &#9632; Parar
-                  </button>
-                )}
-                {isStopping && (
-                  <button className="btn btn-secondary btn-sm" onClick={() => handleActivate(bus)}>
-                    Cancelar Paragem
-                  </button>
-                )}
-                {isStopped && (
-                  <button className="btn btn-success btn-sm" onClick={() => handleActivate(bus)}>
-                    &#9654; Ativar
-                  </button>
-                )}
-                {isAdmin && (!bus.routeId || isStopped) && (
-                  <>
-                    <button className="btn btn-secondary btn-sm" onClick={() => startEdit(bus)}>
-                      Editar
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDecommission(bus)}>
-                      Descomissionar
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {filtered.map((bus, idx) => (
+          <BusCard
+            key={bus.id}
+            bus={bus}
+            driver={driverByBusId[bus.id]}
+            unreadCount={unreadCounts[bus.busCode] || 0}
+            onClick={() => setSelectedBus(bus)}
+            animationDelay={idx * 0.04}
+          />
+        ))}
         {filtered.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">&#128653;</div>
@@ -432,6 +381,18 @@ export default function Buses() {
           </div>
         )}
       </div>
+
+      {/* Painel de detalhe + chat — abre ao clicar num card */}
+      {selectedBus && (
+        <BusDetailPanel
+          bus={buses.find(b => b.id === selectedBus.id) || selectedBus}
+          driver={driverByBusId[selectedBus.id]}
+          telemetry={telemetry[selectedBus.busCode]}
+          isAdmin={isAdmin}
+          onClose={() => { setSelectedBus(null); loadUnreadCounts(); }}
+          onAction={handlePanelAction}
+        />
+      )}
     </div>
   );
 }

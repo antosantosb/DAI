@@ -8,4 +8,5 @@ import dai.tub.pgu.domain.Driver;
 
 public interface DriverRepository extends JpaRepository<Driver, Long> {
     Optional<Driver> findByMechanographicNumber(String mechanographicNumber);
+    Optional<Driver> findByKeycloakUserId(String keycloakUserId);
 }

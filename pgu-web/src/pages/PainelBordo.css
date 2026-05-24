@@ -3,7 +3,8 @@
    ══════════════════════════════════════════════════════════ */
 
 .pb-container {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   background: #0f172a;
   color: #e2e8f0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -133,11 +134,16 @@
 /* ─── Main layout ─── */
 .pb-main {
   flex: 1;
+  min-height: 0; /* Permite que filhos com overflow:auto scrollem internamente em vez de empurrar o pai */
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 20px 24px;
   overflow: hidden;
+}
+
+.pb-section {
+  min-height: 0; /* Mesmo motivo — chain de flex precisa de min-height:0 em todos os ancestrais */
 }
 
 /* ─── Section card ─── */
@@ -348,7 +354,17 @@
 /* ─── Messages section ─── */
 .pb-messages {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+
+.pb-empty--centered {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pb-message-list {
@@ -373,34 +389,38 @@
   border-radius: 2px;
 }
 
+/* ─── Chat messages (bidirecional) ─── */
 .pb-message {
-  padding: 12px 14px;
-  background: #0f172a;
-  border-radius: 10px;
-  border-left: 3px solid #475569;
-  transition: border-color 0.15s;
+  padding: 10px 14px;
+  border-radius: 12px;
+  max-width: 85%;
+  transition: opacity 0.15s;
 }
 
-.pb-message--entregue {
-  border-left-color: #6366f1;
+.pb-message--received {
+  background: #1e293b;
+  border: 1px solid #334155;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
 }
 
-.pb-message--lida {
-  border-left-color: #10b981;
+.pb-message--sent {
+  background: #312e81;
+  border: 1px solid #4338ca;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
 }
 
-.pb-message--enviada {
-  border-left-color: #f59e0b;
+.pb-message-sender {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 
-.pb-message--falhou {
-  border-left-color: #ef4444;
-}
-
-.pb-message--cancelada {
-  border-left-color: #94a3b8;
-  opacity: 0.6;
-}
+.pb-message--received .pb-message-sender { color: #6366f1; }
+.pb-message--sent .pb-message-sender { color: #a5b4fc; }
 
 .pb-message-content {
   font-size: 14px;
@@ -413,21 +433,150 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
 }
 
 .pb-message-state {
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.pb-message--lida .pb-message-state { color: #10b981; }
-.pb-message--entregue .pb-message-state { color: #6366f1; }
-.pb-message--enviada .pb-message-state { color: #f59e0b; }
-.pb-message--falhou .pb-message-state { color: #ef4444; }
+.pb-message-state--lida { color: #10b981; }
+.pb-message-state--entregue { color: #6366f1; }
+.pb-message-state--enviada { color: #f59e0b; }
+.pb-message-state--falhou { color: #ef4444; }
+.pb-message-state--cancelada { color: #94a3b8; }
+
+/* ─── Chat input form ─── */
+.pb-chat-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.pb-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pb-chat-input:focus {
+  border-color: #6366f1;
+}
+
+.pb-chat-input::placeholder {
+  color: #475569;
+}
+
+.pb-chat-send {
+  padding: 10px 20px;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.pb-chat-send:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.pb-chat-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Alert buttons ─── */
+.pb-alerts {
+  flex-shrink: 0;
+}
+
+.pb-alert-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pb-alert-btn {
+  padding: 16px 12px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pb-alert-btn--avaria {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.pb-alert-btn--avaria:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+}
+
+.pb-alert-btn--acidente {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.pb-alert-btn--acidente:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
+
+.pb-alert-btn--success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+.pb-alert-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Buttons (error screens) ─── */
+.pb-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  margin-top: 8px;
+}
+
+.pb-btn--secondary {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.pb-btn--secondary:hover {
+  background: #475569;
+}
 
 /* ─── Responsive — portrait tablet / mobile ─── */
 @media (max-width: 900px) {

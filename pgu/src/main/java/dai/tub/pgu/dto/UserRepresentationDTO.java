@@ -19,6 +19,11 @@ public class UserRepresentationDTO
     // Password só é usado na criação/atualização (nunca retornado)
     private String password;
 
+    // Campos específicos para utilizadores com role 'motorista'.
+    // Só usados quando o role criado/listado é motorista.
+    private String mechanographicNumber;
+    private String phoneNumber;
+
     public UserRepresentationDTO() {}
 
     public String getId() { return id; }
@@ -47,4 +52,10 @@ public class UserRepresentationDTO
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public String getMechanographicNumber() { return mechanographicNumber; }
+    public void setMechanographicNumber(String mechanographicNumber) { this.mechanographicNumber = mechanographicNumber; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 }

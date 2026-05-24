@@ -17,4 +17,5 @@ public class MensagemDespachoDTO {
     private Instant timestampLeitura;
     private String erroDetalhe;
     private String mqttMessageId;
+    private boolean lidaPeloOperador;
 }

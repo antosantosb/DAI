@@ -12,7 +12,6 @@ export default function BusesTab({
   setBusSearch,
   busSort,
   setBusSort,
-  onSendMessage,
 }) {
   const busList = useMemo(() =>
     Object.values(buses)
@@ -167,8 +166,6 @@ export default function BusesTab({
                     bus={bus}
                     isSelected={selectedBus === bus.busId}
                     onClick={() => onBusClick(bus)}
-                    onSendMessage={onSendMessage}
-                    isOnline={checkIfOnline(bus)}
                   />
                 ))}
               </div>
@@ -183,8 +180,6 @@ export default function BusesTab({
               bus={bus}
               isSelected={selectedBus === bus.busId}
               onClick={() => onBusClick(bus)}
-              onSendMessage={onSendMessage}
-              isOnline={checkIfOnline(bus)}
             />
           ))}
         </div>

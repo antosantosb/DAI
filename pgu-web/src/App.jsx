@@ -16,6 +16,7 @@ import Livemap from './pages/Livemap';
 import GlobalConfig from './pages/GlobalConfig';
 import Ocorrencias from './pages/Ocorrencias';
 import PainelBordo from './pages/PainelBordo';
+import Drivers from './pages/Drivers';
 import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
 import 'react-toastify/dist/ReactToastify.css';
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="audit" element={<AuditLogs />} />
           <Route path="gtfs" element={<GtfsManager />} />
           <Route path="users" element={<Users />} />
+          <Route path="drivers" element={<Drivers />} />
           <Route path="configuracoes" element={<GlobalConfig />} />
           <Route path="ocorrencias" element={<Ocorrencias />} />
         </Route>
@@ -73,8 +75,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        {/* Painel de bordo — ecrã do motorista (sem auth do backoffice) */}
-        <Route path="/bordo/:busCode" element={<PainelBordo />} />
+        {/* Painel de bordo — ecrã do motorista (login Keycloak + auto-detecção do bus) */}
+        <Route path="/bordo" element={<PainelBordo />} />
       </Routes>
     </BrowserRouter>
   );

@@ -94,6 +94,10 @@ export default function Layout() {
                 <span className="nav-icon"><IconUsers /></span>
                 Utilizadores
               </NavLink>
+              <NavLink to="/backoffice/drivers">
+                <span className="nav-icon"><IconUsers /></span>
+                Motoristas
+              </NavLink>
               <NavLink to="/backoffice/configuracoes">
                 <span className="nav-icon">⚙️</span>
                 Parâmetros

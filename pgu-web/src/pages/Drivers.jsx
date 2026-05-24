@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
-import './Drivers.css';  // ← added
+import Modal from '../components/Modal';
+import './Drivers.css';
 
 export default function Drivers() {
   const [drivers, setDrivers] = useState([]);
-  const [activeBuses, setActiveBuses] = useState([]);
+  const [allBuses, setAllBuses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [newDriver, setNewDriver] = useState({ name: '', mechanographicNumber: '', phoneNumber: '' });
+  const [assignModal, setAssignModal] = useState({ open: false, driver: null });
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const fetchData = async () => {
     try {
       const [driversRes, busesRes] = await Promise.all([
         api.get('/drivers'),
-        api.get('/buses?status=ACTIVE')
+        api.get('/buses'),
       ]);
-      setDrivers(driversRes.data);
-      setActiveBuses(busesRes.data);
+      setDrivers(driversRes.data || []);
+      setAllBuses(busesRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -28,152 +30,148 @@ export default function Drivers() {
     fetchData();
   }, []);
 
-  const assignDriver = async (driverId, busId) => {
-    if (!busId) return;
+  // Lista de buses disponíveis para atribuir (não ACTIVE e sem motorista atual)
+  const busesAlreadyAssigned = new Set(
+    drivers.map(d => d.currentBusId).filter(Boolean)
+  );
+  const availableBuses = allBuses.filter(b => !busesAlreadyAssigned.has(b.id));
+
+  const handleAssign = async (driverId, busId) => {
     try {
       await api.post('/drivers/assign', { driverId, busId });
+      setAssignModal({ open: false, driver: null });
       await fetchData();
     } catch (err) {
-      alert('Assignment failed: ' + (err.response?.data?.message || err.message));
+      setErrorMsg(err.response?.data?.message || err.message || 'Atribuição falhou');
     }
   };
 
-  const unassignDriver = async (driverId) => {
+  const handleUnassign = async (driverId) => {
     try {
       await api.post('/drivers/unassign', { driverId });
       await fetchData();
     } catch (err) {
-      alert('Unassign failed: ' + (err.response?.data?.message || err.message));
+      setErrorMsg(err.response?.data?.message || err.message || 'Desatribuição falhou');
     }
   };
 
-  const createDriver = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/drivers', newDriver);
-      setShowForm(false);
-      setNewDriver({ name: '', mechanographicNumber: '', phoneNumber: '' });
-      await fetchData();
-    } catch (err) {
-      alert('Error creating driver: ' + (err.response?.data?.message || err.message));
-    }
-  };
-
-  if (loading) return <div className="empty-state">Loading drivers...</div>;
+  if (loading) return <div className="empty-state">A carregar motoristas...</div>;
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Drivers</h1>
-          <div className="page-subtitle">Manage bus drivers and assignments</div>
+          <h1>Motoristas</h1>
+          <div className="page-subtitle">Gestão operacional — atribuir autocarros e ver estado</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          + New Driver
-        </button>
+        <Link to="/backoffice/users" className="btn btn-primary">
+          + Criar Motorista (em Utilizadores)
+        </Link>
       </div>
-
-      {showForm && (
-        <div className="form-overlay">
-          <div className="form-card">
-            <h3>Register New Driver</h3>
-            <form onSubmit={createDriver}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input
-                    type="text"
-                    value={newDriver.name}
-                    onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Mechanographic Number</label>
-                  <input
-                    type="text"
-                    value={newDriver.mechanographicNumber}
-                    onChange={(e) => setNewDriver({ ...newDriver, mechanographicNumber: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Phone Number</label>
-                  <input
-                    type="tel"
-                    value={newDriver.phoneNumber}
-                    onChange={(e) => setNewDriver({ ...newDriver, phoneNumber: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary">Save</button>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Mechanographic #</th>
-              <th>Phone</th>
-              <th>Status</th>
-              <th>Current Bus</th>
-              <th>Actions</th>
+              <th>Nome</th>
+              <th>Nº Mecanográfico</th>
+              <th>Telefone</th>
+              <th>Estado</th>
+              <th>Autocarro Atual</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {drivers.length === 0 ? (
               <tr>
-                <td colSpan="6" className="empty">No drivers found.</td>
+                <td colSpan="6" className="empty">
+                  Sem motoristas registados. <Link to="/backoffice/users">Criar em Utilizadores →</Link>
+                </td>
               </tr>
             ) : (
-              drivers.map(driver => (
-                <tr key={driver.id}>
-                  <td>{driver.name}</td>
-                  <td>{driver.mechanographicNumber}</td>
-                  <td>{driver.phoneNumber || '—'}</td>
-                  <td>
-                    <span className={`driver-status driver-status--${driver.status === 'ON_DUTY' ? 'on-duty' : driver.status === 'AVAILABLE' ? 'available' : 'offline'}`}>
-                      {driver.status}
-                    </span>
-                  </td>
-                  <td>
-                    {driver.currentBusId ? (
-                      <span className="current-bus">Bus {driver.currentBusId}</span>
-                    ) : '—'}
-                  </td>
-                  <td className="actions">
-                    <select
-                      onChange={(e) => assignDriver(driver.id, e.target.value)}
-                      defaultValue=""
-                      className="assign-select"
-                    >
-                      <option value="" disabled>Assign to bus</option>
-                      {activeBuses.map(bus => (
-                        <option key={bus.id} value={bus.id}>
-                          {bus.busCode || bus.id}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => unassignDriver(driver.id)}
-                      className="btn btn-unassign btn-sm"
-                    >
-                      Unassign
-                    </button>
-                  </td>
-                </tr>
-              ))
+              drivers.map(driver => {
+                const busActive = driver.currentBusStatus === 'ACTIVE';
+                return (
+                  <tr key={driver.id}>
+                    <td>{driver.name}</td>
+                    <td>{driver.mechanographicNumber}</td>
+                    <td>{driver.phoneNumber || '—'}</td>
+                    <td>
+                      <span className={`driver-status driver-status--${driver.status === 'ON_DUTY' ? 'on-duty' : driver.status === 'AVAILABLE' ? 'available' : 'offline'}`}>
+                        {driver.status === 'ON_DUTY' ? 'Em serviço' : driver.status === 'AVAILABLE' ? 'Disponível' : driver.status}
+                      </span>
+                    </td>
+                    <td>
+                      {driver.currentBusCode ? (
+                        <span className="current-bus">
+                          {driver.currentBusCode}
+                          {busActive && <span className="bus-active-dot" title="Em andamento">●</span>}
+                        </span>
+                      ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                    </td>
+                    <td className="actions">
+                      {driver.currentBusId ? (
+                        <button
+                          onClick={() => handleUnassign(driver.id)}
+                          className="btn btn-unassign btn-sm"
+                          disabled={busActive}
+                          title={busActive ? 'Não é possível desatribuir — autocarro em andamento' : 'Desatribuir do autocarro atual'}
+                        >
+                          Desatribuir
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setAssignModal({ open: true, driver })}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Atribuir Autocarro
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Modal de seleção de autocarro — substitui o dropdown bugado */}
+      {assignModal.open && (
+        <Modal
+          open
+          title={`Atribuir autocarro a ${assignModal.driver?.name}`}
+          onClose={() => setAssignModal({ open: false, driver: null })}
+        >
+          <div className="assign-bus-list">
+            {availableBuses.length === 0 ? (
+              <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>
+                Não há autocarros disponíveis (todos já têm motorista).
+              </p>
+            ) : (
+              availableBuses.map(bus => (
+                <button
+                  key={bus.id}
+                  className="assign-bus-item"
+                  onClick={() => handleAssign(assignModal.driver.id, bus.id)}
+                >
+                  <span className="assign-bus-code">{bus.busCode}</span>
+                  <span className="assign-bus-info">
+                    {bus.routeCode ? `${bus.routeCode} — ${bus.routeName}` : 'Sem rota'} · {bus.status}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de erro */}
+      {errorMsg && (
+        <Modal open title="Erro" onClose={() => setErrorMsg(null)}>
+          <p style={{ color: '#ef4444' }}>{errorMsg}</p>
+        </Modal>
+      )}
     </div>
   );
 }

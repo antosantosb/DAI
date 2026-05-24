@@ -11,7 +11,6 @@ import {
 import BusesTab from '../components/livemap/BusesTab';
 import RoutesTab from '../components/livemap/RoutesTab';
 import AccountTab from '../components/livemap/AccountTab';
-import MessagePanel from '../components/livemap/MessagePanel';
 import './Livemap.css';
 
 export default function Livemap() {
@@ -46,7 +45,6 @@ export default function Livemap() {
   const heatLayerRef = useRef(null);
   const congestionLayerRef = useRef(null);
   const stompClientRef = useRef(null);
-  const [messagingBus, setMessagingBus] = useState(null);
 
   // ─── Map initialization ───
   useEffect(() => {
@@ -578,9 +576,6 @@ export default function Livemap() {
     }
   }, [selectedBus, selectedRoute, backendBuses]);
 
-  const handleSendMessage = useCallback((bus) => {
-    setMessagingBus(bus);
-  }, []);
 
   const subscribeToMessages = useCallback((busId, callback) => {
     if (!stompClientRef.current || !wsConnected) {
@@ -654,15 +649,7 @@ export default function Livemap() {
 
         <div className="livemap-tab-content">
           {activeTab === 'buses' && (
-            messagingBus ? (
-              <MessagePanel
-                bus={messagingBus}
-                isOnline={checkIfOnline(messagingBus)}
-                onClose={() => setMessagingBus(null)}
-                subscribeToMessages={subscribeToMessages}
-              />
-            ) : (
-              <BusesTab
+            <BusesTab
                 buses={buses}
                 backendBuses={backendBuses}
                 routes={routes}
@@ -672,9 +659,7 @@ export default function Livemap() {
                 setBusSearch={setBusSearch}
                 busSort={busSort}
                 setBusSort={setBusSort}
-                onSendMessage={handleSendMessage}
               />
-            )
           )}
           {activeTab === 'routes' && (
             <RoutesTab

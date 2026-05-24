@@ -7,7 +7,8 @@
   "roles": {
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },
-      { "name": "operador", "description": "Acesso ao backoffice - operações do dia-a-dia" }
+      { "name": "operador", "description": "Acesso ao backoffice - operações do dia-a-dia" },
+      { "name": "motorista", "description": "Acesso ao painel de bordo do motorista" }
     ]
   },
   "clients": [
@@ -58,6 +59,21 @@
         }
       ],
       "realmRoles": ["operador"]
+    },
+    {
+      "username": "motorista",
+      "enabled": true,
+      "email": "motorista@pgu.local",
+      "firstName": "Motorista",
+      "lastName": "Teste",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "motorista123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["motorista"]
     }
   ]
 }

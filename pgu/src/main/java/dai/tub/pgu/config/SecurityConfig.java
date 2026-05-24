@@ -37,10 +37,11 @@ public class SecurityConfig
             .authorizeHttpRequests(auth -> auth
                 // WebSocket endpoint — público (STOMP auth é concern separado)
                 .requestMatchers("/ws-telemetry/**").permitAll()
-                // Painel de bordo — endpoints consumidos pelo ecrã do motorista (sem JWT)
-                .requestMatchers(HttpMethod.GET, "/api/v1/buses/code/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/routes/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/*/mensagens").permitAll()
+                // Painel de bordo — motorista autenticado com role 'motorista'
+                .requestMatchers(HttpMethod.GET, "/api/v1/drivers/me/**").hasRole("motorista")
+                .requestMatchers(HttpMethod.GET, "/api/v1/buses/code/**").hasAnyRole("motorista", "admin", "operador")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/motorista").hasRole("motorista")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/motorista").hasRole("motorista")
                 // Actuator
                 .requestMatchers("/actuator/**").permitAll()
                 // Swagger / SpringDoc
@@ -48,7 +49,7 @@ public class SecurityConfig
                 // Despacho Operacional — Mensagens CM
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("operator", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operator", "admin")
-                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operator", "admin")
+                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operator", "admin", "motorista")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/ack").permitAll() // protegido pelo filtro de API key
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()

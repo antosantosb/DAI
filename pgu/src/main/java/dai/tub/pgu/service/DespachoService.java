@@ -95,7 +95,10 @@ public class DespachoService {
         msg.setEstado(EstadoMensagem.ENVIADA);
         msg.setOperador(operador);
         msg.setTimestampEnvio(Instant.now());
-        
+        // Mensagem do operador é "lida" desde o início (foi ele que escreveu).
+        // Mensagem do motorista ('motorista:xxx') fica false até o operador abrir o chat.
+        msg.setLidaPeloOperador(!operador.startsWith("motorista:"));
+
         String mqttMsgId = UUID.randomUUID().toString();
         msg.setMqttMessageId(mqttMsgId);
 
@@ -171,6 +174,33 @@ public class DespachoService {
         return mensagemRepository.findByBusIdOrderByTimestampEnvioDesc(busId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Devolve mapa busId → contagem de mensagens não lidas do motorista.
+     * Usado pelo backoffice para mostrar badges nos cards de autocarros.
+     */
+    public java.util.Map<String, Long> getUnreadCountsByBus() {
+        java.util.Map<String, Long> result = new java.util.HashMap<>();
+        for (Object[] row : mensagemRepository.countUnreadGroupedByBus()) {
+            result.put((String) row[0], (Long) row[1]);
+        }
+        return result;
+    }
+
+    /**
+     * Marca todas as mensagens do motorista como lidas pelo operador.
+     * Chamado quando o operador abre o painel de chat de um autocarro.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int marcarMensagensComoLidas(String busId) {
+        int n = mensagemRepository.markAllAsReadByOperator(busId);
+        if (n > 0) {
+            log.info("Marcadas {} mensagens como lidas pelo operador para o autocarro {}", n, busId);
+            // Notificar via WebSocket para que outros operadores vejam o badge desaparecer
+            messagingTemplate.convertAndSend("/topic/despacho/unread-update", busId);
+        }
+        return n;
     }
 
     public MensagemDespachoDTO reenviarMensagem(Long mensagemId, String operador) {
@@ -308,6 +338,7 @@ public class DespachoService {
         dto.setTimestampLeitura(msg.getTimestampLeitura());
         dto.setErroDetalhe(msg.getErroDetalhe());
         dto.setMqttMessageId(msg.getMqttMessageId());
+        dto.setLidaPeloOperador(msg.isLidaPeloOperador());
         return dto;
     }
 }

@@ -1,19 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
 import { Client } from '@stomp/stompjs';
+import { useAuth } from '../context/AuthProvider';
 import api from '../services/api';
 import { getMensagens } from '../services/despachoApi';
 import './PainelBordo.css';
 
 export default function PainelBordo() {
-  const { busCode } = useParams();
+  const { authenticated, login, username, hasRole, logout } = useAuth();
+
+  const [busCode, setBusCode] = useState(null);
   const [bus, setBus] = useState(null);
   const [route, setRoute] = useState(null);
   const [telemetry, setTelemetry] = useState(null);
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [chatInput, setChatInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [alertSending, setAlertSending] = useState(null);
   const stompRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const currentStopRef = useRef(null);
+
+  // Force login if not authenticated
+  useEffect(() => {
+    if (!authenticated) login();
+  }, [authenticated, login]);
+
+  const isMotorista = hasRole('motorista');
 
   // Clock
   useEffect(() => {
@@ -21,8 +35,24 @@ export default function PainelBordo() {
     return () => clearInterval(t);
   }, []);
 
+  // Fetch assigned bus
+  useEffect(() => {
+    if (!authenticated || !isMotorista) return;
+    api.get('/drivers/me/bus')
+      .then(({ data }) => setBusCode(data.busCode))
+      .catch((err) => {
+        const msg = err.response?.data?.message
+                 || err.response?.data?.error
+                 || err.message
+                 || 'Erro desconhecido';
+        console.error('Erro ao obter bus do motorista:', err.response?.status, err.response?.data);
+        setError(msg);
+      });
+  }, [authenticated, isMotorista]);
+
   // Fetch bus + route
   const fetchData = useCallback(async () => {
+    if (!busCode) return;
     try {
       const { data: busData } = await api.get(`/buses/code/${busCode}`);
       setBus(busData);
@@ -30,28 +60,37 @@ export default function PainelBordo() {
         const { data: routeData } = await api.get(`/routes/${busData.routeId}`);
         setRoute(routeData);
       }
-    } catch (err) {
+    } catch {
       setError('Autocarro não encontrado: ' + busCode);
     }
   }, [busCode]);
 
   // Fetch messages
   const fetchMessages = useCallback(async () => {
+    if (!busCode) return;
     try {
       const res = await getMensagens(busCode);
-      setMessages((res.data || []).slice(0, 10));
-    } catch { /* ignore */ }
+      // Backend devolve mais recentes primeiro; invertemos para chat normal (recente em baixo)
+      const sorted = (res.data || [])
+        .slice(0, 30)
+        .sort((a, b) => new Date(a.timestampEnvio) - new Date(b.timestampEnvio));
+      setMessages(sorted);
+    } catch (err) {
+      console.warn('fetchMessages falhou:', err.response?.status, err.response?.data);
+    }
   }, [busCode]);
 
   useEffect(() => {
+    if (!busCode) return;
     fetchData();
     fetchMessages();
     const interval = setInterval(fetchMessages, 15000);
     return () => clearInterval(interval);
-  }, [fetchData, fetchMessages]);
+  }, [busCode, fetchData, fetchMessages]);
 
-  // WebSocket telemetry
+  // WebSocket
   useEffect(() => {
+    if (!busCode) return;
     const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
     const client = new Client({
       brokerURL: wsUrl,
@@ -63,10 +102,7 @@ export default function PainelBordo() {
             if (t.busId === busCode) setTelemetry(t);
           } catch { /* ignore */ }
         });
-        // Subscribe to dispatch messages for this bus
-        client.subscribe(`/topic/despacho/${busCode}`, () => {
-          fetchMessages();
-        });
+        client.subscribe(`/topic/despacho/${busCode}`, () => fetchMessages());
       },
     });
     client.activate();
@@ -74,16 +110,70 @@ export default function PainelBordo() {
     return () => client.deactivate();
   }, [busCode, fetchMessages]);
 
-  // Current time string
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Auto-center the current stop in the route list whenever it changes.
+  // Utilizador pode scrollar manualmente; ao mudar de paragem, volta a centrar.
+  useEffect(() => {
+    currentStopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [telemetry?.nextStop]);
+
+  // Send message
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || sending) return;
+    setSending(true);
+    try {
+      await api.post(`/despacho/${busCode}/mensagens/motorista`, { conteudo: chatInput.trim() });
+      setChatInput('');
+      fetchMessages();
+    } catch (err) {
+      console.error('Erro ao enviar mensagem', err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Report alert
+  const handleAlert = async (tipo) => {
+    if (alertSending) return;
+    setAlertSending(tipo);
+    try {
+      await api.post('/ocorrencias/motorista', { tipo, busCode });
+      setAlertSending('ok-' + tipo);
+      setTimeout(() => setAlertSending(null), 2000);
+    } catch {
+      setAlertSending(null);
+    }
+  };
+
   const timeStr = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Find next stops based on schedule
-  const getNextDepartures = () => {
-    if (!route?.stops) return [];
-    const nowTime = now.toTimeString().slice(0, 5); // HH:MM
-    return route.stops.map(s => ({ ...s, nowTime }));
-  };
+  // --- Guard screens ---
+  if (!authenticated) {
+    return (
+      <div className="pb-container">
+        <div className="pb-loading">A redirecionar para login...</div>
+      </div>
+    );
+  }
+
+  if (!isMotorista) {
+    return (
+      <div className="pb-container">
+        <div className="pb-error">
+          <div className="pb-error-icon">!</div>
+          <h2>Acesso restrito</h2>
+          <p>A conta <strong>{username}</strong> não tem permissão de motorista.</p>
+          <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -91,7 +181,8 @@ export default function PainelBordo() {
         <div className="pb-error">
           <div className="pb-error-icon">!</div>
           <h2>{error}</h2>
-          <p>Verifique o código do autocarro no URL.</p>
+          <p>Contacte o administrador para atribuir um autocarro.</p>
+          <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
         </div>
       </div>
     );
@@ -106,30 +197,21 @@ export default function PainelBordo() {
   }
 
   const speed = telemetry?.speed?.toFixed(0) ?? '—';
-  const passengers = telemetry?.passengerCount ?? '—';
+  const passengers = telemetry?.passengers ?? telemetry?.passengerCount ?? '—';
   const status = telemetry?.status ?? bus.status ?? 'STOPPED';
   const nextStop = telemetry?.nextStop ?? '—';
   const stops = route?.stops || [];
 
   const statusLabels = {
-    'active': 'Em serviço',
-    'at-stop': 'Na paragem',
-    'stopping': 'A parar',
-    'delayed': 'Atrasado',
-    'stopped': 'Parado',
-    'STOPPED': 'Parado',
-    'ACTIVE': 'Em serviço',
+    'active': 'Em serviço', 'at-stop': 'Na paragem', 'stopping': 'A parar',
+    'delayed': 'Atrasado', 'stopped': 'Parado', 'STOPPED': 'Parado', 'ACTIVE': 'Em serviço',
+  };
+  const statusColors = {
+    'active': '#10b981', 'at-stop': '#6366f1', 'stopping': '#f59e0b',
+    'delayed': '#ef4444', 'stopped': '#94a3b8', 'STOPPED': '#94a3b8', 'ACTIVE': '#10b981',
   };
 
-  const statusColors = {
-    'active': '#10b981',
-    'at-stop': '#6366f1',
-    'stopping': '#f59e0b',
-    'delayed': '#ef4444',
-    'stopped': '#94a3b8',
-    'STOPPED': '#94a3b8',
-    'ACTIVE': '#10b981',
-  };
+  const isFromDriver = (msg) => msg.operador?.startsWith('motorista:');
 
   return (
     <div className="pb-container">
@@ -163,9 +245,12 @@ export default function PainelBordo() {
             ) : (
               stops.map((stop, i) => {
                 const isCurrent = stop.stopName === nextStop || stop.stopCode === nextStop;
-                const isPast = false; // could be computed from telemetry
                 return (
-                  <div key={stop.stopId || i} className={`pb-stop ${isCurrent ? 'pb-stop--current' : ''} ${isPast ? 'pb-stop--past' : ''}`}>
+                  <div
+                    key={stop.stopId || i}
+                    ref={isCurrent ? currentStopRef : null}
+                    className={`pb-stop ${isCurrent ? 'pb-stop--current' : ''}`}
+                  >
                     <div className="pb-stop-dot" />
                     <div className="pb-stop-info">
                       <span className="pb-stop-name">{stop.stopName}</span>
@@ -197,30 +282,74 @@ export default function PainelBordo() {
             </div>
           </section>
 
-          {/* Messages */}
+          {/* Chat */}
           <section className="pb-section pb-messages">
-            <h3 className="pb-section-title">Mensagens do Despacho</h3>
-            {messages.length === 0 ? (
-              <div className="pb-empty">Sem mensagens</div>
-            ) : (
-              <div className="pb-message-list">
-                {messages.map(msg => (
-                  <div key={msg.id} className={`pb-message pb-message--${msg.estado?.toLowerCase()}`}>
+            <h3 className="pb-section-title">Mensagens</h3>
+            <div className="pb-message-list">
+              {messages.length === 0 && (
+                <div className="pb-empty pb-empty--centered">Sem mensagens</div>
+              )}
+              {messages.map(msg => {
+                const sent = isFromDriver(msg);
+                const stateIcon =
+                  msg.estado === 'LIDA' ? '✓✓' :
+                  msg.estado === 'ENTREGUE' ? '✓✓' :
+                  msg.estado === 'ENVIADA' ? '✓' :
+                  msg.estado === 'FALHOU' ? '!' : '';
+                return (
+                  <div key={msg.id} className={`pb-message ${sent ? 'pb-message--sent' : 'pb-message--received'}`}>
+                    {!sent && <div className="pb-message-sender">Despacho</div>}
                     <div className="pb-message-content">{msg.conteudo}</div>
                     <div className="pb-message-meta">
-                      <span>{new Date(msg.timestampEnvio).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className="pb-message-state">
-                        {msg.estado === 'ENTREGUE' && 'Entregue'}
-                        {msg.estado === 'LIDA' && 'Lida'}
-                        {msg.estado === 'ENVIADA' && 'A enviar...'}
-                        {msg.estado === 'FALHOU' && 'Falhou'}
-                        {msg.estado === 'CANCELADA' && 'Cancelada'}
+                      <span className="pb-message-time">
+                        {new Date(msg.timestampEnvio).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {sent && (
+                        <span className={`pb-message-tick pb-message-tick--${msg.estado?.toLowerCase()}`}>
+                          {stateIcon}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+            <form className="pb-chat-form" onSubmit={handleSendMessage}>
+              <input
+                className="pb-chat-input"
+                type="text"
+                placeholder="Escrever mensagem ao despacho..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                maxLength={140}
+                disabled={sending}
+              />
+              <button type="submit" className="pb-chat-send" disabled={sending || !chatInput.trim()}>
+                {sending ? '...' : 'Enviar'}
+              </button>
+            </form>
+          </section>
+
+          {/* Alert buttons */}
+          <section className="pb-section pb-alerts">
+            <h3 className="pb-section-title">Alertas</h3>
+            <div className="pb-alert-buttons">
+              <button
+                className={`pb-alert-btn pb-alert-btn--avaria ${alertSending === 'ok-AVARIA' ? 'pb-alert-btn--success' : ''}`}
+                onClick={() => handleAlert('AVARIA')}
+                disabled={!!alertSending}
+              >
+                {alertSending === 'AVARIA' ? 'A reportar...' : alertSending === 'ok-AVARIA' ? 'Reportada' : 'Reportar Avaria'}
+              </button>
+              <button
+                className={`pb-alert-btn pb-alert-btn--acidente ${alertSending === 'ok-ACIDENTE' ? 'pb-alert-btn--success' : ''}`}
+                onClick={() => handleAlert('ACIDENTE')}
+                disabled={!!alertSending}
+              >
+                {alertSending === 'ACIDENTE' ? 'A reportar...' : alertSending === 'ok-ACIDENTE' ? 'Reportado' : 'Reportar Acidente'}
+              </button>
+            </div>
           </section>
         </div>
       </div>

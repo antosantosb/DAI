@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.dto.UserRepresentationDTO;
+import dai.tub.pgu.service.DriverService;
 import dai.tub.pgu.service.KeycloakAdminService;
 
 /**
@@ -19,10 +20,12 @@ import dai.tub.pgu.service.KeycloakAdminService;
 public class UserAdminController
 {
     private final KeycloakAdminService keycloakAdminService;
+    private final DriverService driverService;
 
-    public UserAdminController(KeycloakAdminService keycloakAdminService)
+    public UserAdminController(KeycloakAdminService keycloakAdminService, DriverService driverService)
     {
         this.keycloakAdminService = keycloakAdminService;
+        this.driverService = driverService;
     }
 
     @GetMapping
@@ -43,6 +46,31 @@ public class UserAdminController
     public ResponseEntity<UserRepresentationDTO> createUser(@RequestBody UserRepresentationDTO dto)
     {
         UserRepresentationDTO created = keycloakAdminService.createUser(dto);
+
+        // Se for motorista, criar também a linha em drivers, atomicamente ligada à conta Keycloak.
+        boolean isMotorista = dto.getRoles() != null && dto.getRoles().contains("motorista");
+        if (isMotorista) {
+            String fullName = String.format("%s %s",
+                    dto.getFirstName() != null ? dto.getFirstName() : "",
+                    dto.getLastName()  != null ? dto.getLastName()  : "").trim();
+            if (fullName.isEmpty()) fullName = dto.getUsername();
+
+            String mecNum = dto.getMechanographicNumber();
+            if (mecNum == null || mecNum.isBlank()) {
+                mecNum = driverService.nextMechanographicNumber();
+            }
+            try {
+                // Guardamos o username (preferred_username do JWT) em vez do UUID
+                // porque o JWT de acesso do Keycloak não popula 'sub' de forma fiável.
+                driverService.createDriverForKeycloakUser(
+                        created.getUsername(), fullName, mecNum, dto.getPhoneNumber());
+            } catch (Exception e) {
+                // Rollback: eliminar o user Keycloak para evitar inconsistência
+                keycloakAdminService.deleteUser(created.getId());
+                throw new RuntimeException("Falha ao criar motorista: " + e.getMessage(), e);
+            }
+        }
+
         return ResponseEntity.status(201).body(created);
     }
 
@@ -71,6 +99,11 @@ public class UserAdminController
     @LogActivity(action = "Eliminar utilizador")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId)
     {
+        // Cascata: precisamos do username (não UUID) para localizar o driver
+        UserRepresentationDTO user = keycloakAdminService.getUser(userId);
+        if (user != null && user.getUsername() != null) {
+            driverService.deleteByKeycloakUserId(user.getUsername());
+        }
         keycloakAdminService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }

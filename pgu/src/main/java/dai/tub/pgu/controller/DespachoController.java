@@ -40,6 +40,25 @@ public class DespachoController {
         return ResponseEntity.ok(despachoService.listarMensagens(busId));
     }
 
+    /**
+     * Devolve mapa busId → contagem de mensagens não lidas do motorista para todos os autocarros.
+     * Usado pelo backoffice para mostrar badges nos cards.
+     */
+    @GetMapping("/unread-counts")
+    public ResponseEntity<Map<String, Long>> unreadCounts() {
+        return ResponseEntity.ok(despachoService.getUnreadCountsByBus());
+    }
+
+    /**
+     * Marca todas as mensagens do motorista como lidas pelo operador.
+     * Chamado quando o operador abre o chat de um autocarro.
+     */
+    @PostMapping("/{busId}/mensagens/marcar-lidas")
+    public ResponseEntity<Map<String, Integer>> marcarLidas(@PathVariable String busId) {
+        int marked = despachoService.marcarMensagensComoLidas(busId);
+        return ResponseEntity.ok(Map.of("marked", marked));
+    }
+
     @PostMapping("/{busId}/mensagens/{id}/reenviar")
     public ResponseEntity<MensagemDespachoDTO> reenviar(
             @PathVariable String busId,
@@ -57,6 +76,20 @@ public class DespachoController {
         String operador = resolveUsername(jwt);
         despachoService.cancelarMensagem(id, operador);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Motorista envia mensagem ao despacho a partir do painel de bordo.
+     * Reutiliza o mesmo sistema — a mensagem fica associada ao busId com remetente = motorista.
+     */
+    @PostMapping("/{busId}/mensagens/motorista")
+    public ResponseEntity<MensagemDespachoDTO> enviarDoMotorista(
+            @PathVariable String busId,
+            @Valid @RequestBody EnviarMensagemRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        String motorista = "motorista:" + resolveUsername(jwt);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(despachoService.enviarMensagem(busId, request, motorista));
     }
 
     @GetMapping("/{busId}/online")

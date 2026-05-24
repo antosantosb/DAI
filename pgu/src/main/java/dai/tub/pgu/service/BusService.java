@@ -10,6 +10,7 @@ import dai.tub.pgu.domain.Bus;
 import dai.tub.pgu.domain.Route;
 import dai.tub.pgu.dto.BusDTO;
 import dai.tub.pgu.repository.BusRepository;
+import dai.tub.pgu.repository.DriverBusAssignmentRepository;
 import dai.tub.pgu.repository.RouteRepository;
 
 @Service
@@ -17,11 +18,14 @@ public class BusService
 {
     private final BusRepository busRepository;
     private final RouteRepository routeRepository;
+    private final DriverBusAssignmentRepository assignmentRepository;
 
-    public BusService(BusRepository busRepository, RouteRepository routeRepository)
+    public BusService(BusRepository busRepository, RouteRepository routeRepository,
+                      DriverBusAssignmentRepository assignmentRepository)
     {
         this.busRepository = busRepository;
         this.routeRepository = routeRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     public List<BusDTO> getAll()
@@ -69,8 +73,14 @@ public class BusService
         if (dto.getLicensePlate() != null) bus.setLicensePlate(dto.getLicensePlate());
         if (dto.getCapacity() != null) bus.setCapacity(dto.getCapacity());
         if (dto.getStatus() != null) {
-            // Reset lastSync ao reativar — saúde da rede começa limpa
+            // Regra de negócio: autocarro só pode ir para ACTIVE se tiver motorista atribuído
             if ("ACTIVE".equals(dto.getStatus()) && !"ACTIVE".equals(bus.getStatus())) {
+                boolean hasDriver = assignmentRepository.findByBusIdAndActiveTrue(bus.getId()).isPresent();
+                if (!hasDriver) {
+                    throw new RuntimeException("Não é possível ativar o autocarro " + bus.getBusCode()
+                            + " sem motorista atribuído. Atribua um motorista primeiro em Motoristas.");
+                }
+                // Reset lastSync ao reativar — saúde da rede começa limpa
                 bus.setLastSync(null);
             }
             bus.setStatus(dto.getStatus());

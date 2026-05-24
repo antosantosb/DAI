@@ -7,11 +7,13 @@ import './Users.css';
 // Apenas operador — contas admin são geridas diretamente no Keycloak
 const ROLE_OPTIONS = [
   { value: 'operador', label: 'Operador' },
+  { value: 'motorista', label: 'Motorista' },
 ];
 
 const EMPTY_FORM = {
   username: '', email: '', firstName: '', lastName: '',
   password: '', role: 'operador', enabled: true,
+  mechanographicNumber: '', phoneNumber: '',
 };
 
 export default function Users() {
@@ -53,6 +55,15 @@ export default function Users() {
     setShowForm(false);
   };
 
+  const generateMecNum = async () => {
+    try {
+      const { data } = await api.get('/drivers/next-mechanographic-number');
+      setForm(prev => ({ ...prev, mechanographicNumber: data.mechanographicNumber }));
+    } catch (err) {
+      showModal({ type: 'danger', title: 'Erro', message: 'Não foi possível gerar o número.' });
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -66,6 +77,10 @@ export default function Users() {
       roles: [form.role],
     };
     if (form.password) payload.password = form.password;
+    if (form.role === 'motorista') {
+      payload.mechanographicNumber = form.mechanographicNumber.trim();
+      payload.phoneNumber = form.phoneNumber.trim();
+    }
 
     const req = editing
       ? api.put(`/users/${editing}`, payload)
@@ -139,6 +154,7 @@ export default function Users() {
     if (!roles?.length) return 'Sem role';
     if (roles.includes('admin')) return 'Admin';
     if (roles.includes('operador')) return 'Operador';
+    if (roles.includes('motorista')) return 'Motorista';
     return roles[0];
   };
 
@@ -360,13 +376,52 @@ export default function Users() {
                         id="user-role"
                         value={form.role}
                         onChange={e => setForm({ ...form, role: e.target.value })}
+                        disabled={editing}
                       >
                         {ROLE_OPTIONS.map(r => (
                           <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </select>
                     )}
+                    {editing && <span className="form-hint">Role não editável após criação</span>}
                   </div>
+
+                  {form.role === 'motorista' && !editing && (
+                    <>
+                      <div className="form-group">
+                        <label htmlFor="user-mecnum">Nº Mecanográfico</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            id="user-mecnum"
+                            type="text"
+                            value={form.mechanographicNumber}
+                            onChange={e => setForm({ ...form, mechanographicNumber: e.target.value })}
+                            placeholder="ex.: M-001"
+                            required
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={generateMecNum}
+                            title="Gerar próximo número livre"
+                          >
+                            Gerar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="user-phone">Telefone</label>
+                        <input
+                          id="user-phone"
+                          type="tel"
+                          value={form.phoneNumber}
+                          onChange={e => setForm({ ...form, phoneNumber: e.target.value })}
+                          placeholder="opcional"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="user-modal-footer">

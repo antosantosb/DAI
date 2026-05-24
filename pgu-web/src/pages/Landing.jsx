@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import './Landing.css';
@@ -5,6 +6,15 @@ import './Landing.css';
 export default function Landing() {
   const navigate = useNavigate();
   const { authenticated, login, logout, username, roles } = useAuth();
+
+  // Motorista nunca tem opção de escolher — vai direto para o painel de bordo.
+  useEffect(() => {
+    if (authenticated && roles.includes('motorista')) {
+      navigate('/bordo', { replace: true });
+    }
+  }, [authenticated, roles, navigate]);
+
+  const isMotorista = roles.includes('motorista');
 
   return (
     <div className="landing">
@@ -33,14 +43,18 @@ export default function Landing() {
           <p className="landing-subtitle">Plataforma de Gestão Urbana</p>
         </div>
 
-        {authenticated ? (
+        {authenticated && isMotorista ? (
+          <div className="landing-login-section">
+            <p className="landing-login-text">A entrar no painel de bordo...</p>
+          </div>
+        ) : authenticated ? (
           <>
             <div className="landing-user-info">
               <span className="landing-user-greeting">
                 Bem-vindo, <strong>{username}</strong>
               </span>
               <span className="landing-user-role">
-                {roles.includes('admin') ? 'Administrador' : 'Funcionário'}
+                {roles.includes('admin') ? 'Administrador' : 'Operador'}
               </span>
             </div>
 
