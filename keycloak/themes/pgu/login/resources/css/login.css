@@ -142,7 +142,11 @@ body.kc-login {
   box-sizing: border-box !important;
 }
 
-/* Botao "olhinho" — posicionado absolutamente dentro do input, lado direito */
+/* Botao "olhinho" — posicionado absolutamente dentro do input, lado direito.
+   Keycloak 26 com PF4: <button class="pf-c-button pf-m-control"
+   aria-label="Show password" data-password-toggle data-icon-show="fa fa-eye"
+   data-icon-hide="fa fa-eye-slash"><i class="fa fa-eye"></i></button> */
+.login-pf-page button[data-password-toggle],
 .login-pf-page .input-group button,
 .login-pf-page .input-group .input-group-addon,
 .login-pf-page .input-group .btn,
@@ -151,6 +155,7 @@ body.kc-login {
 .login-pf-page button[aria-label*="password"],
 .login-pf-page button[aria-label*="Password"],
 .login-pf-page .kc-form-password-visibility-toggle,
+.login-pf-page .pf-c-button.pf-m-control,
 .login-pf-page .pf-v5-c-button.pf-m-control,
 .login-pf-page .pf-v5-c-button[type="button"][class*="password"] {
   position: absolute !important;
@@ -184,12 +189,14 @@ body.kc-login {
   position: relative !important;
 }
 
+.login-pf-page button[data-password-toggle]:hover,
 .login-pf-page .input-group button:hover,
 .login-pf-page .pf-v5-c-input-group button:hover,
 .login-pf-page .pf-c-input-group button:hover,
 .login-pf-page button[aria-label*="password"]:hover,
 .login-pf-page button[aria-label*="Password"]:hover,
 .login-pf-page .kc-form-password-visibility-toggle:hover,
+.login-pf-page .pf-c-button.pf-m-control:hover,
 .login-pf-page .pf-v5-c-button.pf-m-control:hover {
   color: rgba(255, 255, 255, 0.95) !important;
   background: rgba(255, 255, 255, 0.1) !important;
@@ -216,15 +223,31 @@ body.kc-login {
   color: currentColor !important;
 }
 
-/* Fallback: classes de icone (FontAwesome / PatternFly icons) */
+/* Icones FontAwesome dentro do botao (Keycloak 26 / PF4 usa <i class="fa fa-eye">) */
+.login-pf-page button[data-password-toggle] i,
+.login-pf-page button[data-password-toggle] .fa,
+.login-pf-page button[data-password-toggle] .fas,
+.login-pf-page button[data-password-toggle] .far,
+.login-pf-page .pf-c-button.pf-m-control .fa,
+.login-pf-page .pf-c-button.pf-m-control .fas,
+.login-pf-page .pf-c-button.pf-m-control .far,
 .login-pf-page .input-group button i,
 .login-pf-page button[aria-label*="password"] i,
 .login-pf-page button[aria-label*="Password"] i,
-.login-pf-page .kc-form-password-visibility-toggle i,
-.login-pf-page .pf-v5-c-button.pf-m-control i {
+.login-pf-page .kc-form-password-visibility-toggle i {
+  font-family: "FontAwesome", "Font Awesome 5 Free", "Font Awesome 6 Free", sans-serif !important;
+  font-weight: 900 !important;
   font-size: 16px !important;
-  color: currentColor !important;
-  line-height: 1;
+  color: rgba(255, 255, 255, 0.85) !important;
+  line-height: 1 !important;
+  display: inline-block !important;
+}
+
+.login-pf-page button[data-password-toggle]:hover .fa,
+.login-pf-page button[data-password-toggle]:hover i,
+.login-pf-page .pf-c-button.pf-m-control:hover .fa,
+.login-pf-page .pf-c-button.pf-m-control:hover i {
+  color: #ffffff !important;
 }
 
 /* ─── Primary buttons (Sign In, Submit, Update Password, etc.) ─── */
