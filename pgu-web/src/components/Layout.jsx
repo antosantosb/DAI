@@ -46,60 +46,60 @@ export default function Layout() {
         <nav className="sidebar-nav">
           <span className="sidebar-section-label">Principal</span>
           <NavLink to="/backoffice" end>
-            <span className="nav-icon"><IconDashboard /></span>
+            <span className="nav-icon" aria-hidden="true"><IconDashboard /></span>
             Dashboard
           </NavLink>
           <NavLink to="/backoffice/analytics">
-            <span className="nav-icon"><IconAnalytics /></span>
+            <span className="nav-icon" aria-hidden="true"><IconAnalytics /></span>
             Analytics
           </NavLink>
           <NavLink to="/backoffice/buses">
-            <span className="nav-icon"><IconBus /></span>
+            <span className="nav-icon" aria-hidden="true"><IconBus /></span>
             Autocarros
           </NavLink>
           <NavLink to="/backoffice/health">
-            <span className="nav-icon"><IconHealth /></span>
+            <span className="nav-icon" aria-hidden="true"><IconHealth /></span>
             Saúde da Rede
           </NavLink>
           <NavLink to="/backoffice/ocorrencias">
-            <span className="nav-icon"><IconAlarm /></span>
+            <span className="nav-icon" aria-hidden="true"><IconAlarm /></span>
             Ocorrências
             {alarmsCount > 0 && <span className="nav-badge">{alarmsCount}</span>}
           </NavLink>
           <span className="sidebar-section-label">Gestão</span>
           <NavLink to="/backoffice/stops">
-            <span className="nav-icon"><IconStop /></span>
+            <span className="nav-icon" aria-hidden="true"><IconStop /></span>
             Paragens
           </NavLink>
           <NavLink to="/backoffice/routes">
-            <span className="nav-icon"><IconRoute /></span>
+            <span className="nav-icon" aria-hidden="true"><IconRoute /></span>
             Rotas
           </NavLink>
           <NavLink to="/backoffice/exports">
-            <span className="nav-icon"><IconExport /></span>
+            <span className="nav-icon" aria-hidden="true"><IconExport /></span>
             Exportações
           </NavLink>
           <NavLink to="/backoffice/audit">
-            <span className="nav-icon"><IconAudit /></span>
+            <span className="nav-icon" aria-hidden="true"><IconAudit /></span>
             Logs
           </NavLink>
           {isAdmin && (
             <>
               <span className="sidebar-section-label">Administração</span>
               <NavLink to="/backoffice/gtfs">
-                <span className="nav-icon"><IconGtfs /></span>
+                <span className="nav-icon" aria-hidden="true"><IconGtfs /></span>
                 Dados GTFS
               </NavLink>
               <NavLink to="/backoffice/users">
-                <span className="nav-icon"><IconUsers /></span>
+                <span className="nav-icon" aria-hidden="true"><IconUsers /></span>
                 Utilizadores
               </NavLink>
               <NavLink to="/backoffice/drivers">
-                <span className="nav-icon"><IconUsers /></span>
+                <span className="nav-icon" aria-hidden="true"><IconUsers /></span>
                 Motoristas
               </NavLink>
               <NavLink to="/backoffice/configuracoes">
-                <span className="nav-icon">⚙️</span>
+                <span className="nav-icon" aria-hidden="true">⚙️</span>
                 Parâmetros
               </NavLink>
             </>

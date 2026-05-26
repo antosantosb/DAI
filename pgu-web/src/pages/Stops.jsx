@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
+import Modal from '../components/Modal';
 
 export default function Stops() {
   const { hasRole } = useAuth();
@@ -10,6 +11,8 @@ export default function Stops() {
   const [form, setForm] = useState({ name: '', code: '', maxBusesDisplay: 3, panelMessage: '', latitude: '', longitude: '' });
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
+  // Sprint -1 (FE-14): substitui window.confirm por Modal a11y-friendly.
+  const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
 
   const load = () => {
     api.get('/stops').then(r => setStops(r.data || [])).catch(() => setStops([]));
@@ -66,8 +69,13 @@ export default function Stops() {
   };
 
   const handleDelete = (id) => {
-    if (!confirm('Tens a certeza que queres apagar esta paragem?')) return;
-    api.delete(`/stops/${id}`).then(load);
+    setDeleteModal({ open: true, id });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteModal.id) return;
+    api.delete(`/stops/${deleteModal.id}`).then(load);
+    setDeleteModal({ open: false, id: null });
   };
 
   const filtered = stops.filter(s => {
@@ -181,6 +189,18 @@ export default function Stops() {
           </tbody>
         </table>
       </div>
+
+      {/* Sprint -1 (FE-14): confirm Modal substitui window.confirm() */}
+      <Modal
+        open={deleteModal.open}
+        type="danger"
+        title="Apagar paragem?"
+        message="Esta operação é irreversível. A paragem será removida do sistema."
+        confirmText="Apagar"
+        cancelText="Cancelar"
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteModal({ open: false, id: null })}
+      />
     </div>
   );
 }
