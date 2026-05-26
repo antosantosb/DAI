@@ -30,7 +30,9 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager mgr = new CaffeineCacheManager("routes", "stops", "gtfs");
+        // Sprint 0 (F3): cache "ngsiLd" adicionada para o proxy NGSI-LD.
+        // TTL curto para que a telemetria do Orion seja relativamente fresca.
+        CaffeineCacheManager mgr = new CaffeineCacheManager("routes", "stops", "gtfs", "ngsiLd");
         mgr.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(10, TimeUnit.MINUTES)
                 .maximumSize(500)
