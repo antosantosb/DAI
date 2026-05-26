@@ -1,15 +1,87 @@
-import { useState, useEffect } from 'react';
+// Sprint 0 (F1): Layout do backoffice. O sidebar e' construido iterando o
+// manifest `routes` (em src/routes.js), filtrado pelas roles do user.
+//
+// Antes: cada NavLink era hardcoded e a filtragem admin-only era um `if`
+// isolado. Agora basta editar `routes.js` para adicionar/remover items.
+
+import { useState, useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
+  IconSettings,
 } from './NavIcon';
 import { getOcorrencias } from '../services/ocorrenciasApi';
+import { routes, hasAccess } from '../routes';
 import './Layout.css';
 
+// Mapping iconKey (string no manifest) -> componente React.
+const ICON_COMPONENTS = {
+  IconDashboard,
+  IconAnalytics,
+  IconBus,
+  IconHealth,
+  IconStop,
+  IconRoute,
+  IconExport,
+  IconAudit,
+  IconUsers,
+  IconGtfs,
+  IconAlarm,
+  IconSettings,
+};
+
+// Ordem fixa das sections (para o sidebar nao reordenar conforme o user).
+const SECTION_ORDER = ['Principal', 'Gestão', 'Administração'];
+
+/**
+ * Constroi a lista de nav items visiveis para um determinado authState.
+ * Itera os children de /backoffice do manifest, filtra por nav + acesso, e
+ * agrupa por section.
+ */
+function buildNavSections(authState) {
+  const backoffice = routes.find((r) => r.path === '/backoffice');
+  if (!backoffice?.children) return [];
+
+  const parentAccess = backoffice.access;
+  const items = backoffice.children
+    .filter((c) => c.nav)
+    .filter((c) => hasAccess(c.access ?? parentAccess, authState));
+
+  // Agrupar por section, preservando ordem do SECTION_ORDER
+  const grouped = new Map();
+  for (const it of items) {
+    const sec = it.nav.section || 'Outros';
+    if (!grouped.has(sec)) grouped.set(sec, []);
+    grouped.get(sec).push(it);
+  }
+
+  const result = [];
+  for (const section of SECTION_ORDER) {
+    if (grouped.has(section)) {
+      result.push({ section, items: grouped.get(section) });
+      grouped.delete(section);
+    }
+  }
+  // Sections custom (nao previstas no SECTION_ORDER) vao para o fim
+  for (const [section, items] of grouped.entries()) {
+    result.push({ section, items });
+  }
+  return result;
+}
+
+/**
+ * Constroi o `to` correto de um child (index -> /backoffice, resto -> /backoffice/path).
+ */
+function buildLink(child) {
+  if (child.index) return '/backoffice';
+  return `/backoffice/${child.path}`;
+}
+
 export default function Layout() {
-  const { logout, username, roles } = useAuth();
+  const auth = useAuth();
+  const { logout, username, roles } = auth;
   const navigate = useNavigate();
   const [alarmsCount, setAlarmsCount] = useState(0);
 
@@ -26,6 +98,12 @@ export default function Layout() {
     const interval = setInterval(fetchAlarmsCount, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Recalcula nav sections quando authState muda (login/logout)
+  const navSections = useMemo(
+    () => buildNavSections({ authenticated: true, roles }),
+    [roles]
+  );
 
   const isAdmin = roles.includes('admin');
   const displayRole = isAdmin ? 'Administrador' : 'Operador';
@@ -44,66 +122,30 @@ export default function Layout() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          <span className="sidebar-section-label">Principal</span>
-          <NavLink to="/backoffice" end>
-            <span className="nav-icon" aria-hidden="true"><IconDashboard /></span>
-            Dashboard
-          </NavLink>
-          <NavLink to="/backoffice/analytics">
-            <span className="nav-icon" aria-hidden="true"><IconAnalytics /></span>
-            Analytics
-          </NavLink>
-          <NavLink to="/backoffice/buses">
-            <span className="nav-icon" aria-hidden="true"><IconBus /></span>
-            Autocarros
-          </NavLink>
-          <NavLink to="/backoffice/health">
-            <span className="nav-icon" aria-hidden="true"><IconHealth /></span>
-            Saúde da Rede
-          </NavLink>
-          <NavLink to="/backoffice/ocorrencias">
-            <span className="nav-icon" aria-hidden="true"><IconAlarm /></span>
-            Ocorrências
-            {alarmsCount > 0 && <span className="nav-badge">{alarmsCount}</span>}
-          </NavLink>
-          <span className="sidebar-section-label">Gestão</span>
-          <NavLink to="/backoffice/stops">
-            <span className="nav-icon" aria-hidden="true"><IconStop /></span>
-            Paragens
-          </NavLink>
-          <NavLink to="/backoffice/routes">
-            <span className="nav-icon" aria-hidden="true"><IconRoute /></span>
-            Rotas
-          </NavLink>
-          <NavLink to="/backoffice/exports">
-            <span className="nav-icon" aria-hidden="true"><IconExport /></span>
-            Exportações
-          </NavLink>
-          <NavLink to="/backoffice/audit">
-            <span className="nav-icon" aria-hidden="true"><IconAudit /></span>
-            Logs
-          </NavLink>
-          {isAdmin && (
-            <>
-              <span className="sidebar-section-label">Administração</span>
-              <NavLink to="/backoffice/gtfs">
-                <span className="nav-icon" aria-hidden="true"><IconGtfs /></span>
-                Dados GTFS
-              </NavLink>
-              <NavLink to="/backoffice/users">
-                <span className="nav-icon" aria-hidden="true"><IconUsers /></span>
-                Utilizadores
-              </NavLink>
-              <NavLink to="/backoffice/drivers">
-                <span className="nav-icon" aria-hidden="true"><IconUsers /></span>
-                Motoristas
-              </NavLink>
-              <NavLink to="/backoffice/configuracoes">
-                <span className="nav-icon" aria-hidden="true">⚙️</span>
-                Parâmetros
-              </NavLink>
-            </>
-          )}
+          {navSections.map(({ section, items }) => (
+            <div key={section}>
+              <span className="sidebar-section-label">{section}</span>
+              {items.map((item) => {
+                const Icon = ICON_COMPONENTS[item.nav.iconKey];
+                const to = buildLink(item);
+                const showBadge = item.nav.badge === 'alarms' && alarmsCount > 0;
+                return (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={!!item.index}
+                    aria-label={item.nav.label}
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      {Icon ? <Icon /> : null}
+                    </span>
+                    {item.nav.label}
+                    {showBadge && <span className="nav-badge">{alarmsCount}</span>}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -115,14 +157,24 @@ export default function Layout() {
             </div>
           </div>
           <div className="sidebar-footer-actions">
-            <button className="sidebar-home" onClick={() => navigate('/')} title="Voltar ao início">
-              <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+            <button
+              className="sidebar-home"
+              onClick={() => navigate('/')}
+              title="Voltar ao início"
+              aria-label="Voltar ao início"
+            >
+              <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
                 <path d="M3 10L10 3L17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M5 8.5V16C5 16.55 5.45 17 6 17H8.5V12.5H11.5V17H14C14.55 17 15 16.55 15 16V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button className="sidebar-logout" onClick={logout} title="Sair">
-              <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+            <button
+              className="sidebar-logout"
+              onClick={logout}
+              title="Sair"
+              aria-label="Terminar sessão"
+            >
+              <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
                 <path d="M7 17H4C3.45 17 3 16.55 3 16V4C3 3.45 3.45 3 4 3H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <path d="M13 14L17 10L13 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 <line x1="17" y1="10" x2="7" y2="10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

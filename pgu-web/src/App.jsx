@@ -1,31 +1,97 @@
+// Sprint 0 (F1): app shell com routes manifest + lazy loading + role guards.
+//
+// Antes: rotas hardcoded e imports estaticos no topo (todo o JS de todas as
+// paginas era descarregado no primeiro load).
+// Agora: itera-se `routes` (manifest em src/routes.js), cada loader e
+// React.lazy + Suspense, cada rota nao-publica passa por ProtectedRoute
+// com `requiredRoles` apropriados.
+
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ToastContainer, Slide } from 'react-toastify';
+
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import Landing from './pages/Landing';
-import Dashboard from './pages/Dashboard';
-import Buses from './pages/Buses';
-import Stops from './pages/Stops';
-import RoutesPage from './pages/Routes';
-import BusHealthDashboard from './pages/BusHealthDashboard';
-import AnalyticsDashboard from './pages/AnalyticsDashboard';
-import Exports from './pages/Exports';
-import AuditLogs from './pages/AuditLogs';
-import Users from './pages/Users';
-import GtfsManager from './pages/GtfsManager';
-import Livemap from './pages/Livemap';
-import GlobalConfig from './pages/GlobalConfig';
-import Ocorrencias from './pages/Ocorrencias';
-import PainelBordo from './pages/PainelBordo';
-import Drivers from './pages/Drivers';
-import { ToastContainer, Slide } from 'react-toastify';
 import GlobalToastListener from './components/GlobalToastListener';
+import { routes } from './routes';
+
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './toast-overrides.css';
 
+// Cache lazy components by loader reference para nao recriar a cada render.
+const lazyCache = new Map();
+function getLazyComponent(loader) {
+  let Comp = lazyCache.get(loader);
+  if (!Comp) {
+    Comp = lazy(loader);
+    lazyCache.set(loader, Comp);
+  }
+  return Comp;
+}
+
+function PageLoading() {
+  return (
+    <div
+      style={{
+        minHeight: '50vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'rgba(255, 255, 255, 0.55)',
+        fontSize: 14,
+        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      }}
+    >
+      A carregar...
+    </div>
+  );
+}
+
+/**
+ * Constroi o element JSX de uma rota (com lazy + guard apropriado).
+ */
+function buildRouteElement(route) {
+  const Component = route.loader ? getLazyComponent(route.loader) : null;
+  const inner = Component ? <Component /> : null;
+
+  if (route.access === 'public') {
+    return inner;
+  }
+
+  const requiredRoles = Array.isArray(route.access) ? route.access : null;
+  return <ProtectedRoute requiredRoles={requiredRoles}>{inner}</ProtectedRoute>;
+}
+
+/**
+ * Constroi o element JSX de uma rota com layout (Outlet vem do Layout).
+ */
+function buildLayoutElement(route) {
+  const LayoutComponent = route.layout === 'backoffice' ? Layout : null;
+  const inner = LayoutComponent ? <LayoutComponent /> : null;
+
+  const requiredRoles = Array.isArray(route.access) ? route.access : null;
+  return <ProtectedRoute requiredRoles={requiredRoles}>{inner}</ProtectedRoute>;
+}
+
+/**
+ * Para children dentro de um Layout: aplica guard adicional apenas se
+ * o child tiver `access` mais restrito que o pai (ex. admin-only).
+ */
+function buildChildElement(child) {
+  const Component = getLazyComponent(child.loader);
+  if (!Array.isArray(child.access)) {
+    return <Component />;
+  }
+  return (
+    <ProtectedRoute requiredRoles={child.access}>
+      <Component />
+    </ProtectedRoute>
+  );
+}
 
 export default function App() {
-  return (  
+  return (
     <BrowserRouter>
       <ToastContainer
         position="top-right"
@@ -43,41 +109,27 @@ export default function App() {
         progressClassName="pgu-toast-progress"
       />
       <GlobalToastListener />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route
-          path="/backoffice"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="buses" element={<Buses />} />
-          <Route path="stops" element={<Stops />} />
-          <Route path="routes" element={<RoutesPage />} />
-          <Route path="health" element={<BusHealthDashboard />} />
-          <Route path="analytics" element={<AnalyticsDashboard />} />
-          <Route path="exports" element={<Exports />} />
-          <Route path="audit" element={<AuditLogs />} />
-          <Route path="gtfs" element={<GtfsManager />} />
-          <Route path="users" element={<Users />} />
-          <Route path="drivers" element={<Drivers />} />
-          <Route path="configuracoes" element={<GlobalConfig />} />
-          <Route path="ocorrencias" element={<Ocorrencias />} />
-        </Route>
-        <Route
-          path="/livemap"
-          element={
-            <ProtectedRoute>
-              <Livemap />
-            </ProtectedRoute>
-          }
-        />
-        {/* Painel de bordo — ecrã do motorista (login Keycloak + auto-detecção do bus) */}
-        <Route path="/bordo" element={<PainelBordo />} />
-      </Routes>
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
+          {routes.map((route) => {
+            if (route.children) {
+              return (
+                <Route key={route.path} path={route.path} element={buildLayoutElement(route)}>
+                  {route.children.map((child) => (
+                    <Route
+                      key={child.path ?? 'index'}
+                      index={child.index || undefined}
+                      path={child.path}
+                      element={buildChildElement(child)}
+                    />
+                  ))}
+                </Route>
+              );
+            }
+            return <Route key={route.path} path={route.path} element={buildRouteElement(route)} />;
+          })}
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
