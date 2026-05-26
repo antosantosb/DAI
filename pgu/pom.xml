@@ -149,6 +149,15 @@
 			<version>1.2.5</version>
 		</dependency>
 
+		<!-- Sprint 0 (F0): MinIO Java SDK (S3-compatible object storage)
+		     Usado pelo StorageService para upload/download/presigned URLs
+		     de exports, attachments, futuros backups. -->
+		<dependency>
+			<groupId>io.minio</groupId>
+			<artifactId>minio</artifactId>
+			<version>8.5.14</version>
+		</dependency>
+
 		<!-- Testes de telemetria -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

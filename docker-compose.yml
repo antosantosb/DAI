@@ -229,6 +229,55 @@ services:
       - dw_net
 
   # ==========================================
+  # 8.1 CAPTURA DE EMAIL (Mailpit, SMTP para dev/demo)
+  # ==========================================
+  # Sprint 0 (F0): captura todos os emails localmente, web UI em :8025.
+  # Em producao basta trocar SMTP_HOST/SMTP_PORT no .env para Gmail/SendGrid.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"   # web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - storage_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8025/api/v1/info"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 8.2 OBJECT STORAGE (MinIO, S3-compatible)
+  # ==========================================
+  # Sprint 0 (F0): armazenamento de exports, attachments, futuros backups.
+  # API em :9000 (presigned URLs precisam de acesso direto do browser em dev),
+  # console web em :9001.
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER obrigatoria}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD obrigatoria}
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # consola web
+    volumes:
+      - minio_data:/data
+    networks:
+      - storage_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
   # 9. BACKEND SPRING BOOT
   # ==========================================
   spring-boot-backend:
@@ -245,11 +294,21 @@ services:
       - OSRM_URL=http://osrm:5000
       - PGU_EXPORT_DIR=/var/pgu/exports
       - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
-      # Sprint -1 (SEC-1) — Mosquitto auth
+      # Sprint -1 (SEC-1): Mosquitto auth
       - MQTT_USERNAME=backend
       - MQTT_PASSWORD=${MQTT_BACKEND_PASSWORD:?MQTT_BACKEND_PASSWORD obrigatoria}
+      # Sprint 0 (F0): SMTP via Mailpit em dev
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      # Sprint 0 (F0): MinIO (S3-compatible storage)
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
+      - MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER obrigatoria}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD obrigatoria}
+      - MINIO_EXPORTS_BUCKET=${MINIO_EXPORTS_BUCKET:-exports}
+      - MINIO_ATTACHMENTS_BUCKET=${MINIO_ATTACHMENTS_BUCKET:-attachments}
     volumes:
-      # Motor de Exportação Massiva: persistência dos CSV/PDF gerados
+      # Motor de Exportação Massiva: persistência dos CSV/PDF gerados (legacy, a migrar para MinIO no F9)
       - pgu_exports:/var/pgu/exports
     depends_on:
       postgres_postgis:
@@ -258,12 +317,17 @@ services:
         condition: service_healthy
       osrm:
         condition: service_started
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
     networks:
       - dw_net
       - etl_net
       - auth_net
       - osrm_net
       - mqtt_net
+      - storage_net
 
   # ==========================================
   # 10. OSRM (Routing Engine — Portugal)
@@ -328,6 +392,9 @@ networks:
     driver: bridge
   osrm_net:
     driver: bridge
+  # Sprint 0 (F0): backend, MinIO e Mailpit isolados das outras redes
+  storage_net:
+    driver: bridge
 
 # ==========================================
 # VOLUMES
@@ -345,3 +412,5 @@ volumes:
   tools_data:
   pgu_exports:
   certbot_webroot:
+  # Sprint 0 (F0): dados do MinIO (exports, attachments, futuros backups)
+  minio_data:

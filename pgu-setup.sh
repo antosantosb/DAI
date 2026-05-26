@@ -241,6 +241,8 @@ if [ ! -f .env ]; then
         sed -i "s|MQTT_SIMULATOR_PASSWORD=CHANGE_ME|MQTT_SIMULATOR_PASSWORD=$(gen_password)|" .env
         sed -i "s|MQTT_NIFI_PASSWORD=CHANGE_ME|MQTT_NIFI_PASSWORD=$(gen_password)|" .env
         sed -i "s|MQTT_BUS_PASSWORD=CHANGE_ME|MQTT_BUS_PASSWORD=$(gen_password)|" .env
+        # Sprint 0 (F0): MinIO root password
+        sed -i "s|MINIO_ROOT_PASSWORD=CHANGE_ME|MINIO_ROOT_PASSWORD=$(gen_password)|" .env
         step_ok ".env de producao criado"
         step_warn "Verifica DOMAIN e CERTBOT_EMAIL no .env antes de continuar!"
     else
@@ -272,6 +274,12 @@ MQTT_BUS_PASSWORD=bus_mqtt_dev_2026
 
 PGU_ALERTAS_COOLDOWN=5
 PGU_ALERTAS_EMAIL_FROM=sistema@tub.pt
+
+# Sprint 0 (F0): MinIO (S3-compatible storage) e Mailpit (SMTP capture)
+MINIO_ROOT_USER=pgu_minio_admin
+MINIO_ROOT_PASSWORD=pgu_minio_dev_2026
+MINIO_EXPORTS_BUCKET=exports
+MINIO_ATTACHMENTS_BUCKET=attachments
 ENVEOF
         step_ok ".env de desenvolvimento criado"
     fi
