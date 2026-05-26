@@ -1,15 +1,34 @@
-# Plataforma de Gestao Urbana - Transportes Urbanos de Braga (TUB)
+# PGU-TUB: Plataforma de Gestão Urbana dos Transportes Urbanos de Braga
 
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0.4-brightgreen.svg)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0.5-brightgreen.svg)
 ![React](https://img.shields.io/badge/React-19-61DAFB.svg)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)
 ![FIWARE](https://img.shields.io/badge/FIWARE-Orion_3.9-yellow.svg)
 ![OSRM](https://img.shields.io/badge/OSRM-Self_Hosted-green.svg)
+![Keycloak](https://img.shields.io/badge/Keycloak-26.2.4-darkblue.svg)
 ![Zero Trust](https://img.shields.io/badge/Security-Zero_Trust-red.svg)
 ![Azure](https://img.shields.io/badge/Deploy-Azure-0078D4.svg)
 
-Plataforma de centralizacao, monitorizacao e gestao de dados de mobilidade dos TUB, construida sobre microsservicos, principios Zero Trust e tecnologias Open Source (FIWARE, NGSI-LD).
+Plataforma de centralização, monitorização e gestão de dados de mobilidade dos **Transportes Urbanos de Braga (TUB)**, construída sobre microsserviços, princípios **Zero Trust** e tecnologias **Open Source** (FIWARE, NGSI-LD, OSRM, Mosquitto, Keycloak).
+
+---
+
+## Índice
+
+1. [Arquitetura](#arquitetura)
+2. [Pré-requisitos](#pré-requisitos)
+3. [Arranque rápido](#arranque-rápido)
+4. [Acessos e credenciais](#acessos-e-credenciais)
+5. [Frontend](#frontend)
+6. [API REST](#api-rest)
+7. [WebSocket (tempo real)](#websocket-tempo-real)
+8. [Tratamento de erros](#tratamento-de-erros)
+9. [Migrações Flyway](#migrações-flyway)
+10. [Estrutura do projeto](#estrutura-do-projeto)
+11. [Segurança (Sprint -1)](#segurança-sprint--1)
+12. [Comandos úteis](#comandos-úteis)
+13. [Documentação adicional](#documentação-adicional)
 
 ---
 
@@ -18,13 +37,13 @@ Plataforma de centralizacao, monitorizacao e gestao de dados de mobilidade dos T
 ```mermaid
 flowchart TB
     subgraph mqtt_net [mqtt_net]
-        MQ[Mosquitto MQTT :1883]
+        MQ[Mosquitto MQTT :1883<br/>auth + ACL por serviço]
     end
 
     subgraph etl_net [etl_net]
         NF[Apache NiFi :8443]
         OR[FIWARE Orion]
-        API[Spring Boot API :8081]
+        API[Spring Boot API :8081<br/>+ Scheduler interno]
     end
 
     subgraph dw_net [dw_net]
@@ -48,264 +67,383 @@ flowchart TB
         OSRM[OSRM :5000]
     end
 
-    NF -->|PublishMQTT raw/telemetry| MQ
+    SIM[Simulador Python] -->|PublishMQTT tub/telemetry| MQ
     MQ -->|ConsumeMQTT| NF
     NF -->|InvokeHTTP POST /ingest| API
-    NF -->|InvokeHTTP POST NGSI-LD| OR
-    API -->|WebSocket /topic/telemetry| FE[Frontend React :5173]
+    NF -->|InvokeHTTP NGSI-LD| OR
+    API -->|MQTT tub/dispatch/#| MQ
+    API -->|WebSocket /topic/*| FE[Frontend React :5173]
     API -->|JDBC| DW
-    API -->|Route segments| OSRM
+    API -->|HTTP /route| OSRM
     MB -->|Analytics| DW
     OR --> MDB
     KC --> TDB
     MB --> TDB
     API -->|JWT validation| KC
-    AF[Airflow :8082] -->|GTFS loader| API
 ```
 
-### Fluxo de Dados
+### Fluxo de dados
 
 ```
-NiFi (ExecuteStreamCommand / Python)
-  --> PublishMQTT (raw/telemetry)
-    --> Mosquitto
-      --> NiFi (ConsumeMQTT + ETL)
-        --> Spring Boot (POST /api/v1/telemetry/ingest)
-              |-> Guarda na Data Warehouse (PostgreSQL + PostGIS)
-              |-> Broadcast WebSocket (/topic/telemetry) --> Frontend
-        --> FIWARE Orion (InvokeHTTP / NGSI-LD)
-              |-> MongoDB
+Simulador (Python)
+    └─ PublishMQTT (tub/telemetry)
+         └─ Mosquitto
+              └─ ConsumeMQTT
+                   └─ Apache NiFi
+                        ├─ InvokeHTTP POST /api/v1/telemetry/ingest
+                        │     └─ Spring Boot API
+                        │          ├─ JDBC → PostgreSQL/PostGIS
+                        │          ├─ WebSocket STOMP → /topic/telemetry → Frontend
+                        │          └─ MQTT tub/dispatch/# → Painel de Bordo
+                        └─ InvokeHTTP NGSI-LD
+                              └─ FIWARE Orion → MongoDB
 ```
 
-### Stack Tecnologica
+### Stack tecnológica
 
-| Componente | Tecnologia | Porta | Rede |
+| Componente | Tecnologia | Porta | Redes |
 |---|---|---|---|
-| Backend API | Spring Boot 4.0.4 (Java 21) | 8081 | etl_net, dw_net, auth_net, osrm_net |
-| Frontend (Backoffice + Livemap) | React 19 + Vite + Leaflet | 5173 | -- |
-| Broker IoT | Eclipse Mosquitto 2.0 | 1883 | mqtt_net |
-| ETL + Simulacao | Apache NiFi 2.4.0 | 8443 | mqtt_net, etl_net |
+| Backend API | Spring Boot 4.0.5 (Java 21) | 8081 | etl_net, dw_net, auth_net, osrm_net, mqtt_net |
+| Frontend | React 19 + Vite + Leaflet + Keycloak-JS | 5173 | (público) |
+| Broker IoT | Eclipse Mosquitto 2.0 (auth + ACL) | 1883 | mqtt_net |
+| ETL | Apache NiFi 2.0.0 | 8443 | mqtt_net, etl_net |
 | Data Warehouse | PostgreSQL 15 + PostGIS 3.4 | 5433 (local) | dw_net |
-| Context Broker | FIWARE Orion 3.9.0 | -- | etl_net, orion_db_net |
-| Base de Dados Orion | MongoDB 6.0 | -- | orion_db_net |
-| Autenticacao (IAM) | Keycloak 26.2.4 | 8080 | auth_net, tools_db_net |
+| Context Broker | FIWARE Orion 3.9.0 | (interna) | etl_net, orion_db_net |
+| BD do Orion | MongoDB 6.0 | (interna) | orion_db_net |
+| IAM | Keycloak 26.2.4 | 8080 | auth_net, tools_db_net |
 | Dashboards | Metabase 0.52.4 | 3000 | tools_db_net, dw_net |
-| BD Ferramentas | PostgreSQL 15 | -- | tools_db_net |
-| Routing Engine | OSRM (self-hosted, Portugal) | 5000 | osrm_net |
-| ETL Scheduler | Apache Airflow 2.10 | 8082 | etl_net |
-| Simulador | Python (montado no NiFi) | -- | mqtt_net, etl_net |
+| BD de ferramentas | PostgreSQL 15 | (interna) | tools_db_net |
+| Routing | OSRM self-hosted (Portugal) | 5000 | osrm_net |
+| Simulador | Python (volume no NiFi) | (interna) | mqtt_net |
+| Reverse proxy / TLS | Nginx + Let's Encrypt (prod) | 80, 443 | edge |
 
-### Micro-Segmentacao de Redes (Zero Trust)
+> **Nota:** o Apache Airflow foi removido por decisão arquitetural. O agendamento é feito por **Spring Scheduler** interno ao backend. Ver [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md) §4.1 para a justificação.
 
-| Rede | Funcao | Servicos |
+### Micro-segmentação de redes (Zero Trust)
+
+| Rede | Função | Serviços |
 |---|---|---|
-| `mqtt_net` | Comunicacao MQTT | Mosquitto, NiFi |
+| `mqtt_net` | Comunicação MQTT | Mosquitto, NiFi, Spring Boot, Simulador |
 | `etl_net` | Entrega de dados ETL | NiFi, Spring Boot, Orion |
-| `dw_net` | Acesso a Data Warehouse | Spring Boot, PostgreSQL/PostGIS, Metabase |
+| `dw_net` | Acesso à Data Warehouse | Spring Boot, PostgreSQL/PostGIS, Metabase |
 | `orion_db_net` | Isolamento do Context Broker | Orion, MongoDB |
 | `tools_db_net` | BD partilhada de ferramentas | Keycloak, Metabase, ToolsDB |
-| `auth_net` | Validacao JWT | Spring Boot, Keycloak |
+| `auth_net` | Validação JWT | Spring Boot, Keycloak |
 | `osrm_net` | Routing de segmentos | Spring Boot, OSRM |
 
 ---
 
-## Pre-requisitos
+## Pré-requisitos
 
-- Docker e Docker Compose
-- Ficheiro `.env` configurado na raiz do projeto (ver `.env.example`)
+- **Docker** e **Docker Compose** v2+
+- **Bash** (`pgu-setup.sh` corre em Linux, macOS ou WSL)
+- Ficheiro `.env` na raiz (gerado automaticamente pelo `pgu-setup.sh` em modo local)
 
 ---
 
-## Arranque
+## Arranque rápido
+
+### Modo local (desenvolvimento)
 
 ```bash
-# Arrancar toda a infraestrutura
-docker compose up -d
+# Gera .env, arranca toda a stack e faz health-check
+./pgu-setup.sh
+```
 
-# Verificar estado dos servicos
-docker compose ps
+O script faz o seguinte:
 
-# Ver logs do backend
-docker compose logs -f spring-boot_backend
+1. Gera um `.env` com credenciais de desenvolvimento.
+2. Executa `docker compose up -d --build`.
+3. Aguarda que o Postgres, o Keycloak, o Mosquitto e a API fiquem saudáveis.
+4. Imprime as URLs de acesso.
+
+### Modo produção (Azure)
+
+```bash
+# Configurar .env a partir do exemplo
+cp .env.example .env
+# preencher DOMAIN, CERTBOT_EMAIL e todas as passwords
+
+# Arrancar com perfil de produção (nginx + certbot + TLS)
+docker compose --profile prod up -d
+```
+
+### Reset total
+
+```bash
+./pgu-setup.sh --nuke   # apaga volumes e reinicia do zero
 ```
 
 ---
 
-## Guia de Utilizacao
+## Acessos e credenciais
 
-### 1. Configurar o Apache NiFi
+Substituir `<host>` por `localhost` (modo local) ou pelo domínio configurado em produção.
 
-1. Aceder a `https://<ip>:8443/nifi` (credenciais no `.env`)
-2. Importar o Process Group a partir de `nifi-templates/pgu_ingestion_telemetry.json`
-3. Iniciar o Process Group (play)
+| Serviço | URL | Acesso |
+|---|---|---|
+| Frontend | `http://<host>:5173` | Login via Keycloak |
+| Spring Boot API | `http://<host>:8081` | JWT via Keycloak |
+| Apache NiFi | `https://<host>:8443/nifi` | `NIFI_USERNAME` / `NIFI_PASSWORD` (`.env`) |
+| Keycloak Admin | `http://<host>:8080` | `IAM_ADMIN_USER` / `IAM_ADMIN_PASSWORD` (`.env`) |
+| Metabase | `http://<host>:3000` | Configurar no 1.º acesso |
+| OSRM API | `http://<host>:5000` | Público |
+| FIWARE Orion | `http://<host>:1026/v2/entities` | Público (rede interna) |
 
-> O browser mostra aviso de certificado auto-assinado -- e esperado.
+### Utilizadores do realm `pgu-realm`
 
-### 2. Verificar a Ingestao de Dados
+Os três utilizadores iniciais estão definidos em `keycloak/pgu-realm-realm.json` com `temporary: true` e `requiredActions: ["UPDATE_PASSWORD"]`. **A password tem de ser alterada no primeiro login.**
 
-```bash
-# Confirmar que a tabela tem dados
-docker exec -it datawarehouse psql -U pgu_dw_user -d pgu_datawarehouse \
-  -c "SELECT COUNT(*) FROM vehicle_telemetry;"
+| Username | Password inicial | Role | Destino |
+|---|---|---|---|
+| `admin` | `admin123` | `admin` | Backoffice (acesso total) |
+| `operador` | `operador123` | `operador` | Backoffice (operações do dia a dia) |
+| `motorista` | `motorista123` | `motorista` | Painel de Bordo (`/bordo`) |
 
-# Ver entidades no FIWARE Orion
-curl http://localhost:1026/v2/entities?type=Vehicle | python -m json.tool
-```
+---
 
-### 3. Dashboards
+## Frontend
 
-Aceder ao Metabase em `http://<ip>:3000` e configurar a ligacao a Data Warehouse na primeira utilizacao.
+### Rotas principais
+
+| Rota | Acesso | Descrição |
+|---|---|---|
+| `/` | Público | Landing page (apresentação) |
+| `/livemap` | Público | Mapa em tempo real (Leaflet + STOMP) |
+| `/backoffice` | `admin`, `operador` | Dashboard de gestão |
+| `/backoffice/buses` | `admin`, `operador` | CRUD de autocarros e chat de despacho |
+| `/backoffice/routes` | `admin`, `operador` | CRUD de rotas (recalcula segmentos OSRM) |
+| `/backoffice/stops` | `admin`, `operador` | CRUD de paragens |
+| `/backoffice/drivers` | `admin` | Gestão de motoristas (Keycloak Admin API) |
+| `/backoffice/users` | `admin` | Gestão de utilizadores |
+| `/backoffice/exports` | `admin`, `operador` | Exportações CSV / JSON |
+| `/bordo` | `motorista` | **Painel de Bordo** (auto-deteta o autocarro atribuído) |
+
+### LiveMap
+
+- **Paragens:** marcadores circulares (Leaflet).
+- **Rotas:** polylines com os segmentos OSRM por estrada real.
+- **Autocarros:** posição atualizada via WebSocket STOMP.
+- **Estados:** cruzam `Bus.status` (`ACTIVE` / `STOPPING` / `STOPPED`) com a telemetria mais recente:
+  - 🟢 **Em viagem:** em movimento.
+  - 🟣 **Em paragem:** parado numa paragem.
+  - 🟡 **A parar:** estado `STOPPING`.
+  - ⚫ **Desativado:** estado `STOPPED`.
+
+### Painel de Bordo
+
+Interface dedicada ao motorista, em `/bordo`:
+
+- Auto-deteta o autocarro atribuído via `GET /api/v1/drivers/me/bus`.
+- Recebe mensagens do operador em tempo real (`/topic/despacho/{busId}`).
+- Permite reportar avarias (`POST /api/v1/ocorrencias/motorista`).
+- Mostra notificações *toast* e *badge* de mensagens por ler.
 
 ---
 
 ## API REST
 
-| Metodo | Endpoint | Auth | Descricao |
+### Endpoints principais
+
+| Método | Endpoint | Roles | Descrição |
 |---|---|---|---|
-| `GET` | `/api/v1/telemetry` | JWT | Obter telemetria historica |
-| `GET` | `/api/v1/telemetry/latest` | JWT | Ultima telemetria por autocarro |
-| `POST` | `/api/v1/telemetry/ingest` | Interno (NiFi) | Ingestao de dados transformados |
-| `GET/POST` | `/api/v1/stops` | JWT | CRUD de paragens |
-| `GET/POST` | `/api/v1/routes` | JWT | CRUD de rotas (calcula segmentos OSRM automaticamente) |
-| `GET` | `/api/v1/route-segments/route/{id}` | JWT | Segmentos OSRM de uma rota |
-| `GET/POST` | `/api/v1/buses` | JWT | CRUD de autocarros |
-| `PUT` | `/api/v1/buses/{id}/activate` | JWT | Ativar autocarro |
-| `PUT` | `/api/v1/buses/{id}/stop` | JWT | Parar autocarro (STOPPING -> STOPPED) |
+| `GET` | `/api/v1/telemetry` | `admin`, `operador` | Telemetria histórica (paginada) |
+| `GET` | `/api/v1/telemetry/latest` | `admin`, `operador` | Última telemetria por autocarro |
+| `POST` | `/api/v1/telemetry/ingest` | Interno (API key) | Ingestão a partir do NiFi |
+| `GET/POST` | `/api/v1/stops` | `admin`, `operador` | CRUD de paragens |
+| `GET/POST` | `/api/v1/routes` | `admin`, `operador` | CRUD de rotas (calcula segmentos OSRM) |
+| `GET` | `/api/v1/route-segments/route/{id}` | `admin`, `operador` | Segmentos OSRM de uma rota |
+| `GET/POST` | `/api/v1/buses` | `admin`, `operador` | CRUD de autocarros |
+| `PUT` | `/api/v1/buses/{id}/activate` | `admin`, `operador` | Ativa o autocarro |
+| `PUT` | `/api/v1/buses/{id}/stop` | `admin`, `operador` | Marca como `STOPPING` |
+| `GET` | `/api/v1/buses/{id}/health` | `admin`, `operador` | Dashboard de saúde |
+| `GET/POST` | `/api/v1/drivers` | `admin` | Gestão de motoristas (via Keycloak) |
+| `GET` | `/api/v1/drivers/me/bus` | `motorista` | Autocarro atribuído ao motorista autenticado |
+| `GET/POST` | `/api/v1/ocorrencias` | `admin`, `operador` | Avarias e ocorrências |
+| `POST` | `/api/v1/ocorrencias/motorista` | `motorista` | Motorista reporta avaria do seu autocarro |
+| `GET/POST` | `/api/v1/despacho/{busId}/mensagens` | `admin`, `operador` | Chat de despacho (operador) |
+| `GET/POST` | `/api/v1/despacho/{busId}/mensagens/motorista` | `motorista` | Chat de despacho (motorista) |
+| `GET` | `/api/v1/alertas` | `admin`, `operador` | Alertas críticos |
+| `GET` | `/actuator/health` | Público | Health-check |
 
-### WebSocket (Tempo Real)
+Documentação OpenAPI interativa em `http://<host>:8081/swagger-ui.html` (apenas em modo `dev`).
 
-| Endpoint | Topico STOMP | Descricao |
+---
+
+## WebSocket (tempo real)
+
+Endpoint STOMP: `ws://<host>:8081/ws-telemetry`. A **autenticação JWT é obrigatória** no frame `CONNECT` (header `Authorization: Bearer <token>`).
+
+| Tópico | Audiência | Descrição |
 |---|---|---|
-| `/ws-telemetry` | `/topic/telemetry` | Stream de telemetria em tempo real |
+| `/topic/telemetry` | `admin`, `operador` | Stream de telemetria |
+| `/topic/despacho/{busId}` | `admin`, `operador`, `motorista` (do bus) | Mensagens de despacho do autocarro |
+| `/topic/despacho/unread-update` | `motorista` | Atualização do contador de mensagens por ler |
+| `/topic/alertas` | `admin`, `operador` | Alertas críticos em tempo real |
+| `/topic/ocorrencias` | `admin`, `operador` | Novas ocorrências |
+
+> O cliente STOMP do frontend (`pgu-web/src/services/stompClient.js`) renova o token antes de cada `CONNECT` (`keycloak.updateToken(30)`).
 
 ---
 
-## Migracoes de Base de Dados
+## Tratamento de erros
 
-O schema da Data Warehouse e gerido pelo **Flyway**. As migracoes estao em:
+Todos os endpoints devolvem erros em formato JSON consistente (`GlobalExceptionHandler` + `ErrorResponse`):
 
+```json
+{
+  "code": "VALIDATION",
+  "message": "Pedido invalido",
+  "timestamp": "2026-05-26T20:17:42Z",
+  "path": "/api/v1/buses",
+  "traceId": "8f2c1b4a-...",
+  "fieldErrors": {
+    "capacity": "must be greater than or equal to 1"
+  }
+}
 ```
-pgu/src/main/resources/db/migration/
-  V1__create_vehicle_telemetry.sql
-```
 
-O Flyway executa automaticamente ao arrancar o Spring Boot. Para adicionar alteracoes ao schema, criar um novo ficheiro `V2__descricao.sql`.
+Códigos possíveis: `VALIDATION`, `NOT_FOUND`, `FORBIDDEN`, `BUSINESS_RULE`, `UPLOAD_TOO_LARGE`, `INTERNAL`.
 
 ---
 
-## Estrutura do Projeto
+## Migrações Flyway
+
+Localização: `pgu/src/main/resources/db/migration/`. As migrações executam automaticamente ao arrancar o Spring Boot.
+
+| Versão | Descrição |
+|---|---|
+| `V1` | `vehicle_telemetry` (tabela principal de telemetria) |
+| `V2` a `V10` | `stops`, `routes`, `buses`, `route_segments`, `route_stops` |
+| `V11` a `V18` | `ocorrencias`, `alertas`, `dashboard_health` |
+| `V19` a `V22` | `mensagens_despacho` (chat operador / motorista) |
+| `V23` a `V26` | Auditoria (`audit_log`), índices PostGIS |
+| `V27` | `lida_pelo_operador` em `mensagens_despacho` |
+| `V28` | Índices compostos de performance (`bus_id`, `recorded_at`, etc.) |
+
+---
+
+## Estrutura do projeto
 
 ```
 DAI/
-|-- docker-compose.yml          # Orquestracao de todos os servicos
-|-- .env                        # Variaveis de ambiente (credenciais)
-|-- mosquitto/config/           # Configuracao do Mosquitto
-|-- postgres-init/              # Scripts de inicializacao da BD de ferramentas
-|-- nifi-templates/             # Templates de fluxos NiFi
-|-- simulator/                  # Simulador Python de autocarros (montado no NiFi)
-|   |-- simulator.py
-|-- osrm/                       # OSRM self-hosted (routing engine)
-|   |-- Dockerfile              # Multi-stage: download Portugal PBF + processamento
-|-- airflow/                    # Apache Airflow (ETL scheduler)
-|   |-- dags/                   # DAGs de orquestracao
-|   |-- scripts/
-|       |-- gtfs_loader.py      # Carrega paragens e rotas GTFS dos TUB
-|-- pgu-web/                    # Frontend React (Backoffice + Livemap)
-|   |-- src/
-|       |-- pages/
-|       |   |-- Livemap.jsx     # Mapa em tempo real (Leaflet + WebSocket)
-|       |   |-- Buses.jsx       # Gestao de autocarros (backoffice)
-|       |   |-- Routes.jsx      # Gestao de rotas
-|       |   |-- Stops.jsx       # Gestao de paragens
-|       |-- services/api.js     # Cliente HTTP (Axios)
-|       |-- index.css           # Design system (CSS variables)
-|-- pgu/                        # Backend Spring Boot
-    |-- Dockerfile
-    |-- pom.xml
-    |-- src/main/java/dai/tub/pgu/
-    |   |-- PguApplication.java
-    |   |-- config/             # SecurityConfig, WebSocketConfig
-    |   |-- controller/         # REST controllers (Telemetry, Stops, Routes, Buses)
-    |   |-- service/            # Business logic (OsrmService, RouteService, etc.)
-    |   |-- domain/             # Entidades JPA (Bus, Route, Stop, RouteSegment, etc.)
-    |   |-- dto/                # DTOs (TelemetryDTO, BusDTO, RouteDTO, etc.)
-    |   |-- mapper/             # Mappers (JSON -> DTO -> Entity)
-    |   |-- repository/         # Repositorios JPA + queries espaciais
-    |   |-- audit/              # AuditAspect + LogActivity (auditoria AOP)
-    |-- src/main/resources/
-        |-- application.properties
-        |-- db/migration/       # Migracoes Flyway
+├── docker-compose.yml              # Orquestração de todos os serviços
+├── .env / .env.example             # Variáveis de ambiente
+├── pgu-setup.sh                    # Bootstrap one-shot (--nuke disponível)
+├── PLANO_ITERACAO.md               # Plano de iteração e decisões arquiteturais
+│
+├── pgu/                            # Backend Spring Boot
+│   ├── pom.xml
+│   └── src/main/
+│       ├── java/dai/tub/pgu/
+│       │   ├── PguApplication.java
+│       │   ├── config/             # SecurityConfig, WebSocketConfig,
+│       │   │                       # WebSocketSecurityConfig, InternalApiKeyFilter,
+│       │   │                       # GlobalExceptionHandler, JwtRoleConverter
+│       │   ├── controller/         # TelemetryController, BusController,
+│       │   │                       # DespachoController, DriverController, ...
+│       │   ├── service/            # BusService, DespachoService, AlertaService,
+│       │   │                       # KeycloakAdminService, MqttDespachoService, ...
+│       │   ├── domain/             # Entidades JPA
+│       │   ├── dto/                # DTOs e ErrorResponse
+│       │   ├── repository/         # JPA + queries PostGIS
+│       │   └── audit/              # AuditAspect (AOP)
+│       └── resources/
+│           ├── application.properties
+│           ├── application-prod.properties
+│           └── db/migration/       # Flyway V1 a V28
+│
+├── pgu-web/                        # Frontend React + Vite
+│   ├── nginx.conf.template         # Reverse proxy e security headers (prod)
+│   └── src/
+│       ├── pages/
+│       │   ├── Landing.jsx
+│       │   ├── Livemap.jsx
+│       │   ├── PainelBordo.jsx     # Painel do motorista
+│       │   └── backoffice/         # Buses, Routes, Stops, Drivers, Users, Exports
+│       ├── components/             # Modal (a11y), BusCard, BusDetailPanel, ...
+│       └── services/
+│           ├── api.js              # Axios + timeout + toasts globais
+│           └── stompClient.js      # STOMP com refresh do JWT
+│
+├── keycloak/
+│   └── pgu-realm-realm.json        # Realm, clients e users (temporary passwords)
+│
+├── mosquitto/config/
+│   ├── mosquitto.conf              # allow_anonymous false
+│   └── acl.conf                    # ACL por utilizador (backend, simulator, nifi, bus)
+│
+├── nifi-templates/                 # Process groups exportados
+├── simulator/simulator.py          # Simulador MQTT (volume no NiFi)
+├── osrm/Dockerfile                 # OSRM self-hosted (Portugal PBF)
+├── postgres-init/init-tools.sql    # Inicialização das BDs Keycloak e Metabase
+└── docs/
+    └── mockups/                    # Mockups HTML (UC07-backoffice-drivers, UC07-consola-bordo)
 ```
 
 ---
 
-## Acessos
+## Segurança (Sprint -1)
 
-Substituir `<ip>` pelo IP publico do servidor Azure.
+O Sprint -1 fechou as nove fases de hardening obrigatório. Resumo do que ficou em produção:
 
-| Servico | URL | Credenciais |
-|---|---|---|
-| Frontend (Backoffice + Livemap) | `http://<ip>:5173` | JWT via Keycloak |
-| Spring Boot API | `http://<ip>:8081` | JWT via Keycloak |
-| Apache NiFi | `https://<ip>:8443/nifi` | `.env` |
-| Apache Airflow | `http://<ip>:8082` | `.env` |
-| Keycloak Admin | `http://<ip>:8080` | `.env` |
-| Metabase | `http://<ip>:3000` | Configurar no 1o acesso |
-| OSRM API | `http://<ip>:5000` | Sem autenticacao |
+- **SEC-1: MQTT auth e ACL.** Mosquitto com `allow_anonymous false` e ACL por serviço (`backend`, `simulator`, `nifi`, `bus`). Passwords injetadas via `.env`.
+- **SEC-2: JWT no WebSocket.** O `WebSocketSecurityConfig` valida o token no frame `CONNECT` através de um `ChannelInterceptor`. Origens controladas por configuração.
+- **SEC-3: CORS apertado.** Lista explícita de headers em `SecurityConfig` (sem `*` quando `allowCredentials=true`).
+- **SEC-4: API key M2M.** O `InternalApiKeyFilter` faz comparação em tempo constante (`MessageDigest.isEqual`).
+- **SEC-5: Validação e erros tipados.** `spring-boot-starter-validation` mais `GlobalExceptionHandler`, devolvendo `ErrorResponse` JSON consistente, com tratamento dedicado para `NoResourceFoundException`.
+- **SEC-6: Nginx hardening.** HSTS, CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, *rate-limit* em `/api/` (20 r/s) e `/auth/` (5 r/s).
+- **SEC-7: Passwords temporárias.** Os três utilizadores do realm têm `temporary: true` mais `requiredActions: ["UPDATE_PASSWORD"]`, o que força a mudança no primeiro login.
+- **SEC-8: Performance e resiliência.** HikariCP afinado, *graceful shutdown*, compressão, índices compostos (V28), Actuator com `health` e `info` expostos apenas, `mail` health desativado.
+- **SEC-9: A11y do frontend.** `Modal` com `role="dialog"`, `aria-modal`, *focus trap* e restauro de foco. Substituição de `window.confirm()` por modais acessíveis.
 
----
-
-## Frontend — Livemap
-
-O Livemap (`/livemap`) mostra em tempo real:
-
-- **Paragens** como marcadores circulares no mapa (Leaflet)
-- **Rotas** como polylines que seguem estradas reais (segmentos OSRM)
-- **Autocarros** com posicao atualizada via WebSocket (STOMP)
-- **Estados dos autocarros**:
-  - `Em Viagem` (verde) — autocarro em movimento
-  - `Em Paragem` (roxo) — parado numa paragem
-  - `A Parar` (amarelo) — a terminar rota (STOPPING)
-  - `Desativado` (cinza) — parado pelo gestor no backoffice (STOPPED)
-
-O estado do autocarro cruza informacao do backend (`ACTIVE`/`STOPPING`/`STOPPED`) com a telemetria em tempo real (`active`/`stopped`).
+Detalhe completo em [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md) e nos commits `Sprint -1 (Fase N)`.
 
 ---
 
-## Carga de Dados GTFS
-
-O Airflow executa o `gtfs_loader.py` que:
-
-1. Faz download dos dados GTFS dos TUB (`tub.zip`)
-2. Cria paragens via `POST /api/v1/stops`
-3. Cria rotas com paragens ordenadas via `POST /api/v1/routes`
-4. O Spring Boot calcula automaticamente os segmentos OSRM entre paragens (async)
-
----
-
-## Comandos Uteis
+## Comandos úteis
 
 ```bash
-# Estado dos servicos
+# Estado dos serviços
 docker compose ps
 
-# Logs de um servico
-docker compose logs -f <servico>
+# Logs de um serviço
+docker compose logs -f spring-boot_backend
+docker compose logs -f mosquitto
 
-# Reiniciar um servico
-docker compose restart <servico>
+# Reiniciar um serviço
+docker compose restart spring-boot_backend
+
+# Reconstruir após alterações de código
+docker compose up -d --build spring-boot_backend
 
 # Parar tudo
 docker compose down
 
-# Reconstruir apos alteracoes de codigo
-docker compose up -d --build spring-boot_backend
+# Reset total (apaga volumes)
+./pgu-setup.sh --nuke
 
-# Limpar dados da Data Warehouse
-docker exec -it datawarehouse psql -U pgu_dw_user -d pgu_datawarehouse \
-  -c "TRUNCATE TABLE vehicle_telemetry RESTART IDENTITY;"
+# Confirmar telemetria na Data Warehouse
+docker exec -it datawarehouse psql -U "$DW_USER" -d "$DW_NAME" \
+  -c "SELECT COUNT(*) FROM vehicle_telemetry;"
+
+# Health-check da API
+curl -fsS http://localhost:8081/actuator/health | jq
+
+# Entidades no FIWARE Orion
+curl -fsS http://localhost:1026/v2/entities | jq
 ```
 
 ---
 
-*Projeto desenvolvido no ambito da unidade curricular Desenvolvimento de Aplicacoes Informaticas (DAI).*
+## Documentação adicional
+
+- [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md): plano de iteração, decisões arquiteturais e roadmap por sprint.
+- [`ESTADO_ATUAL_VS_PLANO.md`](ESTADO_ATUAL_VS_PLANO.md): estado atual vs. plano original.
+- [`SPRINT_-1_DETALHADO.md`](SPRINT_-1_DETALHADO.md): detalhe das nove fases de hardening.
+- [`DECISOES_RESPOSTA.md`](DECISOES_RESPOSTA.md): decisões tomadas com o orientador.
+- [`docs/mockups/`](docs/mockups/): mockups HTML dos casos de uso.
+
+---
+
+*Projeto desenvolvido no âmbito da unidade curricular **Desenvolvimento de Aplicações Informáticas (DAI)**, do Mestrado Integrado em Engenharia Informática da Universidade do Minho, ano letivo 2025/2026.*
