@@ -1,3 +1,13 @@
+# =====================================================================
+# Sprint -1 (Fase 7/9) — Rate limiting zones (INFRA-nginx-rate)
+# Definidas no http context (este ficheiro é includido em conf.d/).
+# =====================================================================
+# Zona geral da API: 20 req/s por IP, com burst de 40.
+limit_req_zone $binary_remote_addr zone=api:10m rate=20r/s;
+# Zona dos endpoints de auth (login Keycloak, token refresh): mais apertada,
+# 5 req/s por IP. Mitiga brute force credentials.
+limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/s;
+
 # Redirect HTTP to HTTPS
 server {
     listen 80;
@@ -26,6 +36,26 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
 
+    # =================================================================
+    # Sprint -1 (Fase 7/9) — Security headers (INFRA-nginx)
+    # =================================================================
+    # HSTS: forca HTTPS por 1 ano + inclui sub-domains. Comentar em dev local.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    # Bloqueia o site de ser embedido em iframe (clickjacking).
+    add_header X-Frame-Options "DENY" always;
+    # Bloqueia MIME sniffing.
+    add_header X-Content-Type-Options "nosniff" always;
+    # XSS protection (defensa adicional em browsers antigos).
+    add_header X-XSS-Protection "1; mode=block" always;
+    # Limita referrers cross-origin (privacy).
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # CSP relaxado o suficiente para React+Vite+Leaflet+Keycloak.
+    # 'unsafe-inline' necessario para estilos inline do Leaflet; 'unsafe-eval'
+    # necessario para Keycloak-js. ws/wss para WebSocket telemetry.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' ws: wss: https:; frame-ancestors 'none'; base-uri 'self'" always;
+    # Permissions Policy: nega APIs sensíveis nao usadas.
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=()" always;
+
     root /usr/share/nginx/html;
     index index.html;
 
@@ -33,6 +63,10 @@ server {
     # API (Spring Boot) — ^~ garante prioridade
     # ─────────────────────────────────────────
     location ^~ /api/ {
+        # Sprint -1 (Fase 7/9): rate limit 20r/s + burst 40 (INFRA-nginx-rate)
+        limit_req zone=api burst=40 nodelay;
+        limit_req_status 429;
+
         proxy_pass http://spring-boot-backend:8081/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -58,6 +92,11 @@ server {
     # Keycloak (IAM)
     # ─────────────────────────────────────────
     location ^~ /auth/ {
+        # Sprint -1 (Fase 7/9): rate limit apertado para login/token
+        # 5r/s + burst 10. Mitiga brute force credentials. (INFRA-nginx-rate)
+        limit_req zone=auth burst=10 nodelay;
+        limit_req_status 429;
+
         proxy_pass http://keycloak:8080/auth/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -94,6 +133,8 @@ server {
         proxy_set_header X-ProxyScheme https;
         proxy_set_header X-ProxyHost ${DOMAIN};
         proxy_set_header X-ProxyPort 443;
+        # Sprint -1 (SEC-13): NiFi usa cert self-signed em dev.
+        # Em prod, gerar cert valido e definir proxy_ssl_trusted_certificate + on.
         proxy_ssl_verify off;
         proxy_read_timeout 600;
         proxy_buffer_size 128k;
