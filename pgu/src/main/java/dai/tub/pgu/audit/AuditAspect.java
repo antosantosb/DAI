@@ -40,8 +40,17 @@ public class AuditAspect {
             logger.info("AUDITORIA: [{}] Sucesso em {}.{}", action, className, methodName);
             auditLogRepository.save(new AuditLog(username, action, className, methodName, true, null));
         } catch (Throwable e) {
-            logger.error("AUDITORIA: [{}] Erro em {}.{} — {}", action, className, methodName, e.getMessage());
-            auditLogRepository.save(new AuditLog(username, action, className, methodName, false, e.getMessage()));
+            // Sprint -1 (SEC-extra): nao expor e.getMessage() em logs de nivel INFO/ERROR
+            // (pode revelar SQL, paths, dados sensiveis). Mensagem completa fica
+            // apenas no audit_log (DB) e em DEBUG.
+            logger.error("AUDITORIA: [{}] Erro em {}.{} ({})",
+                         action, className, methodName, e.getClass().getSimpleName());
+            logger.debug("AUDITORIA: detalhe do erro:", e);
+            // Truncar tambem na BD para evitar storage explosivo
+            String safeMsg = e.getMessage() != null
+                    ? (e.getMessage().length() > 500 ? e.getMessage().substring(0, 500) + "..." : e.getMessage())
+                    : e.getClass().getSimpleName();
+            auditLogRepository.save(new AuditLog(username, action, className, methodName, false, safeMsg));
             throw e;
         }
 

@@ -25,14 +25,15 @@ import dai.tub.pgu.repository.HistoricoAlertaRepository;
 import dai.tub.pgu.repository.OcorrenciaRepository;
 import dai.tub.pgu.domain.GlobalConfig;
 import dai.tub.pgu.repository.GlobalConfigRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class AlertaService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertaService.class);
-@Autowired
-    private GlobalConfigRepository globalConfigRepository;
+
+    // Sprint -1 (BE-12): constructor injection em vez de @Autowired field.
+    // Vantagens: campo final imutavel, testavel sem reflection, falha cedo se faltar.
+    private final GlobalConfigRepository globalConfigRepository;
     private final HistoricoAlertaRepository historicoRepository;
     private final OcorrenciaRepository ocorrenciaRepository;
     private final OcorrenciaService ocorrenciaService;
@@ -64,13 +65,15 @@ public class AlertaService {
                           OcorrenciaService ocorrenciaService,
                           JavaMailSender mailSender,
                           SimpMessagingTemplate messagingTemplate,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          GlobalConfigRepository globalConfigRepository) {
         this.historicoRepository = historicoRepository;
         this.ocorrenciaRepository = ocorrenciaRepository;
         this.ocorrenciaService = ocorrenciaService;
         this.mailSender = mailSender;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.globalConfigRepository = globalConfigRepository;
     }
 
     /**

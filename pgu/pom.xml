@@ -54,6 +54,19 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
+		<!-- Sprint -1 (BE-8): Hibernate Validator para @Min, @Max, @NotBlank, etc.
+		     Sem isto as anotacoes nos controllers nao validavam nada (silencioso). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<!-- Sprint -1 (SEC-14 + SEC-actuator): /actuator/health, /actuator/info para
+		     monitorizacao e probes Kubernetes. Endpoints expostos controlados via
+		     management.endpoints.web.exposure.include em application.properties. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
@@ -103,10 +116,12 @@
 			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-spatial</artifactId>
 		</dependency>
+		<!-- Sprint -1: springdoc 2.5.0 incompativel com Spring Boot 4 (Spring 7).
+		     2.9.0 e a primeira versao que suporta o novo ControllerAdviceBean. -->
 		<dependency>
     		<groupId>org.springdoc</groupId>
     		<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    		<version>2.5.0</version>
+    		<version>2.8.13</version>
 		</dependency>
 
 		<dependency>

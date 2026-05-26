@@ -2,7 +2,10 @@ package dai.tub.pgu.controller;
 
 import java.util.List;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import dai.tub.pgu.audit.LogActivity;
@@ -11,6 +14,7 @@ import dai.tub.pgu.service.BusService;
 
 @RestController
 @RequestMapping("/api/v1/buses")
+@Validated
 public class BusController
 {
     private final BusService busService;
@@ -46,13 +50,18 @@ public class BusController
         return ResponseEntity.status(201).body(busService.create(dto));
     }
 
+    /**
+     * Sprint -1 (BE-8): validacao declarativa com @Min/@Max.
+     * Erros devolvem 400 (via GlobalExceptionHandler) em vez de 500.
+     */
     @PostMapping("/batch")
     @LogActivity(action = "Criar autocarros em batch")
-    public ResponseEntity<List<BusDTO>> createBatch(@RequestParam(defaultValue = "5") int count)
+    public ResponseEntity<List<BusDTO>> createBatch(
+            @RequestParam(defaultValue = "5")
+            @Min(value = 1, message = "Quantidade minima e 1")
+            @Max(value = 50, message = "Quantidade maxima e 50")
+            int count)
     {
-        if (count < 1 || count > 50) {
-            throw new RuntimeException("Quantidade deve ser entre 1 e 50.");
-        }
         return ResponseEntity.status(201).body(busService.createBatch(count));
     }
 

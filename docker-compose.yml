@@ -31,7 +31,7 @@ services:
       - MQTT_TOPIC=tub/telemetry
       - INTERVAL_SECONDS=1
       - BACKEND_URL=http://spring-boot-backend:8081
-      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
     depends_on:
       mosquitto:
         condition: service_started
@@ -57,7 +57,7 @@ services:
       - NIFI_WEB_PROXY_CONTEXT_PATH=/nifi
       - SINGLE_USER_CREDENTIALS_USERNAME=${NIFI_USERNAME}
       - SINGLE_USER_CREDENTIALS_PASSWORD=${NIFI_PASSWORD}
-      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
     volumes:
       - nifi_conf:/opt/nifi/nifi-current/conf
       - nifi_database:/opt/nifi/nifi-current/database_repository
@@ -223,7 +223,7 @@ services:
       - DW_PASSWORD=${DW_PASSWORD}
       - OSRM_URL=http://osrm:5000
       - PGU_EXPORT_DIR=/var/pgu/exports
-      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:-changeme-internal-key}
+      - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
     volumes:
       # Motor de Exportação Massiva: persistência dos CSV/PDF gerados
       - pgu_exports:/var/pgu/exports

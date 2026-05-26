@@ -8,7 +8,9 @@ import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.domain.Bus;
@@ -29,6 +31,7 @@ public class TelemetryService
     private final GeometryFactory geometryFactory;
     private final JdbcTemplate jdbc;
     private final AlertaService alertaService;
+    private final SimpMessagingTemplate messagingTemplate; // Sprint -1 (BE-9)
 
     /**
      * Intervalo esperado (em segundos) entre publicações de telemetria por autocarro.
@@ -53,16 +56,24 @@ public class TelemetryService
     public TelemetryService(TelemetryRepository telemetryRepository,
                             BusRepository busRepository,
                             JdbcTemplate jdbc,
-                            AlertaService alertaService)
+                            AlertaService alertaService,
+                            SimpMessagingTemplate messagingTemplate)
     {
         this.telemetryRepository = telemetryRepository;
         this.busRepository = busRepository;
         this.jdbc = jdbc;
         this.alertaService = alertaService;
+        this.messagingTemplate = messagingTemplate;
         // SRID 4326 é o standard WGS84 (usado pelo GPS e Google Maps)
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
     }
 
+    /**
+     * Sprint -1 (BE-1): @Transactional para garantir atomicidade.
+     * Sem isto, um crash entre saves deixa o sistema com estado inconsistente
+     * (telemetry guardada mas bus.lastSync nao actualizado, ou vice-versa).
+     */
+    @Transactional
     public void processAndSaveTelemetry(TelemetryDTO dto)
     {
         Coordinate coordinate = new Coordinate(dto.getLongitude(), dto.getLatitude());
@@ -88,6 +99,11 @@ public class TelemetryService
 
         // Avaliar alertas críticos (ex: AVARIADO)
         alertaService.processarTelemetria(dto);
+
+        // Sprint -1 (BE-9): broadcast WS dentro do service (era no controller).
+        // Mantem-se dentro da @Transactional — se a persistencia falhar nao se publica
+        // telemetria inconsistente ao frontend.
+        messagingTemplate.convertAndSend("/topic/telemetry", dto);
     }
 
     public List<TelemetryDTO> getAllTelemetry()

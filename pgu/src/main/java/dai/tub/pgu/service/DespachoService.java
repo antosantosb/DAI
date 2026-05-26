@@ -80,7 +80,10 @@ public class DespachoService {
     }
 
     public MensagemDespachoDTO enviarMensagem(String busId, EnviarMensagemRequest request, String operador) {
-        log.info("Recebido pedido de despacho de operador {} para autocarro {}: '{}'", operador, busId, request.getConteudo());
+        // Sprint -1 (SEC-10): nao logar conteudo da mensagem (pode ter dados sensiveis).
+        // Apenas tamanho para auditoria.
+        log.info("Pedido de despacho do operador {} para autocarro {} ({} chars)",
+                 operador, busId, request.getConteudo() != null ? request.getConteudo().length() : 0);
 
         // 1. Validar que o autocarro está online
         if (!isBusOnline(busId)) {
@@ -168,6 +171,17 @@ public class DespachoService {
         } else {
             log.warn("Nenhuma mensagem de despacho encontrada para a chave MQTT: {}", mqttMessageId);
         }
+    }
+
+    /**
+     * Sprint -1 (SEC-6): validacao cruzada para o webhook de ACK.
+     * Devolve true se mensagem MQTT existe E pertence ao busId indicado.
+     * Usado para impedir spoofing de ACKs entre autocarros.
+     */
+    public boolean messageBelongsToBus(String mqttMessageId, String busId) {
+        return mensagemRepository.findByMqttMessageId(mqttMessageId)
+                .map(m -> busId != null && busId.equals(m.getBusId()))
+                .orElse(false);
     }
 
     public List<MensagemDespachoDTO> listarMensagens(String busId) {

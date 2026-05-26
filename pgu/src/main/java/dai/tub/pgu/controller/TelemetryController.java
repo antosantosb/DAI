@@ -3,7 +3,6 @@ package dai.tub.pgu.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,17 +13,20 @@ import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.dto.BusHealthDTO;
 import dai.tub.pgu.service.TelemetryService;
 
+/**
+ * Sprint -1 (BE-9): controller fica thin. Broadcast WS moveu-se para o service
+ * (processAndSaveTelemetry) — assim corre dentro da mesma transacao (@Transactional)
+ * e fica testavel sem MockMvc.
+ */
 @RestController
 @RequestMapping("/api/v1/telemetry")
 public class TelemetryController
 {
     private final TelemetryService telemetryService;
-    private final SimpMessagingTemplate messagingTemplate;
 
-    public TelemetryController(TelemetryService telemetryService, SimpMessagingTemplate messagingTemplate)
+    public TelemetryController(TelemetryService telemetryService)
     {
         this.telemetryService = telemetryService;
-        this.messagingTemplate = messagingTemplate;
     }
 
     // GET — Usado pelo Frontend para obter telemetria histórica
@@ -55,15 +57,11 @@ public class TelemetryController
     }
 
     // POST — Usado pelo NiFi (InvokeHTTP) para ingerir dados transformados
-    // Guarda na DW e faz broadcast via WebSocket para o Frontend
     @PostMapping("/ingest")
     public ResponseEntity<Void> ingestTelemetry(@RequestBody TelemetryDTO telemetry)
     {
+        // Service trata de persistir + broadcast WS atomicamente
         telemetryService.processAndSaveTelemetry(telemetry);
-
-        // Broadcast em tempo real para todos os clientes WebSocket subscritos
-        messagingTemplate.convertAndSend("/topic/telemetry", telemetry);
-
         return ResponseEntity.ok().build();
     }
 }

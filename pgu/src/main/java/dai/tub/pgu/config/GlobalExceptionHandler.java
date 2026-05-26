@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,6 +49,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotFound(Exception ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of("NOT_FOUND", safeMessage(ex), req.getRequestURI()));
+    }
+
+    /**
+     * URLs invalidas ou endpoints nao mapeados devolvem 404 limpo
+     * (em vez de cair no catch-all e dar 500).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("NOT_FOUND", "Recurso nao encontrado.", req.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

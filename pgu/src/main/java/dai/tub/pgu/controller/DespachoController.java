@@ -106,7 +106,7 @@ public class DespachoController {
             @RequestBody Map<String, String> payload) {
         String messageId = payload.get("messageId");
         String type = payload.get("type");
-        
+
         if (messageId == null || type == null) {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
@@ -114,8 +114,17 @@ public class DespachoController {
             return ResponseEntity.badRequest().body(error);
         }
 
+        // Sprint -1 (SEC-6): validar que messageId pertence ao busId do path.
+        // Sem isto, um atacante com um messageId valido podia falsificar ACK para qualquer bus.
+        if (!despachoService.messageBelongsToBus(messageId, busId)) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "messageId nao corresponde ao busId indicado no path.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
+
         despachoService.processarAck(busId, messageId, type);
-        
+
         Map<String, Object> res = new HashMap<>();
         res.put("success", true);
         return ResponseEntity.ok(res);
