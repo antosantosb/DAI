@@ -110,92 +110,120 @@ body.kc-login {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-/* ─── Password wrapper (input-group with show/hide toggle) ─── */
-/* Sprint -1 (follow-up): mostrar e estilizar o botao "olho" de toggle
-   da visibilidade. No Sprint -1 estavamos a esconde-lo (display:none) por
-   estar unstyled e a partir o layout. Agora vive como sufixo do input:
-   input com bordo direito plano + botao com bordo esquerdo plano. */
+/* ─── Password wrapper com olhinho (show/hide toggle) ─── */
+/* Sprint -1 (follow-up v2): abordagem position:absolute em vez de flex.
+   No primeiro intento o botao caia abaixo do input (Keycloak 26 / PF5
+   usa wrappers que nao casavam com flex:1). Agora:
+   - wrapper relative + display:block (qualquer DOM tree do KC pega)
+   - input full width com padding-right 48px (reserva espaco)
+   - botao absolute dentro do input, lado direito
+   - icone branco 18px */
 .login-pf-page .input-group,
 .login-pf-page .pf-v5-c-input-group,
-.login-pf-page .kc-form-group-password {
-  display: flex;
-  width: 100%;
-  position: relative;
-  align-items: stretch;
+.login-pf-page .pf-c-input-group,
+.login-pf-page .kc-form-group-password,
+.login-pf-page .pf-v5-c-form__group:has(input[type="password"]),
+.login-pf-page .pf-c-form__group:has(input[type="password"]) {
+  position: relative !important;
+  width: 100% !important;
+  display: block !important;
 }
 
-.login-pf-page .input-group input,
-.login-pf-page .pf-v5-c-input-group input {
-  flex: 1;
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  border-right: none !important;
+/* Input do password mantem border-radius completo mas reserva espaco a direita */
+.login-pf-page .input-group input[type="password"],
+.login-pf-page .input-group input[type="text"],
+.login-pf-page .pf-v5-c-input-group input,
+.login-pf-page .pf-c-input-group input,
+.login-pf-page input[type="password"] {
+  width: 100% !important;
+  padding-right: 48px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-sizing: border-box !important;
 }
 
-/* Botao "olhinho" (mostrar/ocultar password) */
-.login-pf-page .input-group-addon,
-.login-pf-page .input-group .btn,
+/* Botao "olhinho" — posicionado absolutamente dentro do input, lado direito */
 .login-pf-page .input-group button,
+.login-pf-page .input-group .input-group-addon,
+.login-pf-page .input-group .btn,
 .login-pf-page .pf-v5-c-input-group button,
 .login-pf-page .pf-c-input-group button,
-.login-pf-page .pf-v5-c-button[aria-label*="password"],
 .login-pf-page button[aria-label*="password"],
+.login-pf-page button[aria-label*="Password"],
 .login-pf-page .kc-form-password-visibility-toggle,
-.login-pf-page .pf-v5-c-button.pf-m-control {
-  background: rgba(255, 255, 255, 0.07) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-top-right-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  color: rgba(255, 255, 255, 0.6) !important;
-  padding: 0 14px !important;
+.login-pf-page .pf-v5-c-button.pf-m-control,
+.login-pf-page .pf-v5-c-button[type="button"][class*="password"] {
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 36px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  padding: 0 !important;
+  margin: 0 !important;
   cursor: pointer;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  min-width: 44px;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
   box-shadow: none !important;
+  z-index: 2 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  outline: none !important;
+}
+
+/* Quando o input tem label por cima, o botao precisa de offset extra para o
+   eixo Y porque o calculo do top:50% inclui a label. Ajustamos via container. */
+.login-pf-page .pf-v5-c-form__group-control,
+.login-pf-page .pf-c-form__group-control {
+  position: relative !important;
 }
 
 .login-pf-page .input-group button:hover,
 .login-pf-page .pf-v5-c-input-group button:hover,
 .login-pf-page .pf-c-input-group button:hover,
 .login-pf-page button[aria-label*="password"]:hover,
+.login-pf-page button[aria-label*="Password"]:hover,
 .login-pf-page .kc-form-password-visibility-toggle:hover,
 .login-pf-page .pf-v5-c-button.pf-m-control:hover {
   color: rgba(255, 255, 255, 0.95) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  border-color: rgba(99, 102, 241, 0.5) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .login-pf-page .input-group button:focus,
 .login-pf-page .pf-v5-c-input-group button:focus,
 .login-pf-page button[aria-label*="password"]:focus {
-  outline: none;
-  border-color: rgba(99, 102, 241, 0.6) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4) !important;
 }
 
 /* Ícones dentro do botão (SVG injetado pelo Keycloak ou PatternFly) */
 .login-pf-page .input-group button svg,
 .login-pf-page .pf-v5-c-input-group button svg,
+.login-pf-page .pf-c-input-group button svg,
 .login-pf-page button[aria-label*="password"] svg,
+.login-pf-page button[aria-label*="Password"] svg,
 .login-pf-page .kc-form-password-visibility-toggle svg,
 .login-pf-page .pf-v5-c-button.pf-m-control svg {
   width: 18px !important;
   height: 18px !important;
-  fill: currentColor;
-  color: currentColor;
+  fill: currentColor !important;
+  color: currentColor !important;
 }
 
 /* Fallback: classes de icone (FontAwesome / PatternFly icons) */
 .login-pf-page .input-group button i,
 .login-pf-page button[aria-label*="password"] i,
-.login-pf-page .kc-form-password-visibility-toggle i {
-  font-size: 16px;
-  color: currentColor;
+.login-pf-page button[aria-label*="Password"] i,
+.login-pf-page .kc-form-password-visibility-toggle i,
+.login-pf-page .pf-v5-c-button.pf-m-control i {
+  font-size: 16px !important;
+  color: currentColor !important;
   line-height: 1;
 }
 
