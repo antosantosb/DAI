@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import { Client } from '@stomp/stompjs';
+import { createStompClient } from '../services/stompClient';
 import api from '../services/api';
 import {
   DEFAULT_CENTER, DEFAULT_ZOOM, WS_URL,
@@ -200,9 +200,8 @@ export default function Livemap() {
       setBuses(initial);
     }).catch(() => {});
 
-    const client = new Client({
-      brokerURL: WS_URL,
-      reconnectDelay: 5000,
+    // Sprint -1 (SEC-4): client autenticado via JWT no CONNECT.
+    const client = createStompClient({
       onConnect: () => {
         stompClientRef.current = client;
         setWsConnected(true);

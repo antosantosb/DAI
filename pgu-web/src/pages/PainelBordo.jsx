@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Client } from '@stomp/stompjs';
+import { createStompClient } from '../services/stompClient';
 import { useAuth } from '../context/AuthProvider';
 import api from '../services/api';
 import { getMensagens } from '../services/despachoApi';
@@ -91,10 +91,8 @@ export default function PainelBordo() {
   // WebSocket
   useEffect(() => {
     if (!busCode) return;
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
-    const client = new Client({
-      brokerURL: wsUrl,
-      reconnectDelay: 5000,
+    // Sprint -1 (SEC-4): client autenticado via JWT no CONNECT.
+    const client = createStompClient({
       onConnect: () => {
         client.subscribe('/topic/telemetry', (message) => {
           try {

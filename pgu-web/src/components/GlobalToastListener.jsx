@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Client } from '@stomp/stompjs';
+import { createStompClient } from '../services/stompClient';
 
 /**
  * Subscreve tópicos STOMP globais e emite toasts.
@@ -8,10 +8,8 @@ import { Client } from '@stomp/stompjs';
  */
 export default function GlobalToastListener() {
   useEffect(() => {
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
-    const stompClient = new Client({
-      brokerURL: wsUrl,
-      reconnectDelay: 5000,
+    // Sprint -1 (SEC-4): client autenticado via JWT no CONNECT.
+    const stompClient = createStompClient({
       onConnect: () => {
 
         // ─── Emergências de terreno ───

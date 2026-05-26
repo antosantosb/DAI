@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Client } from '@stomp/stompjs';
 import api from '../services/api';
 import { getMensagens, enviarMensagem } from '../services/despachoApi';
+import { createStompClient } from '../services/stompClient';
 import './BusDetailPanel.css';
 
 /**
@@ -41,11 +41,8 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
     fetchMessages();
     api.post(`/despacho/${bus.busCode}/mensagens/marcar-lidas`).catch(() => {});
 
-    // WebSocket: refresh quando o backend emite atualização do tópico despacho do bus
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
-    const client = new Client({
-      brokerURL: wsUrl,
-      reconnectDelay: 5000,
+    // Sprint -1 (SEC-4): WS autenticado via JWT no CONNECT.
+    const client = createStompClient({
       onConnect: () => {
         client.subscribe(`/topic/despacho/${bus.busCode}`, () => fetchMessages());
       },

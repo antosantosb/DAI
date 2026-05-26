@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Client } from '@stomp/stompjs';
 import { toast } from 'react-toastify';
 import api from '../services/api';
+import { createStompClient } from '../services/stompClient';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import './Exports.css';
@@ -105,11 +105,9 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
     });
   }, [dataType]);
 
-  // STOMP
+  // STOMP — Sprint -1 (SEC-4) autenticado via JWT
   useEffect(() => {
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
-    const client = new Client({
-      brokerURL: wsUrl, reconnectDelay: 5000,
+    const client = createStompClient({
       onConnect: () => {
         client.subscribe('/topic/exports', (msg) => {
           if (!msg.body) return;

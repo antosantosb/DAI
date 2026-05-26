@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
-import { Client } from '@stomp/stompjs';
+import { createStompClient } from '../services/stompClient';
 import './Buses.css';
 
 /**
@@ -39,11 +39,8 @@ export default function BusHealthDashboard() {
         setLoading(false);
       });
 
-    // 2. Real-time connection with STOMP over SockJS
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
-    const stompClient = new Client({
-      brokerURL: wsUrl,
-      reconnectDelay: 5000, // tenta reconectar a cada 5 segundos
+    // 2. Real-time connection STOMP — Sprint -1 (SEC-4) autenticado via JWT
+    const stompClient = createStompClient({
       onConnect: () => {
         console.log('Connected to STOMP via SockJS!');
 
