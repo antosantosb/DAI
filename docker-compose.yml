@@ -318,6 +318,9 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD obrigatoria}
       - MINIO_EXPORTS_BUCKET=${MINIO_EXPORTS_BUCKET:-exports}
       - MINIO_ATTACHMENTS_BUCKET=${MINIO_ATTACHMENTS_BUCKET:-attachments}
+      # Chatbot IA (Rúben): Ollama LLM
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma2:2b-instruct-q4_K_M}
     volumes:
       # Motor de Exportação Massiva: persistência dos CSV/PDF gerados (legacy, a migrar para MinIO no F9)
       - pgu_exports:/var/pgu/exports
@@ -339,6 +342,7 @@ services:
       - osrm_net
       - mqtt_net
       - storage_net
+      - ai_net
 
   # ==========================================
   # 10. OSRM (Routing Engine — Portugal)
@@ -377,6 +381,54 @@ services:
       - tools_db_net
       - dw_net
 
+  # ==========================================
+  # 12. OLLAMA (LLM para chatbot)
+  # ==========================================
+  ollama:
+    image: ollama/ollama:0.5.0
+    container_name: ollama
+    networks:
+      - ai_net
+    volumes:
+      - ollama_models:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+        reservations:
+          memory: 4G
+    restart: unless-stopped
+    # Não expor portas ao host (segurança); backend acede via DNS interno Docker
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # IMPORTANTE: parar por defeito (poupa RAM). Iniciar manualmente para demos.
+    # Para parar por defeito: comment 'restart' OU usar perfil
+    profiles:
+      - ai
+
+  # ==========================================
+  # 13. OLLAMA Init (LLM para chatbot)
+  # ==========================================
+  ollama-init:
+    image: ollama/ollama:0.5.0
+    networks:
+      - ai_net
+    volumes:
+      - ollama_models:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: |
+      sh -c "ollama pull gemma2:2b-instruct-q4_K_M ; echo 'Model ready'"
+    profiles:
+      - ai
+    restart: "no"
+
+    
 # ==========================================
 # REDES (Micro-Segmentação Zero Trust)
 # ==========================================
@@ -406,6 +458,10 @@ networks:
   # Sprint 0 (F0): backend, MinIO e Mailpit isolados das outras redes
   storage_net:
     driver: bridge
+  # Chatbot IA (Rúben): Ollama isolado
+  ai_net:
+    driver: bridge
+
 
 # ==========================================
 # VOLUMES
@@ -425,3 +481,7 @@ volumes:
   certbot_webroot:
   # Sprint 0 (F0): dados do MinIO (exports, attachments, futuros backups)
   minio_data:
+  # Chatbot IA (Rúben): modelos do Ollama
+  ollama_models:
+    name: pgu_ollama_models
+

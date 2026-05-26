@@ -113,6 +113,18 @@ export const routes = [
         loader: () => import('./pages/AuditLogs'),
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.audit', iconKey: 'IconAudit' },
       },
+      // Chatbot IA (Rúben): assistente conversacional + dashboard de monitorizacao
+      {
+        path: 'chatbot',
+        loader: () => import('./pages/Chatbot'),
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.chatbot', iconKey: 'IconChatbot' },
+      },
+      {
+        path: 'ai-monitoring',
+        loader: () => import('./pages/AiMonitoring'),
+        access: ['admin'],
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.aiMonitoring', iconKey: 'IconAiMonitoring' },
+      },
       {
         path: 'configuracoes',
         loader: () => import('./pages/GlobalConfig'),

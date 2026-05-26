@@ -91,6 +91,10 @@ public class SecurityConfig
                 // Apagar exportações — apenas admin
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/exports/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/config/**").hasRole("admin")
+                // AI / Chatbot — admin ou operador
+                .requestMatchers(HttpMethod.POST, "/api/v1/ai/**").hasAnyRole("admin", "operador")
+                .requestMatchers(HttpMethod.GET, "/api/v1/ai/**").hasAnyRole("admin", "operador")
+
                 // Tudo o resto — autenticado
                 .anyRequest().authenticated()
             )
