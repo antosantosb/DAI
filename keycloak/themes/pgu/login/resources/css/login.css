@@ -1,5 +1,19 @@
 /* PGU TUB — Custom Keycloak Login Theme */
 
+/* ─── Reset: paginas do tema login sao estaticas (sem scrollbar) ─── */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+}
+
+/* Wrapper principal tambem confinado para nao gerar scroll interno */
+.login-pf-page {
+  overflow: hidden !important;
+}
+
 /* ─── Base ─── */
 body.kc-login {
   background: #0f172a;
@@ -145,7 +159,8 @@ body.kc-login {
 /* Botao "olhinho" — posicionado absolutamente dentro do input, lado direito.
    Keycloak 26 com PF4: <button class="pf-c-button pf-m-control"
    aria-label="Show password" data-password-toggle data-icon-show="fa fa-eye"
-   data-icon-hide="fa fa-eye-slash"><i class="fa fa-eye"></i></button> */
+   data-icon-hide="fa fa-eye-slash"><i class="fa fa-eye"></i></button>
+   Por defeito invisivel (opacity 0); aparece em :focus-within ou :hover. */
 .login-pf-page button[data-password-toggle],
 .login-pf-page .input-group button,
 .login-pf-page .input-group .input-group-addon,
@@ -174,12 +189,29 @@ body.kc-login {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
   box-shadow: none !important;
   z-index: 2 !important;
   min-width: 0 !important;
   min-height: 0 !important;
   outline: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Mostrar o olhinho quando o input/grupo e' focado ou em hover do grupo.
+   Nao incluir button:focus aqui porque um click no proprio button retem
+   o focus e o olho ficaria visivel mesmo depois de o input perder foco. */
+.login-pf-page .pf-c-input-group:focus-within button[data-password-toggle],
+.login-pf-page .pf-c-input-group:hover button[data-password-toggle],
+.login-pf-page .pf-v5-c-input-group:focus-within button[data-password-toggle],
+.login-pf-page .pf-v5-c-input-group:hover button[data-password-toggle],
+.login-pf-page .input-group:focus-within button[data-password-toggle],
+.login-pf-page .input-group:hover button[data-password-toggle],
+.login-pf-page button[data-password-toggle]:hover,
+.login-pf-page button[data-password-toggle]:focus-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 /* Quando o input tem label por cima, o botao precisa de offset extra para o
@@ -202,9 +234,19 @@ body.kc-login {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Focus ring so para keyboard nav (:focus-visible), nao para click do mouse.
+   Sem isto, um click no olho deixava-o com background ate o user clicar fora. */
 .login-pf-page .input-group button:focus,
 .login-pf-page .pf-v5-c-input-group button:focus,
+.login-pf-page button[data-password-toggle]:focus,
 .login-pf-page button[aria-label*="password"]:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.login-pf-page .input-group button:focus-visible,
+.login-pf-page .pf-v5-c-input-group button:focus-visible,
+.login-pf-page button[data-password-toggle]:focus-visible,
+.login-pf-page button[aria-label*="password"]:focus-visible {
   background: rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4) !important;
 }
@@ -223,31 +265,53 @@ body.kc-login {
   color: currentColor !important;
 }
 
-/* Icones FontAwesome dentro do botao (Keycloak 26 / PF4 usa <i class="fa fa-eye">) */
+/* Icone: nao dependemos do FontAwesome do Keycloak (que pode falhar a
+   carregar ou ser sobrescrito). Escondemos o <i> nativo e injetamos SVG
+   inline via ::before, controlado pelo aria-label. */
 .login-pf-page button[data-password-toggle] i,
 .login-pf-page button[data-password-toggle] .fa,
 .login-pf-page button[data-password-toggle] .fas,
 .login-pf-page button[data-password-toggle] .far,
-.login-pf-page .pf-c-button.pf-m-control .fa,
-.login-pf-page .pf-c-button.pf-m-control .fas,
-.login-pf-page .pf-c-button.pf-m-control .far,
-.login-pf-page .input-group button i,
-.login-pf-page button[aria-label*="password"] i,
-.login-pf-page button[aria-label*="Password"] i,
+.login-pf-page .pf-c-button.pf-m-control > i,
+.login-pf-page .pf-c-button.pf-m-control > .fa,
+.login-pf-page .pf-c-button.pf-m-control > .fas,
+.login-pf-page .pf-c-button.pf-m-control > .far,
 .login-pf-page .kc-form-password-visibility-toggle i {
-  font-family: "FontAwesome", "Font Awesome 5 Free", "Font Awesome 6 Free", sans-serif !important;
-  font-weight: 900 !important;
-  font-size: 16px !important;
-  color: rgba(255, 255, 255, 0.85) !important;
-  line-height: 1 !important;
-  display: inline-block !important;
+  display: none !important;
 }
 
-.login-pf-page button[data-password-toggle]:hover .fa,
-.login-pf-page button[data-password-toggle]:hover i,
-.login-pf-page .pf-c-button.pf-m-control:hover .fa,
-.login-pf-page .pf-c-button.pf-m-control:hover i {
-  color: #ffffff !important;
+.login-pf-page button[data-password-toggle]::before,
+.login-pf-page .kc-form-password-visibility-toggle::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 18px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+
+.login-pf-page button[data-password-toggle]:hover::before,
+.login-pf-page .kc-form-password-visibility-toggle:hover::before {
+  opacity: 1;
+}
+
+/* Eye (mostrar password) — quando o aria-label diz "Show password" / "Mostrar password" */
+.login-pf-page button[data-password-toggle][aria-label*="Show"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="show"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="Mostrar"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="mostrar"]::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(255,255,255)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>");
+}
+
+/* Eye-slash (ocultar password) — quando o aria-label diz "Hide password" / "Ocultar password" */
+.login-pf-page button[data-password-toggle][aria-label*="Hide"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="hide"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="Ocultar"]::before,
+.login-pf-page button[data-password-toggle][aria-label*="ocultar"]::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(255,255,255)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/></svg>");
 }
 
 /* ─── Primary buttons (Sign In, Submit, Update Password, etc.) ─── */
