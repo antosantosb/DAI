@@ -39,10 +39,11 @@
       "credentials": [
         {
           "type": "password",
-          "value": "${PGU_ADMIN_PASSWORD}",
-          "temporary": false
+          "value": "admin123",
+          "temporary": true
         }
       ],
+      "requiredActions": ["UPDATE_PASSWORD"],
       "realmRoles": ["admin"]
     },
     {
@@ -54,10 +55,11 @@
       "credentials": [
         {
           "type": "password",
-          "value": "${PGU_OPERADOR_PASSWORD}",
-          "temporary": false
+          "value": "operador123",
+          "temporary": true
         }
       ],
+      "requiredActions": ["UPDATE_PASSWORD"],
       "realmRoles": ["operador"]
     },
     {
@@ -69,10 +71,11 @@
       "credentials": [
         {
           "type": "password",
-          "value": "${PGU_MOTORISTA_PASSWORD}",
-          "temporary": false
+          "value": "motorista123",
+          "temporary": true
         }
       ],
+      "requiredActions": ["UPDATE_PASSWORD"],
       "realmRoles": ["motorista"]
     }
   ]

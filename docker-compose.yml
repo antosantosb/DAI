@@ -176,11 +176,7 @@ services:
     image: quay.io/keycloak/keycloak:26.2.4
     container_name: keycloak
     restart: unless-stopped
-    # Sprint -1 (SEC-7): entrypoint custom substitui ${PGU_*_PASSWORD} no realm
-    # JSON antes do Keycloak importar. Sem isto, passwords ficavam hardcoded.
-    user: root
-    entrypoint: ["/bin/sh", "/opt/keycloak/entrypoint-with-envsubst.sh"]
-    command: ["start-dev", "--import-realm"]
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://toolsbd:5432/${KEYCLOAK_DB_NAME}
@@ -188,20 +184,12 @@ services:
       KC_DB_PASSWORD: ${TOOLS_DB_PASSWORD}
       KEYCLOAK_ADMIN: ${IAM_ADMIN_USER}
       KEYCLOAK_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD}
-      # Sprint -1 (SEC-7): passwords iniciais dos users do realm pgu-realm.
-      # Substituidos no realm JSON via ${env.VAR}. Sem fallback — falha boot se ausente.
-      PGU_ADMIN_PASSWORD: ${PGU_ADMIN_PASSWORD:?PGU_ADMIN_PASSWORD obrigatoria}
-      PGU_OPERADOR_PASSWORD: ${PGU_OPERADOR_PASSWORD:?PGU_OPERADOR_PASSWORD obrigatoria}
-      PGU_MOTORISTA_PASSWORD: ${PGU_MOTORISTA_PASSWORD:?PGU_MOTORISTA_PASSWORD obrigatoria}
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
     volumes:
-      # Sprint -1 (SEC-7): template lido pelo entrypoint, output escrito para
-      # /opt/keycloak/data/import (path padrao do --import-realm).
-      - ./keycloak/pgu-realm-realm.json:/opt/keycloak/data/import-template/pgu-realm-realm.json:ro
-      - ./keycloak/entrypoint-with-envsubst.sh:/opt/keycloak/entrypoint-with-envsubst.sh:ro
+      - ./keycloak/pgu-realm-realm.json:/opt/keycloak/data/import/pgu-realm-realm.json:ro
       - ./keycloak/themes/pgu:/opt/keycloak/themes/pgu:ro
     depends_on:
       toolsbd:

@@ -236,10 +236,6 @@ if [ ! -f .env ]; then
         sed -i "s|IAM_ADMIN_PASSWORD=CHANGE_ME|IAM_ADMIN_PASSWORD=$(gen_password)|" .env
         sed -i "s|NIFI_PASSWORD=CHANGE_ME|NIFI_PASSWORD=$(gen_password)Aa1!|" .env
         sed -i "s|PGU_INTERNAL_API_KEY=CHANGE_ME|PGU_INTERNAL_API_KEY=$(gen_password)|" .env
-        # Sprint -1 (SEC-7) — passwords dos users do realm pgu-realm
-        sed -i "s|PGU_ADMIN_PASSWORD=CHANGE_ME|PGU_ADMIN_PASSWORD=$(gen_password)|" .env
-        sed -i "s|PGU_OPERADOR_PASSWORD=CHANGE_ME|PGU_OPERADOR_PASSWORD=$(gen_password)|" .env
-        sed -i "s|PGU_MOTORISTA_PASSWORD=CHANGE_ME|PGU_MOTORISTA_PASSWORD=$(gen_password)|" .env
         # Sprint -1 (SEC-1) — Mosquitto auth por servico
         sed -i "s|MQTT_BACKEND_PASSWORD=CHANGE_ME|MQTT_BACKEND_PASSWORD=$(gen_password)|" .env
         sed -i "s|MQTT_SIMULATOR_PASSWORD=CHANGE_ME|MQTT_SIMULATOR_PASSWORD=$(gen_password)|" .env
@@ -267,11 +263,6 @@ METABASE_DB_NAME=metabase_db
 NIFI_USERNAME=admin
 NIFI_PASSWORD=admin_password_min_12chars
 PGU_INTERNAL_API_KEY=pgu-m2m-secret-key-2026
-
-# Sprint -1 (SEC-7) — passwords iniciais dos users do realm pgu-realm
-PGU_ADMIN_PASSWORD=admin_pgu_dev_2026
-PGU_OPERADOR_PASSWORD=operador_pgu_dev_2026
-PGU_MOTORISTA_PASSWORD=motorista_pgu_dev_2026
 
 # Sprint -1 (SEC-1) — Mosquitto auth por servico
 MQTT_BACKEND_PASSWORD=backend_mqtt_dev_2026
@@ -512,9 +503,9 @@ if [ "$ENV_MODE" = "local" ]; then
     divider
     echo -e "  ${BOLD}Credenciais — Backoffice${NC}"
     divider
-    echo -e "  Admin              ${BOLD}admin${NC} / ${PGU_ADMIN_PASSWORD:-<ver .env>}"
-    echo -e "  Operador           ${BOLD}operador${NC} / ${PGU_OPERADOR_PASSWORD:-<ver .env>}"
-    echo -e "  Motorista          ${BOLD}motorista${NC} / ${PGU_MOTORISTA_PASSWORD:-<ver .env>}"
+    echo -e "  Admin              ${BOLD}admin${NC} / admin123     ${DIM}(temporary — muda no 1o login)${NC}"
+    echo -e "  Operador           ${BOLD}operador${NC} / operador123 ${DIM}(temporary — muda no 1o login)${NC}"
+    echo -e "  Motorista          ${BOLD}motorista${NC} / motorista123 ${DIM}(temporary — muda no 1o login)${NC}"
     echo ""
     divider
     echo -e "  ${BOLD}Credenciais — Servicos${NC}"
