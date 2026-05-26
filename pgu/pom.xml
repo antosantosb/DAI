@@ -158,6 +158,26 @@
 			<version>8.5.14</version>
 		</dependency>
 
+		<!-- Sprint 0 (F2): Micrometer Prometheus registry.
+		     Expoe /actuator/prometheus com metricas HTTP, JVM, HikariCP, etc.
+		     Sprints seguintes podem instrumentar com @Timed, Counter, etc. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+
+		<!-- Sprint 0 (F2): Caffeine cache (in-memory, alta performance).
+		     Usado via @Cacheable em queries hot (rotas, paragens, GTFS) que
+		     raramente mudam mas sao chamadas em cada load do LiveMap. -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+
 		<!-- Testes de telemetria -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

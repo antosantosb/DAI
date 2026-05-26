@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,10 @@ public class RouteService
         this.entityManager = entityManager;
     }
 
+    // Sprint 0 (F2): cache em memoria (Caffeine, TTL 10min). Rotas mudam raramente
+    // mas getAll() e' chamado em cada load do LiveMap. Invalidacao via @CacheEvict
+    // nos mutators abaixo.
+    @Cacheable("routes")
     public List<RouteDTO> getAll()
     {
         return routeRepository.findAll().stream().map(this::toDTO).toList();
@@ -58,6 +64,7 @@ public class RouteService
     }
 
     @Transactional
+    @CacheEvict(value = "routes", allEntries = true)
     public RouteDTO create(RouteDTO dto)
     {
         // Upsert com pessimistic lock: serializa acessos concorrentes à mesma rota
@@ -109,6 +116,7 @@ public class RouteService
     }
 
     @Transactional
+    @CacheEvict(value = "routes", allEntries = true)
     public RouteDTO update(Long id, RouteDTO dto)
     {
         Route route = routeRepository.findById(id)
@@ -157,6 +165,7 @@ public class RouteService
     }
 
     @Transactional
+    @CacheEvict(value = "routes", allEntries = true)
     public void delete(Long id)
     {
         segmentRepository.deleteByRouteId(id);

@@ -25,6 +25,12 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Sprint 0 (F2): se o request foi cancelado por um AbortController
+    // (componente desmontado, navegacao em curso), nao mostra toast.
+    if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
+      return Promise.reject(error);
+    }
+
     const status = error.response?.status;
     // 401: token invalido/expirado -> re-login
     if (status === 401) {

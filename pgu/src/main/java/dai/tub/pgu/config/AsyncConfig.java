@@ -26,4 +26,27 @@ public class AsyncConfig
         ex.initialize();
         return ex;
     }
+
+    /**
+     * Sprint 0 (F2): pool dedicado a inserts do api_access_log.
+     *
+     * <p>Pequeno (2 threads, queue 200): cada insert é rápido (~5ms). Em caso
+     * de pico, queue dá margem; se a queue encher, os inserts sao descartados
+     * silenciosamente (CallerRunsPolicy seria mau aqui — preferimos perder
+     * audit do que bloquear o request).
+     */
+    @Bean(name = "auditExecutor")
+    public TaskExecutor auditExecutor()
+    {
+        ThreadPoolTaskExecutor ex = new ThreadPoolTaskExecutor();
+        ex.setCorePoolSize(2);
+        ex.setMaxPoolSize(2);
+        ex.setQueueCapacity(200);
+        ex.setThreadNamePrefix("audit-");
+        ex.setWaitForTasksToCompleteOnShutdown(true);
+        ex.setAwaitTerminationSeconds(10);
+        ex.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+        ex.initialize();
+        return ex;
+    }
 }

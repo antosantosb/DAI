@@ -76,17 +76,43 @@ export default function Livemap() {
   }, []);
 
   // ─── Load stops + routes + segments ───
+  // Sprint 0 (F2): pattern AbortController.
+  // Se o utilizador navegar para fora do LiveMap antes destes 3 fetches
+  // terminarem, o componente desmonta e React queixa-se de setState num
+  // componente unmounted. O AbortController cancela os requests pendentes
+  // no cleanup. O axios interceptor (api.js) deteta ERR_CANCELED e nao
+  // mostra toast de erro. Pattern a replicar nos restantes useEffects e
+  // em sprints seguintes.
   useEffect(() => {
-    api.get('/stops').then(r => setStops(r.data || [])).catch(() => setStops([]));
-    api.get('/routes').then(r => setRoutes(r.data || [])).catch(() => setRoutes([]));
-    api.get('/route-segments').then(r => {
+    const ctrl = new AbortController();
+    const opts = { signal: ctrl.signal };
+    const ignoreCanceled = (err) => {
+      if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+        console.error('Livemap fetch falhou:', err);
+      }
+    };
+
+    api.get('/stops', opts).then(r => setStops(r.data || [])).catch(err => {
+      ignoreCanceled(err);
+      if (!ctrl.signal.aborted) setStops([]);
+    });
+    api.get('/routes', opts).then(r => setRoutes(r.data || [])).catch(err => {
+      ignoreCanceled(err);
+      if (!ctrl.signal.aborted) setRoutes([]);
+    });
+    api.get('/route-segments', opts).then(r => {
       const allSegments = {};
       (r.data || []).forEach(seg => {
         if (!allSegments[seg.routeId]) allSegments[seg.routeId] = [];
         allSegments[seg.routeId].push(seg);
       });
       setSegments(allSegments);
-    }).catch(() => setSegments({}));
+    }).catch(err => {
+      ignoreCanceled(err);
+      if (!ctrl.signal.aborted) setSegments({});
+    });
+
+    return () => ctrl.abort();
   }, []);
 
   // ─── Update / create bus marker on map ───
