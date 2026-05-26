@@ -224,6 +224,11 @@ fi
 header "2/7  Variaveis de ambiente"
 
 gen_password() { openssl rand -base64 24 | tr -d '/+='; }
+# gen_password_complex: variante para servicos com politica de complexidade
+# (ex.: NiFi exige >=12 chars + maiuscula + minuscula + digito + especial).
+# Estrategia: base64 (32 chars com mai/min/dig com probabilidade ~100%) +
+# sufixo "Aa1!" como cinto e suspensorios (garante presenca dos 4 tipos).
+gen_password_complex() { echo "$(gen_password)Aa1!"; }
 gen_fernet()   { python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || openssl rand -base64 32; }
 
 if [ ! -f .env ]; then
@@ -234,7 +239,7 @@ if [ ! -f .env ]; then
         sed -i "s|TOOLS_DB_PASSWORD=CHANGE_ME|TOOLS_DB_PASSWORD=$(gen_password)|" .env
         sed -i "s|MONGO_PASSWORD=CHANGE_ME|MONGO_PASSWORD=$(gen_password)|" .env
         sed -i "s|IAM_ADMIN_PASSWORD=CHANGE_ME|IAM_ADMIN_PASSWORD=$(gen_password)|" .env
-        sed -i "s|NIFI_PASSWORD=CHANGE_ME|NIFI_PASSWORD=$(gen_password)Aa1!|" .env
+        sed -i "s|NIFI_PASSWORD=CHANGE_ME|NIFI_PASSWORD=$(gen_password_complex)|" .env
         sed -i "s|PGU_INTERNAL_API_KEY=CHANGE_ME|PGU_INTERNAL_API_KEY=$(gen_password)|" .env
         # Sprint -1 (SEC-1) — Mosquitto auth por servico
         sed -i "s|MQTT_BACKEND_PASSWORD=CHANGE_ME|MQTT_BACKEND_PASSWORD=$(gen_password)|" .env
@@ -246,42 +251,64 @@ if [ ! -f .env ]; then
         step_ok ".env de producao criado"
         step_warn "Verifica DOMAIN e CERTBOT_EMAIL no .env antes de continuar!"
     else
-        step_info "A gerar .env de desenvolvimento..."
-        cat > .env << 'ENVEOF'
-# PGU-TUB — Desenvolvimento local (gerado por pgu-setup.sh)
+        step_info "A gerar .env de desenvolvimento com passwords aleatorias..."
+        # Sprint -1 (follow-up): passwords dev tambem aleatorias para nao
+        # ficar nada hardcoded no repo (eliminar incidentes GitGuardian e
+        # qualquer reuso acidental em prod). Geradas localmente; ficam no
+        # .env (gitignored) e sao impressas uma vez no fim deste bloco.
+        DEV_DW_PASS=$(gen_password)
+        DEV_TOOLS_PASS=$(gen_password)
+        DEV_MONGO_PASS=$(gen_password)
+        DEV_IAM_PASS=$(gen_password)
+        DEV_NIFI_PASS=$(gen_password_complex)
+        DEV_API_KEY=$(gen_password)
+        DEV_MQTT_BACKEND=$(gen_password)
+        DEV_MQTT_SIM=$(gen_password)
+        DEV_MQTT_NIFI=$(gen_password)
+        DEV_MQTT_BUS=$(gen_password)
+        DEV_MINIO_PASS=$(gen_password)
+        cat > .env << ENVEOF
+# PGU-TUB — Desenvolvimento local (gerado por pgu-setup.sh em $(date '+%Y-%m-%d %H:%M'))
 # Vazio = ambiente local (sem domínio = sem SSL, sem nginx)
 DOMAIN=
 DW_USER=pgu_dw
-DW_PASSWORD=pgu_dw_dev
+DW_PASSWORD=$DEV_DW_PASS
 DW_NAME=pgu_datawarehouse
 TOOLS_DB_USER=tools_admin
-TOOLS_DB_PASSWORD=tools_dev
+TOOLS_DB_PASSWORD=$DEV_TOOLS_PASS
 MONGO_USER=pgu_mongo
-MONGO_PASSWORD=pgu_mongo_dev
+MONGO_PASSWORD=$DEV_MONGO_PASS
 KEYCLOAK_DB_NAME=keycloak_db
 IAM_ADMIN_USER=admin
-IAM_ADMIN_PASSWORD=admin
+IAM_ADMIN_PASSWORD=$DEV_IAM_PASS
 METABASE_DB_NAME=metabase_db
 NIFI_USERNAME=admin
-NIFI_PASSWORD=admin_password_min_12chars
-PGU_INTERNAL_API_KEY=pgu-m2m-secret-key-2026
+NIFI_PASSWORD=$DEV_NIFI_PASS
+PGU_INTERNAL_API_KEY=$DEV_API_KEY
 
-# Sprint -1 (SEC-1) — Mosquitto auth por servico
-MQTT_BACKEND_PASSWORD=backend_mqtt_dev_2026
-MQTT_SIMULATOR_PASSWORD=simulator_mqtt_dev_2026
-MQTT_NIFI_PASSWORD=nifi_mqtt_dev_2026
-MQTT_BUS_PASSWORD=bus_mqtt_dev_2026
+# Sprint -1 (SEC-1): Mosquitto auth por servico
+MQTT_BACKEND_PASSWORD=$DEV_MQTT_BACKEND
+MQTT_SIMULATOR_PASSWORD=$DEV_MQTT_SIM
+MQTT_NIFI_PASSWORD=$DEV_MQTT_NIFI
+MQTT_BUS_PASSWORD=$DEV_MQTT_BUS
 
 PGU_ALERTAS_COOLDOWN=5
 PGU_ALERTAS_EMAIL_FROM=sistema@tub.pt
 
 # Sprint 0 (F0): MinIO (S3-compatible storage) e Mailpit (SMTP capture)
 MINIO_ROOT_USER=pgu_minio_admin
-MINIO_ROOT_PASSWORD=pgu_minio_dev_2026
+MINIO_ROOT_PASSWORD=$DEV_MINIO_PASS
 MINIO_EXPORTS_BUCKET=exports
 MINIO_ATTACHMENTS_BUCKET=attachments
 ENVEOF
-        step_ok ".env de desenvolvimento criado"
+        step_ok ".env de desenvolvimento criado com passwords aleatorias"
+        echo ""
+        echo "  Credenciais geradas (ficam tambem no .env, gitignored):"
+        echo "    Keycloak server admin:  admin / $DEV_IAM_PASS"
+        echo "    NiFi admin:             admin / $DEV_NIFI_PASS"
+        echo "    MinIO root:             pgu_minio_admin / $DEV_MINIO_PASS"
+        echo "    (restantes credenciais ficam apenas no .env)"
+        echo ""
     fi
 else
     step_ok ".env ja existe — a reutilizar"
@@ -391,7 +418,9 @@ fi
 header "6/7  Configuracao automatica"
 
 NIFI_USER="${NIFI_USERNAME:-admin}"
-NIFI_PASS="${NIFI_PASSWORD:-admin_password_min_12chars}"
+# Sprint -1 (follow-up): sem fallback hardcoded. Se .env nao tiver NIFI_PASSWORD
+# o setup do NiFi falha graciosamente abaixo (token vazio -> step_warn).
+NIFI_PASS="${NIFI_PASSWORD:-}"
 
 # ─── NiFi ─────────────────────────────────────────────────────────────
 nifi_setup() {
@@ -509,17 +538,20 @@ if [ "$ENV_MODE" = "local" ]; then
     echo -e "  ${CYAN}Metabase${NC}           http://localhost:3000"
     echo ""
     divider
-    echo -e "  ${BOLD}Credenciais — Backoffice${NC}"
+    echo -e "  ${BOLD}Credenciais — Backoffice (realm pgu-realm)${NC}"
     divider
-    echo -e "  Admin              ${BOLD}admin${NC} / admin123     ${DIM}(temporary — muda no 1o login)${NC}"
-    echo -e "  Operador           ${BOLD}operador${NC} / operador123 ${DIM}(temporary — muda no 1o login)${NC}"
-    echo -e "  Motorista          ${BOLD}motorista${NC} / motorista123 ${DIM}(temporary — muda no 1o login)${NC}"
+    echo -e "  Admin              ${BOLD}admin${NC} / admin123    ${DIM}(temporary — muda no 1o login)${NC}"
+    echo -e "  ${DIM}Operadores e motoristas: criados pelo admin no backoffice${NC}"
+    echo -e "  ${DIM}  /backoffice/users      → operadores${NC}"
+    echo -e "  ${DIM}  /backoffice/drivers    → motoristas${NC}"
     echo ""
     divider
-    echo -e "  ${BOLD}Credenciais — Servicos${NC}"
+    echo -e "  ${BOLD}Credenciais — Servicos (geradas em .env, ja gitignored)${NC}"
     divider
-    echo -e "  Keycloak console   ${BOLD}admin${NC} / admin"
-    echo -e "  NiFi               ${BOLD}admin${NC} / admin_password_min_12chars"
+    echo -e "  Keycloak console   ${BOLD}admin${NC} / ${IAM_ADMIN_PASSWORD:-<ver .env: IAM_ADMIN_PASSWORD>}"
+    echo -e "  NiFi               ${BOLD}admin${NC} / ${NIFI_PASSWORD:-<ver .env: NIFI_PASSWORD>}"
+    echo -e "  MinIO console      ${BOLD}${MINIO_ROOT_USER:-pgu_minio_admin}${NC} / ${MINIO_ROOT_PASSWORD:-<ver .env: MINIO_ROOT_PASSWORD>}"
+    echo -e "  Mailpit web UI     ${DIM}(sem autenticacao em dev)${NC}"
     echo ""
     divider
     echo -e "  ${BOLD}Proximo passo${NC}"
