@@ -24,6 +24,11 @@ TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
 INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 1))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
 API_KEY     = os.getenv("PGU_INTERNAL_API_KEY", "changeme-internal-key")
+# Sprint -1 (SEC-1): credenciais MQTT obrigatorias (Mosquitto rejeita anonimos).
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", "simulator")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+if not MQTT_PASSWORD:
+    raise RuntimeError("MQTT_PASSWORD obrigatoria (Mosquitto exige autenticacao)")
 
 AVG_SPEED_KMH_RUSH  = 30
 AVG_SPEED_KMH_NORMAL = 45
@@ -467,6 +472,8 @@ def main():
 
     # 4. Ligar ao MQTT
     client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id="pgu-simulator")
+    # Sprint -1 (SEC-1): autenticacao obrigatoria.
+    client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
     def on_connect(c, userdata, flags, rc, properties=None):
         if rc == 0:

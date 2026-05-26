@@ -29,6 +29,13 @@ public class MqttDespachoService {
     @Value("${pgu.despacho.mqtt.topico-ack:tub/dispatch/+/ack}")
     private String topicoAckWildcard;
 
+    // Sprint -1 (SEC-1): credenciais Mosquitto (anonimos rejeitados).
+    @Value("${pgu.despacho.mqtt.username:backend}")
+    private String mqttUsername;
+
+    @Value("${pgu.despacho.mqtt.password}")
+    private String mqttPassword;
+
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private MqttClient mqttClient;
@@ -53,6 +60,9 @@ public class MqttDespachoService {
             options.setAutomaticReconnect(true);
             options.setConnectionTimeout(10);
             options.setKeepAliveInterval(60);
+            // Sprint -1 (SEC-1): autenticacao Mosquitto.
+            options.setUserName(mqttUsername);
+            if (mqttPassword != null) options.setPassword(mqttPassword.toCharArray());
 
             mqttClient.setCallback(new MqttCallbackExtended() {
                 @Override

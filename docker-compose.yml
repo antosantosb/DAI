@@ -13,6 +13,24 @@ services:
       - ./mosquitto/config/acl.conf:/mosquitto/config/acl.conf
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+    # Sprint -1 (SEC-1): gerar passwd file a partir das env vars antes de iniciar.
+    # Hashes ficam apenas na memoria do container; passwords reais em .env (gitignored).
+    environment:
+      - MQTT_BACKEND_PASSWORD=${MQTT_BACKEND_PASSWORD:?MQTT_BACKEND_PASSWORD obrigatoria}
+      - MQTT_SIMULATOR_PASSWORD=${MQTT_SIMULATOR_PASSWORD:?MQTT_SIMULATOR_PASSWORD obrigatoria}
+      - MQTT_NIFI_PASSWORD=${MQTT_NIFI_PASSWORD:?MQTT_NIFI_PASSWORD obrigatoria}
+      - MQTT_BUS_PASSWORD=${MQTT_BUS_PASSWORD:?MQTT_BUS_PASSWORD obrigatoria}
+    command: >
+      sh -c "
+        rm -f /mosquitto/config/passwd &&
+        touch /mosquitto/config/passwd &&
+        mosquitto_passwd -b /mosquitto/config/passwd backend   $$MQTT_BACKEND_PASSWORD &&
+        mosquitto_passwd -b /mosquitto/config/passwd simulator $$MQTT_SIMULATOR_PASSWORD &&
+        mosquitto_passwd -b /mosquitto/config/passwd nifi      $$MQTT_NIFI_PASSWORD &&
+        mosquitto_passwd -b /mosquitto/config/passwd bus       $$MQTT_BUS_PASSWORD &&
+        echo 'Mosquitto passwd gerado para 4 users' &&
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+      "
     networks:
       - mqtt_net
 
@@ -32,6 +50,9 @@ services:
       - INTERVAL_SECONDS=1
       - BACKEND_URL=http://spring-boot-backend:8081
       - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
+      # Sprint -1 (SEC-1) — Mosquitto auth
+      - MQTT_USERNAME=simulator
+      - MQTT_PASSWORD=${MQTT_SIMULATOR_PASSWORD:?MQTT_SIMULATOR_PASSWORD obrigatoria}
     depends_on:
       mosquitto:
         condition: service_started
@@ -224,6 +245,9 @@ services:
       - OSRM_URL=http://osrm:5000
       - PGU_EXPORT_DIR=/var/pgu/exports
       - PGU_INTERNAL_API_KEY=${PGU_INTERNAL_API_KEY:?PGU_INTERNAL_API_KEY tem de estar definida no .env}
+      # Sprint -1 (SEC-1) — Mosquitto auth
+      - MQTT_USERNAME=backend
+      - MQTT_PASSWORD=${MQTT_BACKEND_PASSWORD:?MQTT_BACKEND_PASSWORD obrigatoria}
     volumes:
       # Motor de Exportação Massiva: persistência dos CSV/PDF gerados
       - pgu_exports:/var/pgu/exports
