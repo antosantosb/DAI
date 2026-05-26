@@ -39,7 +39,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "admin123",
+          "value": "${PGU_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],
@@ -54,7 +54,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "operador123",
+          "value": "${PGU_OPERADOR_PASSWORD}",
           "temporary": false
         }
       ],
@@ -69,7 +69,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "motorista123",
+          "value": "${PGU_MOTORISTA_PASSWORD}",
           "temporary": false
         }
       ],
