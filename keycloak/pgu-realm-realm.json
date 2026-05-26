@@ -4,6 +4,9 @@
   "loginTheme": "pgu",
   "sslRequired": "none",
   "registrationAllowed": false,
+  "internationalizationEnabled": true,
+  "defaultLocale": "pt",
+  "supportedLocales": ["pt", "en"],
   "roles": {
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },

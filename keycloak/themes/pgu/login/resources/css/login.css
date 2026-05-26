@@ -60,16 +60,28 @@ body.kc-login {
   margin-bottom: 20px;
 }
 
-/* ─── Labels ─── */
+/* ─── Labels (regras robustas: label tag + spans PF + divs PF) ─── */
 .login-pf-page .card-pf label,
-.login-pf-page label {
+.login-pf-page label,
+.login-pf-page .card-pf .pf-v5-c-form__label,
+.login-pf-page .card-pf .pf-v5-c-form__label-text,
+.login-pf-page .card-pf .pf-c-form__label,
+.login-pf-page .card-pf .pf-c-form__label-text,
+.login-pf-page .pf-v5-c-form__label-text,
+.login-pf-page .pf-c-form__label-text {
   display: block;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.85) !important;
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.3px;
   margin-bottom: 4px;
   width: 100%;
+}
+
+/* Texto generico dentro do card (paragrafos, spans, divs que nao casam acima) */
+.login-pf-page .card-pf p,
+.login-pf-page .card-pf span:not(.alert *):not(.pgu-mark) {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /* ─── Inputs ─── */
@@ -216,16 +228,70 @@ body.kc-login {
   font-size: 13px;
 }
 
-/* ─── Alert styling ─── */
-.alert-error,
-.pf-v5-c-alert {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+/* ─── Alerts (error, warning, success, info) — legíveis em fundo escuro ─── */
+.login-pf-page .alert,
+.login-pf-page .pf-v5-c-alert,
+.login-pf-page .pf-c-alert {
   border-radius: 10px;
-  color: #fca5a5;
   padding: 12px 16px;
   font-size: 13px;
+  line-height: 1.5;
   margin-bottom: 16px;
+  border: 1px solid transparent;
+}
+
+.alert-error,
+.login-pf-page .alert-error,
+.login-pf-page .pf-v5-c-alert.pf-m-danger,
+.login-pf-page .pf-c-alert.pf-m-danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #fecaca !important;
+}
+
+.alert-warning,
+.login-pf-page .alert-warning,
+.login-pf-page .pf-v5-c-alert.pf-m-warning,
+.login-pf-page .pf-c-alert.pf-m-warning {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #fde68a !important;
+}
+
+.alert-success,
+.login-pf-page .alert-success,
+.login-pf-page .pf-v5-c-alert.pf-m-success,
+.login-pf-page .pf-c-alert.pf-m-success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #a7f3d0 !important;
+}
+
+.alert-info,
+.login-pf-page .alert-info,
+.login-pf-page .pf-v5-c-alert.pf-m-info,
+.login-pf-page .pf-c-alert.pf-m-info {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  color: #c7d2fe !important;
+}
+
+/* Texto e icones dentro do alert herdam a cor do container */
+.login-pf-page .alert *,
+.login-pf-page .pf-v5-c-alert *,
+.login-pf-page .pf-c-alert * {
+  color: inherit !important;
+}
+
+/* Mensagens de erro de campo individual (Keycloak usa <span class="pf-c-form__helper-text pf-m-error">) */
+.login-pf-page .pf-c-form__helper-text.pf-m-error,
+.login-pf-page .pf-v5-c-form__helper-text.pf-m-error,
+.login-pf-page .input-error-message,
+.login-pf-page .kc-feedback-text {
+  color: #fca5a5 !important;
+  font-size: 12px;
+  margin-top: 6px;
+  display: block;
 }
 
 /* ─── PatternFly overrides (Keycloak 26 uses PF5) ─── */
