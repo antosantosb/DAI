@@ -110,8 +110,21 @@ public class SecurityConfig
             "https://pgu-tub.switzerlandnorth.cloudapp.azure.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        // SEC-15/NEW-1: setAllowedHeaders("*") + setAllowCredentials(true) é PROIBIDO pela spec CORS.
+        // Browsers rejeitam preflight e o header Authorization (JWT) não é enviado em POSTs.
+        // Listar headers explicitamente resolve.
+        config.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type",
+            "X-API-Key",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Cache-Control"
+        ));
+        config.setExposedHeaders(List.of("Content-Disposition")); // necessário para downloads de exports
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // cache do preflight 1h
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
