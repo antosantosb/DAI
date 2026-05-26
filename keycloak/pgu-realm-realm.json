@@ -45,38 +45,6 @@
       ],
       "requiredActions": ["UPDATE_PASSWORD"],
       "realmRoles": ["admin"]
-    },
-    {
-      "username": "operador",
-      "enabled": true,
-      "email": "operador@pgu.local",
-      "firstName": "Operador",
-      "lastName": "PGU",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "operador123",
-          "temporary": true
-        }
-      ],
-      "requiredActions": ["UPDATE_PASSWORD"],
-      "realmRoles": ["operador"]
-    },
-    {
-      "username": "motorista",
-      "enabled": true,
-      "email": "motorista@pgu.local",
-      "firstName": "Motorista",
-      "lastName": "Teste",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "motorista123",
-          "temporary": true
-        }
-      ],
-      "requiredActions": ["UPDATE_PASSWORD"],
-      "realmRoles": ["motorista"]
     }
   ]
 }

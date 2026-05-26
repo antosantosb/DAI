@@ -29,7 +29,7 @@
             </div>
         </div>
         <p style="margin-top:40px;font-size:12px;color:rgba(255,255,255,0.25);font-weight:500;letter-spacing:0.5px;">
-            Transportes Urbanos de Braga &middot; DAI 2025
+            Transportes Urbanos de Braga &middot; DAI 2026
         </p>
     </div>
 </body>

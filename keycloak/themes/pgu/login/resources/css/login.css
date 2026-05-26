@@ -131,26 +131,76 @@ body.kc-login {
   border-radius: 10px !important;
 }
 
-/* ─── Sign In Button ─── */
-#kc-login {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border: none;
-  border-radius: 10px;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 12px 24px;
+/* ─── Primary buttons (Sign In, Submit, Update Password, etc.) ─── */
+#kc-login,
+.login-pf-page .card-pf input[type="submit"],
+.login-pf-page .card-pf button[type="submit"],
+.login-pf-page .card-pf .btn-primary,
+.login-pf-page .card-pf .pf-v5-c-button.pf-m-primary,
+.login-pf-page .card-pf .pf-c-button.pf-m-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  padding: 12px 24px !important;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.2s ease;
-  width: 100%;
+  width: 100% !important;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: 8px;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
-#kc-login:hover {
+#kc-login:hover,
+.login-pf-page .card-pf input[type="submit"]:hover,
+.login-pf-page .card-pf button[type="submit"]:hover,
+.login-pf-page .card-pf .btn-primary:hover,
+.login-pf-page .card-pf .pf-v5-c-button.pf-m-primary:hover,
+.login-pf-page .card-pf .pf-c-button.pf-m-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+}
+
+/* Wrapper that contains the submit button(s) */
+.login-pf-page .card-pf #kc-form-buttons,
+.login-pf-page .card-pf .kc-form-buttons {
+  margin-top: 12px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Page title (e.g. "Update password") ─── */
+.login-pf-page .card-pf #kc-page-title,
+.login-pf-page .card-pf h1,
+.login-pf-page .card-pf h2 {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 0 0 16px 0;
+  text-align: left;
+}
+
+/* ─── Instruction / info text (e.g. "You need to change your password...") ─── */
+.login-pf-page .card-pf #kc-info-message,
+.login-pf-page .card-pf .instruction,
+.login-pf-page .card-pf p.instruction,
+.login-pf-page .card-pf #kc-content-wrapper > p,
+.login-pf-page .card-pf form > p:first-child {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0 0 20px 0;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid rgba(99, 102, 241, 0.6);
+  border-radius: 8px;
 }
 
 /* ─── Hide unnecessary elements ─── */

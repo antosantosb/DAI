@@ -26,9 +26,7 @@ Plataforma de centralização, monitorização e gestão de dados de mobilidade 
 8. [Tratamento de erros](#tratamento-de-erros)
 9. [Migrações Flyway](#migrações-flyway)
 10. [Estrutura do projeto](#estrutura-do-projeto)
-11. [Segurança (Sprint -1)](#segurança-sprint--1)
-12. [Comandos úteis](#comandos-úteis)
-13. [Documentação adicional](#documentação-adicional)
+11. [Comandos úteis](#comandos-úteis)
 
 ---
 
@@ -117,7 +115,7 @@ Simulador (Python)
 | Simulador | Python (volume no NiFi) | (interna) | mqtt_net |
 | Reverse proxy / TLS | Nginx + Let's Encrypt (prod) | 80, 443 | edge |
 
-> **Nota:** o Apache Airflow foi removido por decisão arquitetural. O agendamento é feito por **Spring Scheduler** interno ao backend. Ver [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md) §4.1 para a justificação.
+> **Nota:** o Apache Airflow foi removido por decisão arquitetural. O agendamento é feito por **Spring Scheduler** interno ao backend.
 
 ### Micro-segmentação de redes (Zero Trust)
 
@@ -192,13 +190,18 @@ Substituir `<host>` por `localhost` (modo local) ou pelo domínio configurado em
 
 ### Utilizadores do realm `pgu-realm`
 
-Os três utilizadores iniciais estão definidos em `keycloak/pgu-realm-realm.json` com `temporary: true` e `requiredActions: ["UPDATE_PASSWORD"]`. **A password tem de ser alterada no primeiro login.**
+Apenas o utilizador `admin` vem pré-criado em `keycloak/pgu-realm-realm.json`, com `temporary: true` e `requiredActions: ["UPDATE_PASSWORD"]`. **A password tem de ser alterada no primeiro login.**
 
 | Username | Password inicial | Role | Destino |
 |---|---|---|---|
 | `admin` | `admin123` | `admin` | Backoffice (acesso total) |
-| `operador` | `operador123` | `operador` | Backoffice (operações do dia a dia) |
-| `motorista` | `motorista123` | `motorista` | Painel de Bordo (`/bordo`) |
+
+As contas de **operadores** e **motoristas** são criadas pelo admin a partir do backoffice:
+
+- `/backoffice/users`: gestão de operadores (atribui role `operador`).
+- `/backoffice/drivers`: gestão de motoristas (atribui role `motorista` e o autocarro a que ficam associados).
+
+As roles `operador` e `motorista` continuam definidas no realm e prontas a ser atribuídas.
 
 ---
 
@@ -209,7 +212,7 @@ Os três utilizadores iniciais estão definidos em `keycloak/pgu-realm-realm.jso
 | Rota | Acesso | Descrição |
 |---|---|---|
 | `/` | Público | Landing page (apresentação) |
-| `/livemap` | Público | Mapa em tempo real (Leaflet + STOMP) |
+| `/livemap` | Autenticado | Mapa em tempo real (Leaflet + STOMP) |
 | `/backoffice` | `admin`, `operador` | Dashboard de gestão |
 | `/backoffice/buses` | `admin`, `operador` | CRUD de autocarros e chat de despacho |
 | `/backoffice/routes` | `admin`, `operador` | CRUD de rotas (recalcula segmentos OSRM) |
@@ -383,24 +386,6 @@ DAI/
 
 ---
 
-## Segurança (Sprint -1)
-
-O Sprint -1 fechou as nove fases de hardening obrigatório. Resumo do que ficou em produção:
-
-- **SEC-1: MQTT auth e ACL.** Mosquitto com `allow_anonymous false` e ACL por serviço (`backend`, `simulator`, `nifi`, `bus`). Passwords injetadas via `.env`.
-- **SEC-2: JWT no WebSocket.** O `WebSocketSecurityConfig` valida o token no frame `CONNECT` através de um `ChannelInterceptor`. Origens controladas por configuração.
-- **SEC-3: CORS apertado.** Lista explícita de headers em `SecurityConfig` (sem `*` quando `allowCredentials=true`).
-- **SEC-4: API key M2M.** O `InternalApiKeyFilter` faz comparação em tempo constante (`MessageDigest.isEqual`).
-- **SEC-5: Validação e erros tipados.** `spring-boot-starter-validation` mais `GlobalExceptionHandler`, devolvendo `ErrorResponse` JSON consistente, com tratamento dedicado para `NoResourceFoundException`.
-- **SEC-6: Nginx hardening.** HSTS, CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, *rate-limit* em `/api/` (20 r/s) e `/auth/` (5 r/s).
-- **SEC-7: Passwords temporárias.** Os três utilizadores do realm têm `temporary: true` mais `requiredActions: ["UPDATE_PASSWORD"]`, o que força a mudança no primeiro login.
-- **SEC-8: Performance e resiliência.** HikariCP afinado, *graceful shutdown*, compressão, índices compostos (V28), Actuator com `health` e `info` expostos apenas, `mail` health desativado.
-- **SEC-9: A11y do frontend.** `Modal` com `role="dialog"`, `aria-modal`, *focus trap* e restauro de foco. Substituição de `window.confirm()` por modais acessíveis.
-
-Detalhe completo em [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md) e nos commits `Sprint -1 (Fase N)`.
-
----
-
 ## Comandos úteis
 
 ```bash
@@ -436,14 +421,4 @@ curl -fsS http://localhost:1026/v2/entities | jq
 
 ---
 
-## Documentação adicional
-
-- [`PLANO_ITERACAO.md`](PLANO_ITERACAO.md): plano de iteração, decisões arquiteturais e roadmap por sprint.
-- [`ESTADO_ATUAL_VS_PLANO.md`](ESTADO_ATUAL_VS_PLANO.md): estado atual vs. plano original.
-- [`SPRINT_-1_DETALHADO.md`](SPRINT_-1_DETALHADO.md): detalhe das nove fases de hardening.
-- [`DECISOES_RESPOSTA.md`](DECISOES_RESPOSTA.md): decisões tomadas com o orientador.
-- [`docs/mockups/`](docs/mockups/): mockups HTML dos casos de uso.
-
----
-
-*Projeto desenvolvido no âmbito da unidade curricular **Desenvolvimento de Aplicações Informáticas (DAI)**, do Mestrado Integrado em Engenharia Informática da Universidade do Minho, ano letivo 2025/2026.*
+*Projeto desenvolvido no âmbito da unidade curricular **Desenvolvimento de Aplicações Informáticas (DAI)**, **Licenciatura em Engenharia e Gestão de Sistemas de Informação** da Universidade do Minho, ano letivo 2025/2026.*

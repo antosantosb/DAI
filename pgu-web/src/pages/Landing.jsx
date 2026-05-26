@@ -105,7 +105,7 @@ export default function Landing() {
           </div>
         )}
 
-        <p className="landing-footer-text">Transportes Urbanos de Braga &middot; DAI 2025</p>
+        <p className="landing-footer-text">Transportes Urbanos de Braga &middot; DAI 2026</p>
       </div>
     </div>
   );
