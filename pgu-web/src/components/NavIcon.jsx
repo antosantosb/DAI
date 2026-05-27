@@ -79,6 +79,15 @@ export const IconAudit = () => (
   </svg>
 );
 
+// Sprint 0: icone para Minha Conta (single-user profile).
+// Circulo do avatar + busto, distinto do IconUsers (grupo).
+export const IconAccount = () => (
+  <svg {...common} aria-hidden="true">
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+  </svg>
+);
+
 export const IconUsers = () => (
   <svg {...common} aria-hidden="true">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />

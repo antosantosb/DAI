@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { createStompClient } from '../services/stompClient';
 import { useAuth } from '../context/AuthProvider';
 import api from '../services/api';
 import { getMensagens } from '../services/despachoApi';
+import ThemeSwitcher from '../components/ThemeSwitcher';
+import Modal from '../components/Modal';
+import AccountForm from '../components/AccountForm';
+import Avatar from '../components/Avatar';
 import './PainelBordo.css';
 
 export default function PainelBordo() {
   const { authenticated, login, username, hasRole, logout } = useAuth();
+  const { t } = useTranslation();
 
   const [busCode, setBusCode] = useState(null);
   const [bus, setBus] = useState(null);
@@ -18,9 +25,63 @@ export default function PainelBordo() {
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [alertSending, setAlertSending] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountData, setAccountData] = useState(null);
   const stompRef = useRef(null);
   const chatEndRef = useRef(null);
   const currentStopRef = useRef(null);
+
+  // Carrega dados da conta (1x ao autenticar) para popular o avatar do header.
+  // Antes era on-demand; mudei para eager por causa do avatar no header.
+  useEffect(() => {
+    if (!authenticated || accountData) return;
+    api.get('/me')
+      .then(({ data }) => setAccountData(data))
+      .catch(() => {
+        // Silencioso — o avatar cai no letter avatar; nao bloqueia o painel.
+      });
+  }, [authenticated, accountData]);
+
+  const handleSaveProfile = async (patch) => {
+    try {
+      const { data } = await api.patch('/me', patch);
+      setAccountData(data);
+      toast.success(t('pages.minhaConta.profileSaved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('toasts.operationFailed'));
+      throw err;
+    }
+  };
+
+  const handleChangePassword = async (currentPassword, newPassword) => {
+    try {
+      await api.post('/me/password', { currentPassword, newPassword });
+      toast.success(t('pages.minhaConta.passwordChanged'));
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const handleUploadAvatar = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (data?.avatarUrl) {
+      setAccountData((prev) => (prev ? { ...prev, avatarUrl: data.avatarUrl } : prev));
+      window.dispatchEvent(new CustomEvent('pgu:avatar-updated', { detail: { avatarUrl: data.avatarUrl } }));
+    }
+    toast.success(t('pages.minhaConta.photoUploaded'));
+    return data?.avatarUrl;
+  };
+
+  const handleDeleteAvatar = async () => {
+    await api.delete('/me/avatar');
+    setAccountData((prev) => (prev ? { ...prev, avatarUrl: null } : prev));
+    window.dispatchEvent(new CustomEvent('pgu:avatar-updated', { detail: { avatarUrl: null } }));
+    toast.success(t('pages.minhaConta.photoRemoved'));
+  };
 
   // Force login if not authenticated
   useEffect(() => {
@@ -151,6 +212,55 @@ export default function PainelBordo() {
   const timeStr = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Modal partilhado por todos os branches de render (incl. quando o motorista
+  // nao tem autocarro atribuido). Renderiza-se sempre e fica oculto enquanto
+  // accountOpen === false.
+  const accountModal = (
+    <Modal
+      open={accountOpen}
+      onClose={() => setAccountOpen(false)}
+      title={t('pages.bordo.accountModalTitle')}
+    >
+      <AccountForm
+        initialData={accountData}
+        onSaveProfile={handleSaveProfile}
+        onChangePassword={handleChangePassword}
+        onUploadAvatar={handleUploadAvatar}
+        onDeleteAvatar={handleDeleteAvatar}
+        compact
+      />
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={() => setAccountOpen(false)}>
+          {t('common.close')}
+        </button>
+      </div>
+    </Modal>
+  );
+
+  // Botao "Conta" reutilizado nos varios branches (loading/error/main).
+  // O avatar substitui o icone generico — feedback visual imediato de qual
+  // utilizador esta loggado no painel.
+  const accountButton = (
+    <button
+      type="button"
+      className="pb-account-btn"
+      onClick={() => setAccountOpen(true)}
+      title={t('pages.bordo.accountButton')}
+      aria-label={t('pages.bordo.accountButton')}
+    >
+      <Avatar
+        url={accountData?.avatarUrl}
+        name={
+          [accountData?.firstName, accountData?.lastName].filter(Boolean).join(' ').trim()
+          || accountData?.username
+          || username
+        }
+        size="sm"
+      />
+      <span>{t('pages.bordo.accountButton')}</span>
+    </button>
+  );
+
   // --- Guard screens ---
   if (!authenticated) {
     return (
@@ -180,8 +290,12 @@ export default function PainelBordo() {
           <div className="pb-error-icon">!</div>
           <h2>{error}</h2>
           <p>Contacte o administrador para atribuir um autocarro.</p>
-          <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
+          <div className="pb-error-actions">
+            {accountButton}
+            <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
+          </div>
         </div>
+        {accountModal}
       </div>
     );
   }
@@ -190,6 +304,7 @@ export default function PainelBordo() {
     return (
       <div className="pb-container">
         <div className="pb-loading">A carregar painel de bordo...</div>
+        {accountModal}
       </div>
     );
   }
@@ -229,6 +344,10 @@ export default function PainelBordo() {
           <span className="pb-status-badge" style={{ background: statusColors[status] || '#94a3b8' }}>
             {statusLabels[status] || status}
           </span>
+          {accountButton}
+          <div className="pb-theme">
+            <ThemeSwitcher />
+          </div>
         </div>
       </header>
 
@@ -351,6 +470,7 @@ export default function PainelBordo() {
           </section>
         </div>
       </div>
+      {accountModal}
     </div>
   );
 }

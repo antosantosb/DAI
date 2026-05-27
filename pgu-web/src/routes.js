@@ -119,6 +119,14 @@ export const routes = [
         access: ['admin'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.settings', iconKey: 'IconSettings' },
       },
+      // ---- PESSOAL (self-service de conta) ----
+      // Visivel a admin + operador. Motoristas usam o modal no Painel de Bordo.
+      {
+        path: 'conta',
+        loader: () => import('./pages/MinhaConta'),
+        access: ['admin', 'operador'],
+        nav: { sectionKey: 'sections.personal', labelKey: 'nav.account', iconKey: 'IconAccount' },
+      },
     ],
   },
 ];

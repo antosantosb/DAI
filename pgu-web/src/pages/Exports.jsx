@@ -91,22 +91,29 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
   const [submitting, setSubmitting] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [selected, setSelected] = useState(new Set());
+  // F9: filtro Meus/Todos. Admin: default "all"; outros forçam "me" (ignorado pelo backend).
+  const [ownerFilter, setOwnerFilter] = useState(isAdmin ? 'all' : 'me');
 
   // Load jobs for this type
   useEffect(() => {
-    api.get(`/exports?type=${listParam}`)
+    api.get(`/exports?type=${listParam}&owner=${ownerFilter}`)
       .then(r => setJobs(Array.isArray(r.data) ? r.data : []))
       .catch(() => setJobs([]));
-  }, [listParam]);
+  }, [listParam, ownerFilter]);
 
   const upsertJob = useCallback((job) => {
     // Only upsert if this job belongs to our dataType
     if (job.dataType && job.dataType !== dataType) return;
+    // F9: respeitar filtro de owner — não engadir job de outro user se o user
+    // tem filtro "me". (Update de job existente passa sempre — significa que
+    // foi gerado por nós mas filtro mudou; mantemos o estado atualizado.)
     setJobs(prev => {
       const ix = prev.findIndex(j => j.jobUuid === job.jobUuid);
-      return ix >= 0 ? prev.map((j, i) => i === ix ? { ...j, ...job } : j) : [job, ...prev];
+      if (ix >= 0) return prev.map((j, i) => i === ix ? { ...j, ...job } : j);
+      if (ownerFilter === 'me' && job.requestedBy && job.requestedBy !== username) return prev;
+      return [job, ...prev];
     });
-  }, [dataType]);
+  }, [dataType, ownerFilter, username]);
 
   // STOMP — Sprint -1 (SEC-4) autenticado via JWT
   useEffect(() => {
@@ -176,8 +183,8 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
     });
   };
 
-  // Bulk delete
-  const deletableJobs = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'FAILED');
+  // Bulk delete (F9: CANCELED também é "terminal" e portanto deletable)
+  const deletableJobs = jobs.filter(j => j.status === 'COMPLETED' || j.status === 'FAILED' || j.status === 'CANCELED');
   const selectedDeletable = [...selected].filter(id => deletableJobs.some(j => j.jobUuid === id));
 
   const confirmBulkDelete = () => {
@@ -213,10 +220,38 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
   const allSelected = deletableJobs.length > 0 && selectedDeletable.length === deletableJobs.length;
   const someSelected = selectedDeletable.length > 0 && !allSelected;
 
+  // F9: Cancelar export em curso
+  const confirmCancel = (job) => {
+    showModal({
+      type: 'warning',
+      title: t('pages.exports.cancelConfirmTitle'),
+      message: t('pages.exports.cancelConfirmMessage'),
+      confirmText: t('pages.exports.cancel'),
+      onConfirm: async () => {
+        closeModal();
+        try {
+          const { data } = await api.post(`/exports/${job.jobUuid}/cancel`);
+          // Atualização imediata; o WS confirmará com o estado final.
+          upsertJob(data);
+          toast.success(t('pages.exports.cancelSuccess'));
+        } catch (err) {
+          const msg = err?.response?.status === 409
+            ? t('pages.exports.cancelFailed')
+            : (err?.response?.data?.message || err?.message || t('pages.exports.cancelFailed'));
+          toast.error(msg);
+        }
+      },
+    });
+  };
+
   // Stats
   const completedCount = jobs.filter(j => j.status === 'COMPLETED').length;
-  const pendingCount = jobs.filter(j => j.status === 'PENDING' || j.status === 'PROCESSING').length;
+  const queuedCount = jobs.filter(j => j.status === 'PENDING').length;
+  const runningCount = jobs.filter(j => j.status === 'PROCESSING').length;
   const failedCount = jobs.filter(j => j.status === 'FAILED').length;
+  const canceledCount = jobs.filter(j => j.status === 'CANCELED').length;
+  // "Em curso" original (PENDING+PROCESSING) é split em dois cards.
+  const pendingCount = queuedCount + runningCount;
 
   return (
     <>
@@ -236,10 +271,17 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
             <div className="export-stat-label">{t('pages.exports.statCompleted')}</div>
           </div>
         </div>
+        <div className="export-stat-card export-stat-card--queued">
+          <div className="export-stat-icon export-stat-icon--queued"><ClockIcon size={20}/></div>
+          <div className="export-stat-content">
+            <div className="export-stat-value">{queuedCount}</div>
+            <div className="export-stat-label">{t('pages.exports.statQueued')}</div>
+          </div>
+        </div>
         <div className="export-stat-card export-stat-card--pending">
           <div className="export-stat-icon export-stat-icon--pending"><ClockIcon size={20}/></div>
           <div className="export-stat-content">
-            <div className="export-stat-value">{pendingCount}</div>
+            <div className="export-stat-value">{runningCount}</div>
             <div className="export-stat-label">{t('pages.exports.statPending')}</div>
           </div>
         </div>
@@ -248,6 +290,13 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
           <div className="export-stat-content">
             <div className="export-stat-value">{failedCount}</div>
             <div className="export-stat-label">{t('pages.exports.statFailed')}</div>
+          </div>
+        </div>
+        <div className="export-stat-card export-stat-card--canceled">
+          <div className="export-stat-icon export-stat-icon--canceled"><XCircleIcon size={20}/></div>
+          <div className="export-stat-content">
+            <div className="export-stat-value">{canceledCount}</div>
+            <div className="export-stat-label">{t('pages.exports.statCanceled')}</div>
           </div>
         </div>
       </div>
@@ -260,6 +309,22 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
         <div className="export-history-header">
           <h2>{t('pages.exports.history')}</h2>
           <div className="export-history-actions">
+            {/* F9: Filtro Meus/Todos — só faz sentido para admin (operador é
+                automaticamente filtrado por backend). */}
+            {isAdmin && (
+              <div className="export-owner-filter" role="group" aria-label={t('pages.exports.filterOwnerAria')}>
+                <button type="button"
+                  className={`export-owner-btn ${ownerFilter === 'all' ? 'is-active' : ''}`}
+                  onClick={() => setOwnerFilter('all')}>
+                  {t('pages.exports.filterAll')}
+                </button>
+                <button type="button"
+                  className={`export-owner-btn ${ownerFilter === 'me' ? 'is-active' : ''}`}
+                  onClick={() => setOwnerFilter('me')}>
+                  {t('pages.exports.filterMine')}
+                </button>
+              </div>
+            )}
             {selectedDeletable.length > 0 && isAdmin && (
               <button type="button" className="btn btn-danger btn-sm" onClick={confirmBulkDelete}>
                 <TrashIcon size={14}/> {t('pages.exports.btnBulkDelete', { count: selectedDeletable.length })}
@@ -292,12 +357,12 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                       </label>
                     </th>
                   )}
-                  <th>{t('pages.exports.tableFormat')}</th><th>{t('pages.exports.tableState')}</th><th>{t('pages.exports.tableRows')}</th><th>{t('pages.exports.tableFile')}</th><th>{t('pages.exports.tableActions')}</th>
+                  <th>{t('pages.exports.tableFormat')}</th><th>{t('pages.exports.tableState')}</th><th>{t('pages.exports.tableRows')}</th><th>{t('pages.exports.thCreatedBy')}</th><th>{t('pages.exports.tableFile')}</th><th>{t('pages.exports.tableActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map(j => {
-                  const isDeletable = j.status === 'COMPLETED' || j.status === 'FAILED';
+                  const isDeletable = j.status === 'COMPLETED' || j.status === 'FAILED' || j.status === 'CANCELED';
                   const isSelected = selected.has(j.jobUuid);
                   return (
                     <tr key={j.jobUuid} className={isSelected ? 'export-row--selected' : ''}>
@@ -315,10 +380,18 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                       <td>
                         <span className={`export-status export-status--${j.status?.toLowerCase()}`}>
                           <span className="export-status-dot" />
-                          {j.status === 'COMPLETED' ? t('pages.exports.statusCompleted') : j.status === 'PENDING' ? t('pages.exports.statusPending') : j.status === 'PROCESSING' ? t('pages.exports.statusProcessing') : j.status === 'FAILED' ? t('pages.exports.statusFailed') : j.status}
+                          {j.status === 'COMPLETED' ? t('pages.exports.statusCompleted')
+                           : j.status === 'PENDING' ? t('pages.exports.statusPending')
+                           : j.status === 'PROCESSING' ? t('pages.exports.statusProcessing')
+                           : j.status === 'FAILED' ? t('pages.exports.statusFailed')
+                           : j.status === 'CANCELED' ? t('pages.exports.statusCanceled')
+                           : j.status}
                         </span>
                       </td>
                       <td className="export-number">{j.rowCount ?? '-'}</td>
+                      <td className="export-created-by" title={j.requestedBy || ''}>
+                        {j.requestedBy || '—'}
+                      </td>
                       <td className="export-filename" title={j.fileName || ''}>
                         {j.fileName ? j.fileName.length > 40 ? j.fileName.slice(0, 40) + '…' : j.fileName : '-'}
                       </td>
@@ -329,19 +402,29 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                               {(j.format || '').toUpperCase() === 'PDF' && (
                                 <button type="button" className="btn btn-sm" onClick={async () => {
                                   try {
-                                    const res = await api.get(j.downloadUrl.replace(/^.*\/api\/v1/, ''), { responseType: 'blob' });
-                                    window.open(URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })), '_blank');
+                                    // F9 (MinIO): pedimos uma presigned URL fresca e abrimos
+                                    // diretamente. O browser obtem os bytes do MinIO sem passar
+                                    // pelo backend.
+                                    const res = await api.get(j.downloadUrl.replace(/^.*\/api\/v1/, ''));
+                                    const presigned = res.data?.url;
+                                    if (!presigned) throw new Error('no url');
+                                    window.open(presigned, '_blank', 'noopener,noreferrer');
                                   } catch { toast.error(t('pages.exports.openPdfFailed')); }
                                 }}><EyeIcon size={14}/> {t('pages.exports.viewPdf')}</button>
                               )}
                               <button type="button" className="btn btn-sm btn-primary" onClick={async () => {
                                 try {
-                                  const res = await api.get(j.downloadUrl.replace(/^.*\/api\/v1/, ''), { responseType: 'blob' });
+                                  // F9 (MinIO): obter presigned URL on-demand e disparar download
+                                  // via anchor com download attr (preserva fileName).
+                                  const res = await api.get(j.downloadUrl.replace(/^.*\/api\/v1/, ''));
+                                  const presigned = res.data?.url;
+                                  if (!presigned) throw new Error('no url');
                                   const ext = (j.format || 'csv').toLowerCase();
-                                  const url = URL.createObjectURL(res.data);
-                                  const a = document.createElement('a'); a.href = url;
+                                  const a = document.createElement('a');
+                                  a.href = presigned;
                                   a.download = j.fileName || `relatorio.${ext}`;
-                                  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                                  a.rel = 'noopener noreferrer';
+                                  document.body.appendChild(a); a.click(); a.remove();
                                 } catch { toast.error(t('pages.exports.downloadFailed')); }
                               }}><DownloadIcon size={14}/> {t('pages.exports.download')}</button>
                             </>
@@ -352,7 +435,14 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                             </span>
                           )}
                           {(j.status === 'PENDING' || j.status === 'PROCESSING') && (
-                            <span className="export-processing-hint"><span className="export-spinner" />{t('pages.exports.processing')}</span>
+                            <>
+                              <span className="export-processing-hint"><span className="export-spinner" />{t('pages.exports.processing')}</span>
+                              {(isAdmin || j.requestedBy === username) && (
+                                <button type="button" className="btn btn-sm btn-ghost-danger" onClick={() => confirmCancel(j)} title={t('pages.exports.cancel')}>
+                                  <XCircleIcon size={14}/> {t('pages.exports.cancel')}
+                                </button>
+                              )}
+                            </>
                           )}
                           {isAdmin && isDeletable && (
                             <button type="button" className="export-delete-btn" onClick={() => confirmDelete(j)} title={t('pages.exports.btnDelete')}>

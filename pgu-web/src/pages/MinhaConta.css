@@ -1,0 +1,33 @@
+.minha-conta-page {
+  padding: 32px;
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.minha-conta-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.minha-conta-subtitle {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.minha-conta-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .minha-conta-page {
+    padding: 16px;
+  }
+}

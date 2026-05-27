@@ -31,15 +31,18 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.BufferedWriter;
-import java.io.FileOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Motor de Exportação Massiva (Backoffice).
@@ -62,10 +65,31 @@ public class ExportService
     private final TelemetryRepository   telemetryRepo;
     private final AuditLogRepository    auditLogRepo;
     private final SimpMessagingTemplate ws;
+    private final StorageService        storage;
     private final ExportService         self; // proxy para @Async funcionar
 
-    @Value("${pgu.export.dir:/tmp/pgu-exports}")
-    private String exportDir;
+    /**
+     * F9: bucket MinIO onde os exports CSV/PDF passam a viver (substitui o
+     * disco local). Configurado em {@code application.properties} pela chave
+     * {@code pgu.storage.buckets.exports} (default: {@code exports}).
+     */
+    @Value("${pgu.storage.buckets.exports:exports}")
+    private String exportsBucket;
+
+    /**
+     * TTL (segundos) das presigned URLs geradas para download. Cada clique no
+     * botao "Descarregar" pede ao backend uma URL nova — esta validade so
+     * importa para o request imediato, mas mantemos 1h por seguranca.
+     */
+    @Value("${pgu.export.presigned-ttl-seconds:3600}")
+    private int presignedTtlSeconds;
+
+    /**
+     * F9: Sinalizadores de cancelamento por job em curso.
+     * O loop principal do {@link #runJob(UUID)} verifica periodicamente o flag
+     * e, se {@code true}, interrompe a execução marcando o job como CANCELED.
+     */
+    private final Map<UUID, AtomicBoolean> cancellationFlags = new ConcurrentHashMap<>();
 
     /** Dias que um relatório permanece em disco antes de ser purgado. */
     @Value("${pgu.export.retention-days:7}")
@@ -75,19 +99,22 @@ public class ExportService
                          TelemetryRepository telemetryRepo,
                          AuditLogRepository auditLogRepo,
                          SimpMessagingTemplate ws,
+                         StorageService storage,
                          @Lazy ExportService self)
     {
         this.jobRepo       = jobRepo;
         this.telemetryRepo = telemetryRepo;
         this.auditLogRepo  = auditLogRepo;
         this.ws            = ws;
+        this.storage       = storage;
         this.self          = self;
     }
 
     @PostConstruct
-    void ensureExportDir() throws Exception
+    void init()
     {
-        Files.createDirectories(Paths.get(exportDir));
+        // F9 (MinIO migration): nao ha mais diretorio local a criar. Os exports
+        // vivem no bucket {@code exportsBucket} (criado pelo StorageBootstrap).
     }
 
     // ------------------------------------------------------------------
@@ -127,18 +154,41 @@ public class ExportService
             .toList();
     }
 
+    /**
+     * F9: lista jobs filtrados por owner. Se {@code username == null} devolve
+     * tudo (usado pelo admin com {@code owner=all}).
+     */
+    public List<ExportJobDTO> listAllForUser(String username)
+    {
+        return jobRepo.findAll().stream()
+            .filter(j -> username == null || username.equalsIgnoreCase(j.getRequestedBy()))
+            .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+            .map(ExportJobDTO::fromEntity)
+            .toList();
+    }
+
     public List<ExportJobDTO> listByType(ExportJob.DataType dataType)
+    {
+        return listByTypeForUser(dataType, null);
+    }
+
+    /**
+     * F9: variante com filtro por owner. {@code username == null} = sem filtro.
+     */
+    public List<ExportJobDTO> listByTypeForUser(ExportJob.DataType dataType, String username)
     {
         // Jobs antigos sem dataType são tratados como TELEMETRY
         if (dataType == ExportJob.DataType.TELEMETRY)
         {
             return jobRepo.findAll().stream()
                 .filter(j -> j.getDataType() == null || j.getDataType() == ExportJob.DataType.TELEMETRY)
+                .filter(j -> username == null || username.equalsIgnoreCase(j.getRequestedBy()))
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .map(ExportJobDTO::fromEntity)
                 .toList();
         }
         return jobRepo.findByDataType(dataType).stream()
+            .filter(j -> username == null || username.equalsIgnoreCase(j.getRequestedBy()))
             .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
             .map(ExportJobDTO::fromEntity)
             .toList();
@@ -155,22 +205,78 @@ public class ExportService
     // ------------------------------------------------------------------
 
     /**
-     * Apaga manualmente um job: remove o ficheiro do disco (se existir) e a
+     * F9: Marca um job em curso para cancelamento. O loop principal do worker
+     * verifica periodicamente o flag e, ao detectá-lo, lança CancellationException
+     * que é apanhada para marcar o status como CANCELED.
+     *
+     * Para jobs PENDING (ainda não picked-up pelo executor) a marcação é
+     * imediata — quando a thread arrancar, o flag já estará a {@code true}
+     * e o loop sai logo na primeira verificação.
+     *
+     * @return {@code true} se o job foi marcado, {@code false} se já estava
+     *         num estado terminal (COMPLETED/FAILED/CANCELED).
+     */
+    @Transactional
+    public boolean cancelJob(UUID uuid)
+    {
+        ExportJob job = getByUuid(uuid);
+        ExportJob.Status s = job.getStatus();
+        if (s == ExportJob.Status.COMPLETED || s == ExportJob.Status.FAILED
+                                            || s == ExportJob.Status.CANCELED)
+        {
+            return false; // estado terminal — nada a cancelar
+        }
+
+        // 1) sinaliza o worker (caso esteja em PROCESSING)
+        AtomicBoolean flag = cancellationFlags.computeIfAbsent(uuid, k -> new AtomicBoolean());
+        flag.set(true);
+
+        // 2) se ainda está PENDING e o executor não pegou, marca já como CANCELED
+        //    para feedback imediato ao user. Quando o worker eventualmente
+        //    arrancar, o flag fará com que termine sem trabalho.
+        if (s == ExportJob.Status.PENDING)
+        {
+            job.setStatus(ExportJob.Status.CANCELED);
+            job.setCompletedAt(Instant.now());
+            jobRepo.save(job);
+            notify(job);
+            log.info("[EXPORT] Job {} cancelado em PENDING", uuid);
+        }
+        else
+        {
+            log.info("[EXPORT] Job {} marcado para cancelamento (status atual: {})", uuid, s);
+        }
+        return true;
+    }
+
+    /**
+     * Apaga manualmente um job: remove o objeto do MinIO (se existir) e a
      * linha correspondente em BD. Chamado pelo botão "Apagar" do Backoffice.
+     *
+     * <p>F9 (MinIO migration): a partir de agora os ficheiros vivem em
+     * {@code exports/<jobUuid>.<ext>} no bucket {@link #exportsBucket}.
+     * Mantemos compatibilidade com jobs legacy que tinham {@code filePath}
+     * apontando para disco local — esses sao simplesmente ignorados (o cleanup
+     * do volume foi removido com a migracao).
      */
     @Transactional
     public void deleteJob(UUID uuid)
     {
         ExportJob job = getByUuid(uuid);
-        deleteFileQuietly(job.getFilePath(), uuid);
+        deleteObjectQuietly(job, uuid);
         jobRepo.delete(job);
         log.info("[EXPORT] Job {} apagado manualmente", uuid);
     }
 
     /**
      * Purga automática: corre todos os dias às 03:00 (Europe/Lisbon) e apaga
-     * ficheiros + rows de jobs concluídos/falhados há mais de {@code retentionDays}.
-     * Jobs em PENDING/PROCESSING são ignorados (ainda não têm completedAt).
+     * objetos do MinIO + rows de jobs concluídos/falhados há mais de
+     * {@code retentionDays}. Jobs em PENDING/PROCESSING são ignorados (ainda
+     * não têm completedAt).
+     *
+     * <p>F9: o MinIO ja tem suporte nativo a lifecycle policies; este job e
+     * uma rede de seguranca para o caso de a policy nao estar configurada,
+     * alem de garantir limpeza das rows na BD.
      */
     @Scheduled(cron = "0 0 3 * * *", zone = "Europe/Lisbon")
     @Transactional
@@ -186,24 +292,34 @@ public class ExportService
         int deleted = 0;
         for (ExportJob job : stale)
         {
-            deleteFileQuietly(job.getFilePath(), job.getJobUuid());
+            deleteObjectQuietly(job, job.getJobUuid());
             jobRepo.delete(job);
             deleted++;
         }
         log.info("[EXPORT] Purga automática: {} jobs removidos (> {} dias)", deleted, retentionDays);
     }
 
-    private void deleteFileQuietly(String path, UUID uuid)
+    /**
+     * Tenta remover o objeto do MinIO associado a um job. Idempotente — se
+     * o objeto ja nao existir, ou se o job for legacy (sem objectKey valido),
+     * apenas regista e segue em frente.
+     */
+    private void deleteObjectQuietly(ExportJob job, UUID uuid)
     {
-        if (path == null) return;
+        if (job == null) return;
+        String key = job.getObjectKey();
+        if (key == null || key.isBlank())
+        {
+            // Jobs legacy (pre-MinIO) ou falhados muito cedo nao tem objectKey.
+            return;
+        }
         try
         {
-            boolean ok = Files.deleteIfExists(Paths.get(path));
-            if (ok) log.debug("[EXPORT] Ficheiro apagado: {} (job {})", path, uuid);
+            storage.delete(exportsBucket, key);
         }
         catch (Exception ex)
         {
-            log.warn("[EXPORT] Falha ao apagar ficheiro {} do job {}: {}", path, uuid, ex.getMessage());
+            log.warn("[EXPORT] Falha ao apagar objeto {} do job {}: {}", key, uuid, ex.getMessage());
         }
     }
 
@@ -217,6 +333,18 @@ public class ExportService
         ExportJob job = jobRepo.findByJobUuid(jobUuid).orElse(null);
         if (job == null) { log.warn("Job {} desapareceu antes de correr", jobUuid); return; }
 
+        // F9: regista o flag de cancelamento — pode já existir (cancel pré-arranque).
+        AtomicBoolean cancelFlag = cancellationFlags.computeIfAbsent(jobUuid, k -> new AtomicBoolean());
+
+        // Se foi cancelado entre PENDING e o pick-up do executor: respeitar.
+        if (cancelFlag.get() || job.getStatus() == ExportJob.Status.CANCELED)
+        {
+            log.info("[EXPORT] Job {} já cancelado antes do arranque do worker", jobUuid);
+            // cancelJob() já marcou e notificou — só limpamos o flag.
+            cancellationFlags.remove(jobUuid);
+            return;
+        }
+
         log.info("[EXPORT] A iniciar job {} formato={} bus={} from={} to={}",
                  jobUuid, job.getFormat(), job.getBusIdFilter(), job.getFromTs(), job.getToTs());
 
@@ -227,12 +355,17 @@ public class ExportService
 
         try
         {
+            checkCancelled(cancelFlag);
             String ts  = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
                             .withZone(java.time.ZoneOffset.UTC).format(Instant.now());
             String ext = job.getFormat() == ExportJob.Format.CSV ? "csv" : "pdf";
             long rowCount;
             String prefix;
-            Path outPath;
+            String fileName;
+            // F9: escrever em memoria (CSV/PDF nao chega aos GB no caso de uso real).
+            // Caso futuro precise de streaming de ficheiros muito grandes, trocar
+            // por PipedInputStream/PipedOutputStream + thread separada.
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
             if (job.getDataType() == ExportJob.DataType.AUDIT_LOG)
             {
@@ -253,14 +386,11 @@ public class ExportService
                     logs = auditLogRepo.findAllByOrderByCreatedAtDesc();
                 }
                 prefix   = "audit-logs";
-                String fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
-                outPath  = Paths.get(exportDir, fileName);
+                fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
 
-                try (OutputStream os = new FileOutputStream(outPath.toFile()))
-                {
-                    if (job.getFormat() == ExportJob.Format.CSV) writeAuditCsv(os, logs);
-                    else                                         writeAuditPdf(os, logs, job);
-                }
+                checkCancelled(cancelFlag);
+                if (job.getFormat() == ExportJob.Format.CSV) writeAuditCsv(buffer, logs);
+                else                                         writeAuditPdf(buffer, logs, job);
                 rowCount = logs.size();
             }
             else
@@ -272,26 +402,52 @@ public class ExportService
                     .filter(t -> job.getToTs()   == null || !t.getRecordedAt().isAfter(job.getToTs()))
                     .toList();
 
-                prefix   = "telemetry";
-                String fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
-                outPath  = Paths.get(exportDir, fileName);
+                checkCancelled(cancelFlag);
 
-                try (OutputStream os = new FileOutputStream(outPath.toFile()))
-                {
-                    if (job.getFormat() == ExportJob.Format.CSV) writeCsv(os, rows);
-                    else                                         writePdf(os, rows, job);
-                }
+                prefix   = "telemetry";
+                fileName = prefix + "-" + ts + "-" + jobUuid + "." + ext;
+
+                if (job.getFormat() == ExportJob.Format.CSV) writeCsv(buffer, rows);
+                else                                         writePdf(buffer, rows, job);
                 rowCount = rows.size();
+            }
+
+            checkCancelled(cancelFlag);
+
+            // ── F9: upload para MinIO ──
+            // Object key: <jobUuid>.<ext> — uuid garante unicidade global; nao
+            // precisamos de prefixar ts/prefix porque o fileName em BD ja preserva
+            // o nome amigavel para o Content-Disposition do download.
+            byte[] payload = buffer.toByteArray();
+            String objectKey = jobUuid + "." + ext;
+            String contentType = job.getFormat() == ExportJob.Format.CSV
+                ? "text/csv"
+                : "application/pdf";
+
+            try (ByteArrayInputStream in = new ByteArrayInputStream(payload))
+            {
+                storage.upload(exportsBucket, objectKey, in, payload.length, contentType);
             }
 
             // Marcar como concluído
             job.setStatus(ExportJob.Status.COMPLETED);
-            job.setFilePath(outPath.toString());
-            job.setFileName(outPath.getFileName().toString());
+            job.setObjectKey(objectKey);
+            job.setFileName(fileName);
+            job.setFileSize((long) payload.length);
             job.setRowCount(rowCount);
             job.setCompletedAt(Instant.now());
             jobRepo.save(job);
-            log.info("[EXPORT] Job {} concluído ({} linhas, {})", jobUuid, rowCount, outPath.getFileName());
+            log.info("[EXPORT] Job {} concluído ({} linhas, {} bytes, key={})",
+                     jobUuid, rowCount, payload.length, objectKey);
+        }
+        catch (java.util.concurrent.CancellationException cex)
+        {
+            // F9: cancelamento pedido pelo user. Tenta apagar o ficheiro
+            // parcial (se foi criado) para evitar lixo.
+            log.info("[EXPORT] Job {} cancelado pelo utilizador", jobUuid);
+            job.setStatus(ExportJob.Status.CANCELED);
+            job.setCompletedAt(Instant.now());
+            jobRepo.save(job);
         }
         catch (Exception ex)
         {
@@ -303,9 +459,36 @@ public class ExportService
         }
         finally
         {
-            // Notificação final: "pronto para download" (ou erro)
+            // Limpar flag para libertar memória
+            cancellationFlags.remove(jobUuid);
+            // Notificação final: "pronto para download" (ou erro/cancelado)
             notify(job);
         }
+    }
+
+    /**
+     * F9 (MinIO migration): gera uma presigned URL fresca para download.
+     * E preciso gerar uma URL nova a cada clique do utilizador, porque a
+     * assinatura tem TTL ({@link #presignedTtlSeconds}) e contem credenciais.
+     *
+     * @return presigned URL valida por {@link #presignedTtlSeconds} segundos,
+     *         ou {@code null} se o job ainda nao tem objectKey (PENDING/PROCESSING/FAILED).
+     */
+    public String presignedDownloadUrl(UUID uuid)
+    {
+        ExportJob job = getByUuid(uuid);
+        if (job.getStatus() != ExportJob.Status.COMPLETED || job.getObjectKey() == null)
+        {
+            return null;
+        }
+        return storage.presignedUrl(exportsBucket, job.getObjectKey(), presignedTtlSeconds);
+    }
+
+    /** F9: lança {@link java.util.concurrent.CancellationException} se o flag estiver ativo. */
+    private static void checkCancelled(AtomicBoolean flag)
+    {
+        if (flag != null && flag.get())
+            throw new java.util.concurrent.CancellationException("Cancelado pelo utilizador");
     }
 
     // ------------------------------------------------------------------

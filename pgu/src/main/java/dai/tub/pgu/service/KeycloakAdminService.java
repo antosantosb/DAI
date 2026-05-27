@@ -155,6 +155,13 @@ public class KeycloakAdminService
             payload.set("credentials", credentials);
         }
 
+        // Required actions (ex.: UPDATE_PASSWORD para forçar mudança no primeiro login).
+        if (request.getRequiredActions() != null && !request.getRequiredActions().isEmpty()) {
+            ArrayNode actions = mapper.createArrayNode();
+            for (String a : request.getRequiredActions()) actions.add(a);
+            payload.set("requiredActions", actions);
+        }
+
         try {
             // Criar utilizador
             ResponseEntity<Void> response = restClient.post()
@@ -185,6 +192,104 @@ public class KeycloakAdminService
             }
             throw new RuntimeException("Erro ao criar utilizador: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Procura um utilizador pelo username (exact match).
+     * Devolve null se não existir.
+     */
+    public UserRepresentationDTO findUserByUsername(String username)
+    {
+        if (username == null || username.isBlank()) return null;
+        String token = getAdminToken();
+
+        try {
+            String body = restClient.get()
+                .uri(adminApiBase() + "/users?username=" + username + "&exact=true")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(String.class);
+
+            JsonNode users = mapper.readTree(body);
+            if (!users.isArray() || users.size() == 0) return null;
+            UserRepresentationDTO dto = mapUserNode(users.get(0));
+            dto.setRoles(getUserRoles(token, dto.getId()));
+            return dto;
+        } catch (Exception e) {
+            throw new RuntimeException("Erro a procurar utilizador por username", e);
+        }
+    }
+
+    /**
+     * Atualiza um utilizador existente — variante para self-service /me.
+     * Permite tentar mudar username (depende da config do realm).
+     * Não toca em roles nem em password.
+     */
+    public UserRepresentationDTO updateUserSelf(String userId, UserRepresentationDTO request)
+    {
+        String token = getAdminToken();
+
+        ObjectNode payload = mapper.createObjectNode();
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            payload.put("username", request.getUsername());
+        }
+        if (request.getEmail() != null) payload.put("email", request.getEmail());
+        if (request.getFirstName() != null) payload.put("firstName", request.getFirstName());
+        if (request.getLastName() != null) payload.put("lastName", request.getLastName());
+        payload.put("enabled", request.isEnabled());
+
+        try {
+            restClient.put()
+                .uri(adminApiBase() + "/users/" + userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(mapper.writeValueAsString(payload))
+                .retrieve()
+                .toBodilessEntity();
+
+            return getUser(userId);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao atualizar utilizador (self): " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Valida uma password fazendo um password-grant ao Keycloak com o client
+     * publico do backoffice. Não usamos o admin token — queremos saber se as
+     * credenciais do utilizador são realmente válidas.
+     */
+    public boolean validateUserPassword(String username, String password)
+    {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "password");
+        form.add("client_id", "pgu-backoffice");
+        form.add("username", username);
+        form.add("password", password);
+
+        String tokenUrl = keycloakUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+
+        try {
+            restClient.post()
+                .uri(tokenUrl)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .body(String.class);
+            return true;
+        } catch (Exception e) {
+            // 401/400 = credenciais inválidas; tudo o resto também conta como falha
+            return false;
+        }
+    }
+
+    /**
+     * Define directamente a password de um utilizador via Admin API.
+     * Wrapper público sobre o helper privado resetPassword.
+     */
+    public void setUserPassword(String userId, String newPassword)
+    {
+        String token = getAdminToken();
+        resetPassword(token, userId, newPassword);
     }
 
     /**
@@ -404,6 +509,89 @@ public class KeycloakAdminService
         }
     }
 
+    // ─── Avatar (Keycloak user attributes) ───────────────────────────
+
+    /**
+     * Atualiza o atributo "avatarKey" de um utilizador Keycloak.
+     * Passa {@code null} ou string vazia para remover o atributo.
+     */
+    public void setAvatarKey(String userId, String avatarKey)
+    {
+        String token = getAdminToken();
+
+        // Para preservar os outros atributos, vamos buscar o user atual e
+        // fazer merge — caso contrario um PUT com attributes={avatarKey:...}
+        // apagaria todos os outros atributos eventualmente existentes.
+        JsonNode current = fetchUserRaw(token, userId);
+
+        ObjectNode payload = mapper.createObjectNode();
+        ObjectNode attributes = mapper.createObjectNode();
+
+        if (current != null && current.has("attributes") && current.get("attributes").isObject()) {
+            current.get("attributes").fields().forEachRemaining(entry -> {
+                if (!"avatarKey".equals(entry.getKey())) {
+                    attributes.set(entry.getKey(), entry.getValue());
+                }
+            });
+        }
+
+        if (avatarKey != null && !avatarKey.isBlank()) {
+            ArrayNode values = mapper.createArrayNode();
+            values.add(avatarKey);
+            attributes.set("avatarKey", values);
+        }
+
+        payload.set("attributes", attributes);
+
+        try {
+            restClient.put()
+                .uri(adminApiBase() + "/users/" + userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(mapper.writeValueAsString(payload))
+                .retrieve()
+                .toBodilessEntity();
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao atualizar avatarKey do utilizador", e);
+        }
+    }
+
+    /**
+     * Devolve o avatarKey atual de um utilizador (atributo Keycloak) ou {@code null}.
+     */
+    public String getAvatarKey(String userId)
+    {
+        String token = getAdminToken();
+        JsonNode u = fetchUserRaw(token, userId);
+        return extractAvatarKey(u);
+    }
+
+    private JsonNode fetchUserRaw(String token, String userId)
+    {
+        try {
+            String body = restClient.get()
+                .uri(adminApiBase() + "/users/" + userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(String.class);
+            return mapper.readTree(body);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extractAvatarKey(JsonNode u)
+    {
+        if (u == null) return null;
+        if (!u.has("attributes") || !u.get("attributes").isObject()) return null;
+        JsonNode attrs = u.get("attributes");
+        if (!attrs.has("avatarKey")) return null;
+        JsonNode arr = attrs.get("avatarKey");
+        if (arr.isArray() && arr.size() > 0) return arr.get(0).asText();
+        if (arr.isTextual()) return arr.asText();
+        return null;
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────
 
     private UserRepresentationDTO mapUserNode(JsonNode u)
@@ -417,6 +605,7 @@ public class KeycloakAdminService
         dto.setEnabled(u.has("enabled") && u.get("enabled").asBoolean());
         dto.setCreatedTimestamp(u.has("createdTimestamp") && !u.get("createdTimestamp").isNull()
             ? u.get("createdTimestamp").asLong() : null);
+        dto.setAvatarKey(extractAvatarKey(u));
         return dto;
     }
 }

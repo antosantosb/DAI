@@ -80,6 +80,26 @@ export default function GlobalToastListener() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated]);
 
+  // F9: Resume após F5 — se houver exports do user em RUNNING/PENDING ao montar,
+  // mostra toasts loading para que o user saiba que ainda estão a correr.
+  // O WS depois actualiza/dismisses quando completar/falhar/cancelar.
+  useEffect(() => {
+    if (!authenticated) return;
+    api.get('/exports?owner=me').then((r) => {
+      const jobs = Array.isArray(r.data) ? r.data : [];
+      jobs.filter(j => j.status === 'PROCESSING' || j.status === 'PENDING').forEach(j => {
+        toast.loading(
+          <div>
+            <div className="pgu-toast-title">{t('toasts.exportRunning')}</div>
+            <div className="pgu-toast-sub">{t('toasts.exportRunningSub', { format: j.format })}</div>
+          </div>,
+          { toastId: `exp-${j.jobUuid}`, autoClose: false, closeOnClick: false, closeButton: true }
+        );
+      });
+    }).catch(() => { /* sem permissões ou sem jobs */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]);
+
   useEffect(() => {
     // Sprint 0 (F5 follow-up): so' conecta STOMP quando autenticado.
     if (!authenticated) return;
@@ -106,25 +126,60 @@ export default function GlobalToastListener() {
           if (!message.body) return;
           try {
             const job = JSON.parse(message.body);
+            const id = `exp-${job.jobUuid}`;
+            // F9: se já existe toast loading (resume após F5 ou enquanto processa),
+            // primeiro fecha-o para evitar conflito de tipo (loading -> success).
+            if (toast.isActive(id)) toast.dismiss(id);
+
             if (job.status === 'COMPLETED') {
               toast.success(
                 ({ closeToast }) => (
                   <div>
                     <div className="pgu-toast-title">{t('toasts.exportReady', { format: job.format })}</div>
                     {job.fileName && <div className="pgu-toast-sub">{job.fileName}</div>}
-                    <a href={job.downloadUrl} onClick={() => closeToast()} className="pgu-toast-action">
+                    <button
+                      type="button"
+                      className="pgu-toast-action"
+                      onClick={async () => {
+                        // F9 (MinIO): pedir presigned URL fresca antes de abrir.
+                        try {
+                          const path = (job.downloadUrl || '').replace(/^.*\/api\/v1/, '');
+                          if (!path) return;
+                          const res = await api.get(path);
+                          const presigned = res?.data?.url;
+                          if (!presigned) return;
+                          const a = document.createElement('a');
+                          a.href = presigned;
+                          a.download = job.fileName || 'export';
+                          a.rel = 'noopener noreferrer';
+                          document.body.appendChild(a); a.click(); a.remove();
+                        } finally { closeToast(); }
+                      }}
+                    >
                       {t('toasts.exportDownload')}
-                    </a>
+                    </button>
                   </div>
                 ),
-                { autoClose: 15000, closeOnClick: false, toastId: `exp-${job.jobUuid}` }
+                { autoClose: 15000, closeOnClick: false, toastId: id }
               );
             }
             if (job.status === 'FAILED') {
-              toast.error(t('toasts.exportFailed'), {
-                autoClose: 8000,
-                toastId: `exp-${job.jobUuid}`,
-              });
+              toast.error(t('toasts.exportFailed'), { autoClose: 8000, toastId: id });
+            }
+            // F9: novo estado terminal
+            if (job.status === 'CANCELED') {
+              toast.info(t('toasts.exportCanceled'), { autoClose: 5000, toastId: id });
+            }
+            // F9: se o backend anunciar PROCESSING (worker pegou) e ainda não
+            // temos toast, mostrar loading. Útil para jobs submetidos noutro tab.
+            if (job.status === 'PROCESSING' && !toast.isActive(id)) {
+              toast.loading(
+                <div>
+                  <div className="pgu-toast-title">{t('toasts.exportRunning')}</div>
+                  <div className="pgu-toast-sub">{t('toasts.exportRunningSub', { format: job.format })}</div>
+                </div>,
+                { toastId: id, autoClose: false, closeOnClick: false, closeButton: true }
+              );
             }
           } catch (e) { /* ignore */ }
         });

@@ -80,12 +80,14 @@
     "dataSources": "Fontes",
     "gtfs": "GTFS",
     "audit": "Logs",
-    "settings": "Parâmetros"
+    "settings": "Parâmetros",
+    "account": "Minha Conta"
   },
   "sections": {
     "main": "Principal",
     "operations": "Operações",
-    "administration": "Administração"
+    "administration": "Administração",
+    "personal": "Pessoal"
   },
   "landing": {
     "title": "TUB",
@@ -310,7 +312,7 @@
     "drivers": {
       "title": "Motoristas",
       "subtitle": "{{count}} motoristas registados",
-      "subtitleAlt": "Gestão operacional — atribuir autocarros e ver estado",
+      "subtitleAlt": "Gestão operacional: atribui autocarros e vê estado.",
       "newButton": "+ Novo Motorista",
       "createInUsers": "+ Criar Motorista (em Utilizadores)",
       "searchPlaceholder": "Pesquisar...",
@@ -349,6 +351,17 @@
       "errorTitle": "Erro",
       "assignFailed": "Atribuição falhou",
       "unassignFailed": "Desatribuição falhou",
+      "batchGenerate": "Gerar Motoristas em Batch",
+      "batchTitle": "Gerar Motoristas em Batch",
+      "batchDescription": "Cria N motoristas com dados aleatórios. Cada um terá de mudar a password no primeiro login.",
+      "batchQuantity": "Quantidade (1-50)",
+      "batchCreating": "A criar...",
+      "batchCreateLabel": "Criar {{count}} Motoristas",
+      "batchSuccess": "{{count}} motoristas criados com sucesso.",
+      "batchInvalidTitle": "Valor inválido",
+      "batchInvalidMessage": "A quantidade deve ser entre 1 e 50.",
+      "assignSearch": "Pesquisar autocarro...",
+      "assignNoResults": "Nenhum autocarro corresponde à pesquisa",
       "headers": {
         "name": "Nome",
         "mechNumber": "Nº Mecanográfico",
@@ -789,9 +802,21 @@
       "tableFile": "Ficheiro",
       "tableActions": "Ações",
       "statusCompleted": "Concluído",
-      "statusPending": "Pendente",
+      "statusPending": "Em fila",
       "statusProcessing": "A processar",
       "statusFailed": "Falhado",
+      "statusCanceled": "Cancelado",
+      "statQueued": "Em fila",
+      "statCanceled": "Cancelados",
+      "cancel": "Cancelar",
+      "cancelConfirmTitle": "Cancelar exportação?",
+      "cancelConfirmMessage": "O job em curso será interrompido.",
+      "cancelSuccess": "Exportação cancelada.",
+      "cancelFailed": "Não foi possível cancelar.",
+      "thCreatedBy": "Criado por",
+      "filterMine": "Meus",
+      "filterAll": "Todos",
+      "filterOwnerAria": "Filtrar por criador",
       "viewPdf": "Ver",
       "viewError": "Ver erro",
       "processing": "A processar...",
@@ -897,6 +922,29 @@
         "markFalsePositive": "Marcar Falso Positivo"
       }
     },
+    "minhaConta": {
+      "title": "Minha Conta",
+      "subtitle": "Gere os teus dados pessoais",
+      "profileSection": "Perfil",
+      "firstName": "Nome",
+      "lastName": "Apelido",
+      "username": "Utilizador",
+      "email": "Email",
+      "passwordSection": "Mudar Password",
+      "currentPassword": "Password Atual",
+      "newPassword": "Nova Password",
+      "confirmPassword": "Confirmar Password",
+      "saveProfile": "Guardar Perfil",
+      "savePassword": "Atualizar Password",
+      "profileSaved": "Perfil atualizado.",
+      "passwordChanged": "Password alterada.",
+      "passwordsDontMatch": "As passwords não coincidem.",
+      "currentPasswordWrong": "Password atual incorreta."
+    },
+    "bordo": {
+      "accountButton": "Conta",
+      "accountModalTitle": "Minha Conta"
+    },
     "globalConfig": {
       "title": "Parâmetros",
       "subtitle": "Configuração global do sistema",
@@ -948,6 +996,10 @@
     "traffic": "Trânsito",
     "trafficOn": "Pontos de congestionamento",
     "trafficOff": "Desativar congestionamento",
+    "toggleStops": "Mostrar/Ocultar paragens",
+    "toggleRoutes": "Mostrar/Ocultar rotas",
+    "toggleBuses": "Mostrar/Ocultar autocarros",
+    "clusterTitle": "{{count}} autocarros",
     "tabs": {
       "buses": "Motoristas",
       "routes": "Rotas",
@@ -1025,6 +1077,9 @@
     },
     "exportReady": "Relatório {{format}} pronto",
     "exportFailed": "Exportação falhou",
+    "exportCanceled": "Exportação cancelada",
+    "exportRunning": "Exportação em curso",
+    "exportRunningSub": "A processar relatório {{format}}",
     "exportDownload": "Descarregar",
     "emergency": "Emergência: autocarro {{busId}}",
     "escalation": "Escalamento crítico",
@@ -1045,5 +1100,8 @@
   "theme": {
     "switchToDark": "Mudar para tema escuro",
     "switchToLight": "Mudar para tema claro"
+  },
+  "pages_minhaConta_extra": {
+    "_note": "ver pages.minhaConta nesta secao"
   }
 }

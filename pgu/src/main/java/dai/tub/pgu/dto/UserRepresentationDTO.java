@@ -24,6 +24,15 @@ public class UserRepresentationDTO
     private String mechanographicNumber;
     private String phoneNumber;
 
+    // Required actions Keycloak (ex.: ["UPDATE_PASSWORD"]) — usado no batch de motoristas
+    // para forçar mudança de password no primeiro login.
+    private List<String> requiredActions;
+
+    // Avatar (foto de perfil). avatarKey e' guardado como atributo Keycloak;
+    // avatarUrl e' gerado on-the-fly como presigned URL ao serializar o DTO.
+    private String avatarKey;
+    private String avatarUrl;
+
     public UserRepresentationDTO() {}
 
     public String getId() { return id; }
@@ -58,4 +67,13 @@ public class UserRepresentationDTO
 
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public List<String> getRequiredActions() { return requiredActions; }
+    public void setRequiredActions(List<String> requiredActions) { this.requiredActions = requiredActions; }
+
+    public String getAvatarKey() { return avatarKey; }
+    public void setAvatarKey(String avatarKey) { this.avatarKey = avatarKey; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

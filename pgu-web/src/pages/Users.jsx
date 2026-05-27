@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
+import Avatar from '../components/Avatar';
 import './Users.css';
 
 const EMPTY_FORM = {
@@ -473,9 +474,11 @@ export default function Users() {
                   <tr key={user.id} className={!user.enabled ? 'user-row--disabled' : ''}>
                     <td>
                       <div className="user-cell">
-                        <div className={`user-avatar ${getRoleCls(user.roles)}`} aria-hidden="true">
-                          {(user.username || '?')[0].toUpperCase()}
-                        </div>
+                        <Avatar
+                          url={user.avatarUrl}
+                          name={[user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username}
+                          size="md"
+                        />
                         <div className="user-cell-info">
                           <span className="user-cell-name">
                             {user.username}

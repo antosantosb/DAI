@@ -7,6 +7,15 @@
 .Toastify__toast-container {
   padding: 8px;
   width: 360px;
+  /* Sprint 0 (F8 follow-up): cliques fora dos toasts passam para o que esta
+     por baixo. Sem isto, o container ocupava 360px de hitbox e bloqueava
+     botoes (ex: "+ Nova Conta") mesmo quando o toast colapsado era 44x44. */
+  pointer-events: none;
+}
+
+/* Mas cada toast em si continua a receber cliques (hover/close/etc). */
+.Toastify__toast {
+  pointer-events: auto;
 }
 
 /* Base card */

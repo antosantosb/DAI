@@ -69,6 +69,11 @@ public class SecurityConfig
                 .requestMatchers("/api/v1/ocorrencias/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
                 .requestMatchers(HttpMethod.POST, "/api/v1/exports/**").authenticated()
+                // Self-service de conta — qualquer utilizador autenticado.
+                // TEM de vir antes de /api/v1/users/** (admin-only) porque
+                // /api/v1/me partilha o prefixo /api/v1.
+                .requestMatchers("/api/v1/me/**").authenticated()
+                .requestMatchers("/api/v1/me").authenticated()
                 // Gestão de utilizadores — apenas admin
                 .requestMatchers("/api/v1/users/**").hasRole("admin")
                 // Escrita em recursos de gestão — apenas admin

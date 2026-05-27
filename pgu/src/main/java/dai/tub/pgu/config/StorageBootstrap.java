@@ -39,9 +39,12 @@ public class StorageBootstrap {
     @Value("${pgu.storage.buckets.attachments}")
     private String attachmentsBucket;
 
+    @Value("${pgu.storage.buckets.avatars:avatars}")
+    private String avatarsBucket;
+
     @EventListener(ApplicationReadyEvent.class)
     public void ensureBuckets() {
-        List<String> buckets = List.of(exportsBucket, attachmentsBucket);
+        List<String> buckets = List.of(exportsBucket, attachmentsBucket, avatarsBucket);
         for (String bucket : buckets) {
             try {
                 boolean exists = minioClient.bucketExists(BucketExistsArgs.builder()

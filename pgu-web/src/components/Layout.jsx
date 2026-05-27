@@ -11,10 +11,12 @@ import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
-  IconSettings, IconDataSource, IconDriver,
+  IconSettings, IconDataSource, IconDriver, IconAccount,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
+import Avatar from './Avatar';
+import api from '../services/api';
 import { getOcorrencias } from '../services/ocorrenciasApi';
 import { routes, hasAccess } from '../routes';
 import './Layout.css';
@@ -35,10 +37,11 @@ const ICON_COMPONENTS = {
   IconSettings,
   IconDataSource,
   IconDriver,
+  IconAccount,
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
-const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.administration'];
+const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.administration', 'sections.personal'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.
@@ -90,6 +93,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [alarmsCount, setAlarmsCount] = useState(0);
+  const [meProfile, setMeProfile] = useState(null);
 
   useEffect(() => {
     const fetchAlarmsCount = async () => {
@@ -105,6 +109,24 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, []);
 
+  // Carrega /me 1x para popular o avatar/nome do utilizador no footer.
+  useEffect(() => {
+    let mounted = true;
+    api.get('/me')
+      .then(({ data }) => { if (mounted) setMeProfile(data); })
+      .catch(() => { /* silencioso — letter avatar funciona como fallback */ });
+    return () => { mounted = false; };
+  }, []);
+
+  // Sincronizar com upload/remocao de avatar feitos noutras paginas (MinhaConta etc.).
+  useEffect(() => {
+    const handler = (e) => {
+      setMeProfile((prev) => prev ? { ...prev, avatarUrl: e.detail?.avatarUrl ?? null } : prev);
+    };
+    window.addEventListener('pgu:avatar-updated', handler);
+    return () => window.removeEventListener('pgu:avatar-updated', handler);
+  }, []);
+
   // Recalcula nav sections quando authState muda (login/logout)
   const navSections = useMemo(
     () => buildNavSections({ authenticated: true, roles }),
@@ -113,7 +135,9 @@ export default function Layout() {
 
   const isAdmin = roles.includes('admin');
   const displayRole = isAdmin ? t('auth.roles.admin') : t('auth.roles.operador');
-  const avatarLetter = username ? username.charAt(0).toUpperCase() : '?';
+  const fullName = meProfile
+    ? [meProfile.firstName, meProfile.lastName].filter(Boolean).join(' ').trim()
+    : '';
 
   return (
     <div className="layout">
@@ -157,7 +181,12 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-user">
-            <div className="sidebar-avatar">{avatarLetter}</div>
+            <Avatar
+              url={meProfile?.avatarUrl}
+              name={fullName || username || '?'}
+              size="md"
+              className="sidebar-avatar"
+            />
             <div className="sidebar-footer-info">
               <span className="sidebar-footer-name">{username}</span>
               <span className="sidebar-footer-role">{displayRole}</span>

@@ -9,7 +9,7 @@ import java.util.UUID;
 public class ExportJob
 {
     public enum Format { CSV, PDF }
-    public enum Status { PENDING, PROCESSING, COMPLETED, FAILED }
+    public enum Status { PENDING, PROCESSING, COMPLETED, FAILED, CANCELED }
     public enum DataType { TELEMETRY, AUDIT_LOG }
 
     @Id
@@ -43,11 +43,20 @@ public class ExportJob
     @Column(name = "to_ts")
     private Instant toTs;
 
+    /** Legacy: caminho local em disco. Null para jobs criados apos F9 (MinIO). */
     @Column(name = "file_path")
     private String filePath;
 
+    /** F9: object key no bucket MinIO {@code exports} (ex: "abc-...-uuid.csv"). */
+    @Column(name = "object_key")
+    private String objectKey;
+
     @Column(name = "file_name")
     private String fileName;
+
+    /** F9: tamanho do ficheiro em bytes (depois do upload concluido). */
+    @Column(name = "file_size")
+    private Long fileSize;
 
     @Column(name = "row_count")
     private Long rowCount;
@@ -86,7 +95,9 @@ public class ExportJob
     public Instant getFromTs()       { return fromTs; }
     public Instant getToTs()         { return toTs; }
     public String  getFilePath()     { return filePath; }
+    public String  getObjectKey()    { return objectKey; }
     public String  getFileName()     { return fileName; }
+    public Long    getFileSize()     { return fileSize; }
     public Long    getRowCount()     { return rowCount; }
     public String  getErrorMessage() { return errorMessage; }
     public Instant getCreatedAt()    { return createdAt; }
@@ -104,7 +115,9 @@ public class ExportJob
     public void setFromTs(Instant fromTs)            { this.fromTs = fromTs; }
     public void setToTs(Instant toTs)                { this.toTs = toTs; }
     public void setFilePath(String filePath)         { this.filePath = filePath; }
+    public void setObjectKey(String objectKey)       { this.objectKey = objectKey; }
     public void setFileName(String fileName)         { this.fileName = fileName; }
+    public void setFileSize(Long fileSize)           { this.fileSize = fileSize; }
     public void setRowCount(Long rowCount)           { this.rowCount = rowCount; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public void setCreatedAt(Instant createdAt)      { this.createdAt = createdAt; }

@@ -80,12 +80,14 @@
     "dataSources": "Sources",
     "gtfs": "GTFS",
     "audit": "Logs",
-    "settings": "Settings"
+    "settings": "Settings",
+    "account": "My Account"
   },
   "sections": {
     "main": "Main",
     "operations": "Operations",
-    "administration": "Administration"
+    "administration": "Administration",
+    "personal": "Personal"
   },
   "landing": {
     "title": "TUB",
@@ -310,7 +312,7 @@
     "drivers": {
       "title": "Drivers",
       "subtitle": "{{count}} drivers registered",
-      "subtitleAlt": "Operational management — assign buses and view status",
+      "subtitleAlt": "Operational management: assign buses and view status.",
       "newButton": "+ New Driver",
       "createInUsers": "+ Create Driver (in Users)",
       "searchPlaceholder": "Search...",
@@ -349,6 +351,17 @@
       "errorTitle": "Error",
       "assignFailed": "Assignment failed",
       "unassignFailed": "Unassignment failed",
+      "batchGenerate": "Generate Drivers in Batch",
+      "batchTitle": "Generate Drivers in Batch",
+      "batchDescription": "Creates N drivers with random data. Each must change the password on first login.",
+      "batchQuantity": "Quantity (1-50)",
+      "batchCreating": "Creating...",
+      "batchCreateLabel": "Create {{count}} Drivers",
+      "batchSuccess": "{{count}} drivers created successfully.",
+      "batchInvalidTitle": "Invalid value",
+      "batchInvalidMessage": "Quantity must be between 1 and 50.",
+      "assignSearch": "Search bus...",
+      "assignNoResults": "No bus matches the search",
       "headers": {
         "name": "Name",
         "mechNumber": "Mech. Number",
@@ -789,9 +802,21 @@
       "tableFile": "File",
       "tableActions": "Actions",
       "statusCompleted": "Completed",
-      "statusPending": "Pending",
+      "statusPending": "Queued",
       "statusProcessing": "Processing",
       "statusFailed": "Failed",
+      "statusCanceled": "Canceled",
+      "statQueued": "Queued",
+      "statCanceled": "Canceled",
+      "cancel": "Cancel",
+      "cancelConfirmTitle": "Cancel export?",
+      "cancelConfirmMessage": "The running job will be interrupted.",
+      "cancelSuccess": "Export canceled.",
+      "cancelFailed": "Could not cancel.",
+      "thCreatedBy": "Created by",
+      "filterMine": "Mine",
+      "filterAll": "All",
+      "filterOwnerAria": "Filter by creator",
       "viewPdf": "View",
       "viewError": "View error",
       "processing": "Processing...",
@@ -897,6 +922,29 @@
         "markFalsePositive": "Mark False Positive"
       }
     },
+    "minhaConta": {
+      "title": "My Account",
+      "subtitle": "Manage your personal info",
+      "profileSection": "Profile",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "username": "Username",
+      "email": "Email",
+      "passwordSection": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "saveProfile": "Save Profile",
+      "savePassword": "Update Password",
+      "profileSaved": "Profile updated.",
+      "passwordChanged": "Password changed.",
+      "passwordsDontMatch": "Passwords do not match.",
+      "currentPasswordWrong": "Current password incorrect."
+    },
+    "bordo": {
+      "accountButton": "Account",
+      "accountModalTitle": "My Account"
+    },
     "globalConfig": {
       "title": "Settings",
       "subtitle": "Global system configuration",
@@ -948,6 +996,10 @@
     "traffic": "Traffic",
     "trafficOn": "Congestion points",
     "trafficOff": "Disable congestion",
+    "toggleStops": "Toggle stops",
+    "toggleRoutes": "Toggle routes",
+    "toggleBuses": "Toggle buses",
+    "clusterTitle": "{{count}} buses",
     "tabs": {
       "buses": "Drivers",
       "routes": "Routes",
@@ -1025,6 +1077,9 @@
     },
     "exportReady": "{{format}} report ready",
     "exportFailed": "Export failed",
+    "exportCanceled": "Export canceled",
+    "exportRunning": "Export running",
+    "exportRunningSub": "Processing {{format}} report",
     "exportDownload": "Download",
     "emergency": "Emergency: bus {{busId}}",
     "escalation": "Critical escalation",

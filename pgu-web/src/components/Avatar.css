@@ -1,0 +1,42 @@
+/* Avatar reutilizavel — usado em sidebar, tabelas (Users/Drivers), cards de
+   autocarros e header do Painel de Bordo. Mantem proporcao circular, evita
+   distorcao de imagens e tem sombra subtil para destacar contra o fundo. */
+
+.pgu-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  user-select: none;
+  /* sombra muito subtil — fica bonita em fundos claros e escuros */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: var(--color-primary, #6366f1);
+  vertical-align: middle;
+}
+
+.pgu-avatar--img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.pgu-avatar--letter {
+  /* gradient e' aplicado inline */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+}
+
+/* Tamanhos pre-definidos — uteis quando se quer um avatar com tamanho
+   semanticamente nomeado (consistencia entre views). */
+.pgu-avatar--sm { width: 24px; height: 24px; font-size: 11px; }
+.pgu-avatar--md { width: 36px; height: 36px; font-size: 14px; }
+.pgu-avatar--lg { width: 56px; height: 56px; font-size: 22px; }
+.pgu-avatar--xl { width: 96px; height: 96px; font-size: 36px; }

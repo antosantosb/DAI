@@ -12,6 +12,7 @@ public class DriverDetailDTO {
     private Long currentBusId;
     private String currentBusCode;     // ex: "TUB-001" — mais legível que o id
     private String currentBusStatus;   // ACTIVE / STOPPED — para a UI saber se pode desatribuir
+    private String avatarUrl;          // presigned URL do avatar (gerada on-the-fly)
 
     public static DriverDetailDTO fromDriver(Driver driver, DriverBusAssignment currentAssignment) {
         return fromDriver(driver, currentAssignment, null);
@@ -53,4 +54,7 @@ public class DriverDetailDTO {
 
     public String getCurrentBusStatus() { return currentBusStatus; }
     public void setCurrentBusStatus(String currentBusStatus) { this.currentBusStatus = currentBusStatus; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

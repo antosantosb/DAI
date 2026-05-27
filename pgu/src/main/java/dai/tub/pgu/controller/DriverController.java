@@ -19,16 +19,44 @@ import dai.tub.pgu.domain.DriverBusAssignment;
 import dai.tub.pgu.dto.DriverAssignmentDTO;
 import dai.tub.pgu.dto.DriverDetailDTO;
 import dai.tub.pgu.dto.UnassignRequestDTO;
+import dai.tub.pgu.dto.UserRepresentationDTO;
+import dai.tub.pgu.service.AvatarService;
 import dai.tub.pgu.service.DriverService;
+import dai.tub.pgu.service.KeycloakAdminService;
 
 @RestController
 @RequestMapping("/api/v1/drivers")
 public class DriverController {
 
     private final DriverService driverService;
+    private final AvatarService avatarService;
+    private final KeycloakAdminService keycloakAdminService;
 
-    public DriverController(DriverService driverService) {
+    public DriverController(DriverService driverService,
+                            AvatarService avatarService,
+                            KeycloakAdminService keycloakAdminService) {
         this.driverService = driverService;
+        this.avatarService = avatarService;
+        this.keycloakAdminService = keycloakAdminService;
+    }
+
+    /**
+     * Enriquece com presigned URL do avatar. Nota: no domain Driver o campo
+     * {@code keycloakUserId} guarda na verdade o {@code username} (ver
+     * UserAdminController.createUser), por isso precisamos de fazer lookup
+     * por username para obter o UUID Keycloak e depois o atributo avatarKey.
+     */
+    private DriverDetailDTO enrichAvatar(DriverDetailDTO dto) {
+        if (dto == null || dto.getKeycloakUserId() == null) return dto;
+        try {
+            UserRepresentationDTO kc = keycloakAdminService.findUserByUsername(dto.getKeycloakUserId());
+            if (kc != null) {
+                dto.setAvatarUrl(avatarService.urlForKey(kc.getAvatarKey()));
+            }
+        } catch (Exception ignored) {
+            // best-effort; avatar nao e' critico
+        }
+        return dto;
     }
 
     /**
@@ -43,7 +71,9 @@ public class DriverController {
 
     @GetMapping
     public ResponseEntity<List<DriverDetailDTO>> getAllDrivers() {
-        return ResponseEntity.ok(driverService.getAllDriversDetailed());
+        List<DriverDetailDTO> drivers = driverService.getAllDriversDetailed();
+        drivers.forEach(this::enrichAvatar);
+        return ResponseEntity.ok(drivers);
     }
 
     /**
@@ -69,7 +99,8 @@ public class DriverController {
     public ResponseEntity<DriverDetailDTO> getDriverById(@PathVariable Long id) {
         Driver driver = driverService.getDriverById(id);
         DriverBusAssignment currentAssignment = driverService.getCurrentAssignment(id);
-        return ResponseEntity.ok(DriverDetailDTO.fromDriver(driver, currentAssignment));
+        DriverDetailDTO dto = DriverDetailDTO.fromDriver(driver, currentAssignment);
+        return ResponseEntity.ok(enrichAvatar(dto));
     }
 
     @PostMapping("/unassign")

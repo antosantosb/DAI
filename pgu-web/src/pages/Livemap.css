@@ -73,6 +73,31 @@
   color: #fff;
 }
 
+/* ─── Marker cluster (override leaflet.markercluster default) ─── */
+.marker-cluster-pgu {
+  background: transparent;
+  border: none;
+}
+.marker-cluster-pgu div {
+  background: var(--color-primary);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  margin-left: 2px;
+  margin-top: 2px;
+  border-radius: 50%;
+  font: 600 13px/36px var(--font-sans, system-ui, -apple-system, sans-serif);
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), 0 0 0 4px rgba(99, 102, 241, 0.18);
+  transition: transform 0.15s ease;
+}
+.marker-cluster-pgu:hover div {
+  transform: scale(1.08);
+}
+.marker-cluster-pgu span {
+  line-height: 36px;
+}
+
 /* Congestion pulse animation */
 .congestion-pulse {
   animation: congestionPulse 2s ease-in-out infinite;

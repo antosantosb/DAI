@@ -28,6 +28,13 @@ export default function AccountTab() {
           </svg>
           {t('livemap.homePage')}
         </button>
+        <button className="livemap-btn-home" onClick={() => navigate('/backoffice/conta')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+          </svg>
+          {t('pages.minhaConta.title')}
+        </button>
         <button className="livemap-btn-logout" onClick={logout}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
           {t('livemap.logout')}

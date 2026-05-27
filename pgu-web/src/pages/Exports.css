@@ -6,7 +6,9 @@
 /* ─── Stats Cards ─── */
 .export-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* F9: agora são 6 cards (Total/Concluídos/Em fila/Em curso/Falhados/Cancelados).
+     Usar auto-fit para colapsar em ecrãs estreitos. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -45,8 +47,10 @@
 
 .export-stat-card--total::after { background: var(--color-primary); }
 .export-stat-card--completed::after { background: var(--color-success); }
+.export-stat-card--queued::after { background: var(--color-text-secondary); }
 .export-stat-card--pending::after { background: var(--color-warning); }
 .export-stat-card--failed::after { background: var(--color-danger); }
+.export-stat-card--canceled::after { background: var(--color-text-muted, #94a3b8); }
 
 .export-stat-icon {
   width: 40px;
@@ -73,6 +77,14 @@
 .export-stat-icon--failed {
   background: rgba(239, 68, 68, 0.1);
   color: var(--color-danger);
+}
+.export-stat-icon--queued {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--color-text-secondary);
+}
+.export-stat-icon--canceled {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--color-text-muted, #94a3b8);
 }
 
 .export-stat-content {
@@ -384,6 +396,13 @@
 .export-status--failed { color: var(--color-danger-hover); }
 .export-status--failed .export-status-dot {
   background: var(--color-danger);
+}
+
+/* F9: estado CANCELED — visual neutro/atenuado para distinguir de FAILED. */
+.export-status--canceled { color: var(--color-text-secondary); }
+.export-status--canceled .export-status-dot {
+  background: var(--color-text-light);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
 }
 
 @keyframes export-pulse {
@@ -968,4 +987,83 @@
   .export-log-error {
     max-width: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   F9 — Filtro Meus/Todos (admin), botão Cancelar, coluna "Criado por"
+   ═══════════════════════════════════════════════════════ */
+
+/* Filtro segmentado (toggle estilo pill) — admin only. */
+.export-owner-filter {
+  display: inline-flex;
+  gap: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 3px;
+  overflow: hidden;
+}
+
+.export-owner-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: calc(var(--radius) - 4px);
+  cursor: pointer;
+  transition: all var(--transition);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.export-owner-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg-hover, rgba(99, 102, 241, 0.06));
+}
+
+.export-owner-btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.export-owner-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Botão "Cancelar" — variante ghost com tom de perigo, mais leve que .btn-danger
+   porque é uma acção reversível-ish e ainda não-destrutiva do ficheiro final. */
+.btn-ghost-danger {
+  background: transparent;
+  border: 1px solid var(--color-danger, #ef4444);
+  color: var(--color-danger, #ef4444);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-ghost-danger:hover {
+  background: var(--color-danger, #ef4444);
+  color: #fff;
+}
+
+.btn-ghost-danger:focus-visible {
+  outline: 2px solid var(--color-danger, #ef4444);
+  outline-offset: 2px;
+}
+
+/* Coluna "Criado por" — pequena, alinhada com restantes meta-colunas. */
+.export-created-by {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

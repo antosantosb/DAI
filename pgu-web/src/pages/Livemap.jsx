@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { createStompClient } from '../services/stompClient';
 import api from '../services/api';
 import {
@@ -23,8 +26,11 @@ export default function Livemap() {
   const tileLayerRef = useRef(null);
   const stopLayerGroup = useRef(null);
   const routeLayerGroup = useRef(null);
+  const busClusterGroup = useRef(null);
   const busMarkersRef = useRef({});
   const busStatusRef = useRef({});
+  const trailsRef = useRef({});
+  const trailLayerRef = useRef(null);
   const followingBusRef = useRef(null);
   const hasInitialFit = useRef(false);
   const prevSelectedRouteRef = useRef(null);
@@ -47,6 +53,7 @@ export default function Livemap() {
   const [routeSort, setRouteSort] = useState('name');
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showCongestion, setShowCongestion] = useState(false);
+  const [visibleLayers, setVisibleLayers] = useState({ stops: true, routes: true, buses: true });
   const heatLayerRef = useRef(null);
   const congestionLayerRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -69,6 +76,26 @@ export default function Livemap() {
 
     stopLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
     routeLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
+
+    // ─── Cluster group para autocarros ───
+    busClusterGroup.current = L.markerClusterGroup({
+      disableClusteringAtZoom: 16,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      // Sprint 0 (F8 follow-up): desliga animacoes do cluster — o re-cluster
+      // em cada telemetria (~1s) causava o popup do bus a piscar.
+      animate: false,
+      animateAddingMarkers: false,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div><span>${count}</span></div>`,
+          className: 'marker-cluster marker-cluster-pgu',
+          iconSize: L.point(40, 40),
+        });
+      },
+    }).addTo(mapInstance.current);
 
     mapInstance.current.on('dragstart', () => { followingBusRef.current = null; });
 
@@ -121,18 +148,22 @@ export default function Livemap() {
     return () => ctrl.abort();
   }, []);
 
-  // ─── Update / create bus marker on map ───
+  // ─── Update / create bus marker on map (via cluster group) ───
   const updateBusMarker = useCallback((telemetry) => {
     const map = mapInstance.current;
-    if (!map || !telemetry.latitude || !telemetry.longitude) return;
+    const cluster = busClusterGroup.current;
+    if (!map || !cluster || !telemetry.latitude || !telemetry.longitude) return;
 
     const backend = backendBusesRef.current[telemetry.busId];
     // Autocarros parados ou sem registo no backend não aparecem no mapa
     if (backend?.status === 'STOPPED' || (Object.keys(backendBusesRef.current).length > 0 && !backend)) {
       const existing = busMarkersRef.current[telemetry.busId];
       if (existing) {
-        mapInstance.current.removeLayer(existing);
+        // Remover do cluster antes de apagar a referência
+        cluster.removeLayer(existing);
+        if (map.hasLayer(existing)) map.removeLayer(existing);
         delete busMarkersRef.current[telemetry.busId];
+        delete trailsRef.current[telemetry.busId];
       }
       return;
     }
@@ -156,7 +187,16 @@ export default function Livemap() {
         existing.setIcon(createBusIcon(displayStatus));
         busStatusRef.current[telemetry.busId] = displayStatus;
       }
-      existing.setPopupContent(popup);
+      // Sprint 0 (F8 follow-up): setPopupContent so' quando o popup esta aberto.
+      // Caso contrario, guardamos o popup novo na opcao do marker para ser
+      // renderizado da proxima vez que o user clicar. Sem este guard, cada
+      // tick de telemetria recriava o popup e causava flicker visivel.
+      if (existing.isPopupOpen && existing.isPopupOpen()) {
+        existing.setPopupContent(popup);
+      } else {
+        existing.unbindPopup();
+        existing.bindPopup(popup, { autoClose: false, autoPan: false, closeOnClick: false });
+      }
     } else {
       const marker = L.marker(newLatLng, {
         icon: createBusIcon(displayStatus),
@@ -170,14 +210,24 @@ export default function Livemap() {
         ? focusedBus === telemetry.busId
         : !filteredRoute || busRoute === filteredRoute;
       if (shouldShow) {
-        marker.addTo(map);
+        cluster.addLayer(marker);
       }
-      marker.bindPopup(popup);
+      // Sprint 0 (F8 follow-up): popup nao fecha sozinho ao haver updates de
+      // outros markers; nao faz autoPan para evitar refluxo a cada tick.
+      marker.bindPopup(popup, { autoClose: false, autoPan: false, closeOnClick: false });
       busMarkersRef.current[telemetry.busId] = marker;
       busStatusRef.current[telemetry.busId] = displayStatus;
     }
 
+    // ─── Trail (rasto) do autocarro selecionado ───
     if (followingBusRef.current === telemetry.busId) {
+      const trail = trailsRef.current[telemetry.busId] || [];
+      trail.push([telemetry.latitude, telemetry.longitude]);
+      if (trail.length > 20) trail.shift();
+      trailsRef.current[telemetry.busId] = trail;
+      if (trailLayerRef.current && map.hasLayer(trailLayerRef.current)) {
+        trailLayerRef.current.setLatLngs(trail);
+      }
       map.setView(newLatLng, map.getZoom(), { animate: true, duration: 0.8 });
     }
   }, []);
@@ -200,14 +250,17 @@ export default function Livemap() {
   // ─── Remove markers of STOPPED or deleted buses whenever backend state updates ───
   useEffect(() => {
     const map = mapInstance.current;
+    const cluster = busClusterGroup.current;
     if (!map || !Object.keys(backendBuses).length) return;
     Object.entries(busMarkersRef.current).forEach(([busId, marker]) => {
       const backend = backendBuses[busId];
       // Remove se: parado, ou não existe no backend (descomissionado/eliminado)
       if (!backend || backend.status === 'STOPPED') {
+        if (cluster) cluster.removeLayer(marker);
         if (map.hasLayer(marker)) map.removeLayer(marker);
         delete busMarkersRef.current[busId];
         delete busStatusRef.current[busId];
+        delete trailsRef.current[busId];
       }
     });
     setBuses(prev => {
@@ -261,10 +314,13 @@ export default function Livemap() {
     return () => {
       stompClientRef.current = null;
       client.deactivate();
+      const cluster = busClusterGroup.current;
       Object.values(busMarkersRef.current).forEach(m => {
-        if (mapInstance.current) mapInstance.current.removeLayer(m);
+        if (cluster) cluster.removeLayer(m);
+        if (mapInstance.current && mapInstance.current.hasLayer(m)) mapInstance.current.removeLayer(m);
       });
       busMarkersRef.current = {};
+      trailsRef.current = {};
     };
   }, [updateBusMarker]);
 
@@ -274,20 +330,20 @@ export default function Livemap() {
     if (!map) return;
 
     if (!showHeatmap) {
-      // Restaurar camadas normais
+      // Restaurar camadas normais (respeitando toggles)
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current);
         heatLayerRef.current = null;
       }
-      if (stopLayerGroup.current && !map.hasLayer(stopLayerGroup.current)) {
+      if (stopLayerGroup.current && visibleLayers.stops && !map.hasLayer(stopLayerGroup.current)) {
         map.addLayer(stopLayerGroup.current);
       }
-      if (routeLayerGroup.current && !map.hasLayer(routeLayerGroup.current)) {
+      if (routeLayerGroup.current && visibleLayers.routes && !map.hasLayer(routeLayerGroup.current)) {
         map.addLayer(routeLayerGroup.current);
       }
-      Object.values(busMarkersRef.current).forEach(m => {
-        if (!map.hasLayer(m)) map.addLayer(m);
-      });
+      if (busClusterGroup.current && visibleLayers.buses && !map.hasLayer(busClusterGroup.current)) {
+        map.addLayer(busClusterGroup.current);
+      }
       return;
     }
 
@@ -298,9 +354,9 @@ export default function Livemap() {
     if (routeLayerGroup.current && map.hasLayer(routeLayerGroup.current)) {
       map.removeLayer(routeLayerGroup.current);
     }
-    Object.values(busMarkersRef.current).forEach(m => {
-      if (map.hasLayer(m)) map.removeLayer(m);
-    });
+    if (busClusterGroup.current && map.hasLayer(busClusterGroup.current)) {
+      map.removeLayer(busClusterGroup.current);
+    }
 
     const abort = new AbortController();
     const fetchHeatmap = async () => {
@@ -347,7 +403,7 @@ export default function Livemap() {
         heatLayerRef.current = null;
       }
     };
-  }, [showHeatmap]);
+  }, [showHeatmap, visibleLayers]);
 
   // ─── Congestion layer toggle ───
   useEffect(() => {
@@ -415,6 +471,34 @@ export default function Livemap() {
       }
     };
   }, [showCongestion]);
+
+  // ─── Toggle visibility de stops / routes / buses (cluster) ───
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || showHeatmap) return; // o heatmap controla a visibilidade quando está activo
+
+    if (stopLayerGroup.current) {
+      if (visibleLayers.stops) {
+        if (!map.hasLayer(stopLayerGroup.current)) map.addLayer(stopLayerGroup.current);
+      } else if (map.hasLayer(stopLayerGroup.current)) {
+        map.removeLayer(stopLayerGroup.current);
+      }
+    }
+    if (routeLayerGroup.current) {
+      if (visibleLayers.routes) {
+        if (!map.hasLayer(routeLayerGroup.current)) map.addLayer(routeLayerGroup.current);
+      } else if (map.hasLayer(routeLayerGroup.current)) {
+        map.removeLayer(routeLayerGroup.current);
+      }
+    }
+    if (busClusterGroup.current) {
+      if (visibleLayers.buses) {
+        if (!map.hasLayer(busClusterGroup.current)) map.addLayer(busClusterGroup.current);
+      } else if (map.hasLayer(busClusterGroup.current)) {
+        map.removeLayer(busClusterGroup.current);
+      }
+    }
+  }, [visibleLayers, showHeatmap]);
 
   // ─── Pre-compute map data ───
   const stopMap = useMemo(() => {
@@ -528,19 +612,18 @@ export default function Livemap() {
     selectedRouteRef.current = newRoute;
     setSelectedRoute(newRoute);
 
-    // Mostrar/esconder markers conforme a rota selecionada
-    if (map) {
+    // Mostrar/esconder markers conforme a rota selecionada (via cluster)
+    const cluster = busClusterGroup.current;
+    if (map && cluster) {
       Object.entries(busMarkersRef.current).forEach(([busId, m]) => {
         if (!newRoute) {
-          // Sem filtro — mostrar todos
-          if (!map.hasLayer(m)) map.addLayer(m);
+          if (!cluster.hasLayer(m)) cluster.addLayer(m);
         } else {
-          // Só mostrar autocarros desta rota
           const busRoute = backendBusesRef.current[busId]?.routeId;
           if (busRoute === newRoute) {
-            if (!map.hasLayer(m)) map.addLayer(m);
+            if (!cluster.hasLayer(m)) cluster.addLayer(m);
           } else {
-            if (map.hasLayer(m)) map.removeLayer(m);
+            if (cluster.hasLayer(m)) cluster.removeLayer(m);
           }
         }
       });
@@ -549,6 +632,7 @@ export default function Livemap() {
 
   const handleBusClick = useCallback((bus) => {
     const map = mapInstance.current;
+    const cluster = busClusterGroup.current;
     const isSelected = selectedBus === bus.busId;
     if (isSelected) {
       // Deselecionar — restaurar visibilidade conforme a rota anterior
@@ -558,16 +642,22 @@ export default function Livemap() {
       selectedRouteRef.current = prevRoute;
       followingBusRef.current = null;
       prevRouteBeforeBusRef.current = null;
-      if (map) {
+      // Limpar trail do bus desselecionado
+      if (trailLayerRef.current && map) {
+        if (map.hasLayer(trailLayerRef.current)) map.removeLayer(trailLayerRef.current);
+        trailLayerRef.current = null;
+      }
+      trailsRef.current[bus.busId] = [];
+      if (map && cluster) {
         Object.entries(busMarkersRef.current).forEach(([busId, m]) => {
           if (!prevRoute) {
-            if (!map.hasLayer(m)) map.addLayer(m);
+            if (!cluster.hasLayer(m)) cluster.addLayer(m);
           } else {
             const busRoute = backendBusesRef.current[busId]?.routeId;
             if (busRoute === prevRoute) {
-              if (!map.hasLayer(m)) map.addLayer(m);
+              if (!cluster.hasLayer(m)) cluster.addLayer(m);
             } else {
-              if (map.hasLayer(m)) map.removeLayer(m);
+              if (cluster.hasLayer(m)) cluster.removeLayer(m);
             }
           }
         });
@@ -575,6 +665,11 @@ export default function Livemap() {
     } else {
       if (!selectedBus) {
         prevRouteBeforeBusRef.current = selectedRoute;
+      }
+      // Limpar trail anterior (se mudou de bus seleccionado)
+      if (trailLayerRef.current && map) {
+        if (map.hasLayer(trailLayerRef.current)) map.removeLayer(trailLayerRef.current);
+        trailLayerRef.current = null;
       }
       setSelectedBus(bus.busId);
       followingBusRef.current = bus.busId;
@@ -586,21 +681,32 @@ export default function Livemap() {
         setSelectedRoute(null);
         selectedRouteRef.current = null;
       }
-      // Esconder todos os markers excepto o selecionado, e garantir que o selecionado está visível
-      if (map) {
+      // Esconder todos os markers excepto o selecionado (via cluster)
+      if (map && cluster) {
         Object.entries(busMarkersRef.current).forEach(([id, m]) => {
           if (id === bus.busId) {
-            if (!map.hasLayer(m)) map.addLayer(m);
+            if (!cluster.hasLayer(m)) cluster.addLayer(m);
           } else {
-            if (map.hasLayer(m)) map.removeLayer(m);
+            if (cluster.hasLayer(m)) cluster.removeLayer(m);
           }
         });
       }
-      // Zoom máximo e centrar no autocarro (defer para correr após os efeitos do React)
+      // Inicializar trail com a posição actual e criar polyline
       if (map && bus.latitude && bus.longitude) {
         const lat = bus.latitude, lng = bus.longitude, busId = bus.busId;
+        const initialTrail = [[lat, lng]];
+        trailsRef.current[busId] = initialTrail;
+        const primaryColor =
+          getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#6366f1';
+        trailLayerRef.current = L.polyline(initialTrail, {
+          color: primaryColor,
+          weight: 4,
+          opacity: 0.7,
+          smoothFactor: 1,
+        }).addTo(map);
+        // Smooth flyTo em vez de panTo/setView brusco
         setTimeout(() => {
-          map.setView([lat, lng], 19, { animate: true });
+          map.flyTo([lat, lng], 16, { duration: 1.2, easeLinearity: 0.25 });
           busMarkersRef.current[busId]?.openPopup();
         }, 0);
       }
@@ -650,6 +756,37 @@ export default function Livemap() {
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             {t('livemap.traffic')}
+          </button>
+          <button
+            className={`livemap-overlay-btn${visibleLayers.stops ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setVisibleLayers(v => ({ ...v, stops: !v.stops }))}
+            title={t('livemap.toggleStops')}
+            aria-pressed={visibleLayers.stops}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
+            </svg>
+            {t('livemap.stops')}
+          </button>
+          <button
+            className={`livemap-overlay-btn${visibleLayers.routes ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setVisibleLayers(v => ({ ...v, routes: !v.routes }))}
+            title={t('livemap.toggleRoutes')}
+            aria-pressed={visibleLayers.routes}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 18 L9 13 L14 16 L20 6" /><circle cx="4" cy="18" r="1.5" fill="currentColor"/><circle cx="20" cy="6" r="1.5" fill="currentColor"/>
+            </svg>
+            {t('livemap.route')}
+          </button>
+          <button
+            className={`livemap-overlay-btn${visibleLayers.buses ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setVisibleLayers(v => ({ ...v, buses: !v.buses }))}
+            title={t('livemap.toggleBuses')}
+            aria-pressed={visibleLayers.buses}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z"/></svg>
+            {t('livemap.tabs.buses')}
           </button>
         </div>
         <div className="livemap-lang">
