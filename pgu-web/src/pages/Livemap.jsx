@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -11,9 +12,11 @@ import {
 import BusesTab from '../components/livemap/BusesTab';
 import RoutesTab from '../components/livemap/RoutesTab';
 import AccountTab from '../components/livemap/AccountTab';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Livemap.css';
 
 export default function Livemap() {
+  const { t } = useTranslation();
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const stopLayerGroup = useRef(null);
@@ -628,47 +631,50 @@ export default function Livemap() {
           <button
             className={`livemap-overlay-btn${showHeatmap ? ' livemap-overlay-btn--active' : ''}`}
             onClick={() => { setShowHeatmap(h => !h); if (!showHeatmap) setShowCongestion(false); }}
-            title={showHeatmap ? 'Desativar heatmap' : 'Heatmap de passageiros'}
+            title={showHeatmap ? t('livemap.heatmapOff') : t('livemap.heatmapOn')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2c-4 4-8 7.5-8 12a8 8 0 0 0 16 0c0-4.5-4-8-8-12z" />
             </svg>
-            Heatmap
+            {t('livemap.heatmap')}
           </button>
           <button
             className={`livemap-overlay-btn livemap-overlay-btn--danger${showCongestion ? ' livemap-overlay-btn--active' : ''}`}
             onClick={() => setShowCongestion(c => !c)}
-            title={showCongestion ? 'Desativar congestionamento' : 'Pontos de congestionamento'}
+            title={showCongestion ? t('livemap.trafficOff') : t('livemap.trafficOn')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            Trânsito
+            {t('livemap.traffic')}
           </button>
+        </div>
+        <div className="livemap-lang">
+          <LanguageSwitcher />
         </div>
       </div>
 
       <div className="livemap-sidebar">
         <div className="livemap-header">
-          <h3>TUB Livemap</h3>
+          <h3>{t('livemap.title')}</h3>
           <span className={`livemap-ws-badge ${wsConnected ? 'connected' : ''}`}>
             <span className="livemap-ws-dot" />
-            {wsConnected ? 'Live' : 'Offline'}
+            {wsConnected ? t('livemap.live') : t('livemap.offline')}
           </span>
         </div>
 
         <div className="livemap-tabs">
           <button className={`livemap-tab ${activeTab === 'buses' ? 'active' : ''}`} onClick={() => setActiveTab('buses')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z"/></svg>
-            Motoristas
+            {t('livemap.tabs.buses')}
           </button>
           <button className={`livemap-tab ${activeTab === 'routes' ? 'active' : ''}`} onClick={() => setActiveTab('routes')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-4h4v-2h-4V7h-2v4H7v2h4v4zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-            Rotas
+            {t('livemap.tabs.routes')}
           </button>
           <button className={`livemap-tab ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            Conta
+            {t('livemap.tabs.account')}
           </button>
         </div>
 

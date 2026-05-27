@@ -47,9 +47,9 @@ public class SecurityConfig
                 // Swagger / SpringDoc
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Despacho Operacional — Mensagens CM
-                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("operator", "admin")
-                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operator", "admin")
-                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operator", "admin", "motorista")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("operador", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operador", "admin")
+                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operador", "admin", "motorista")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/ack").permitAll() // protegido pelo filtro de API key
                 // Sprint 0 (F4): DataSources — pulse e' machine-to-machine (API key),
                 // CRUD e' admin-only.
@@ -63,9 +63,9 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/assumir").hasAnyRole("maintenance", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/fechar").hasAnyRole("maintenance", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/acao-corretiva").hasAnyRole("maintenance", "admin")
-                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("maintenance", "operator", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("maintenance", "operador", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/anexos").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias").hasAnyRole("maintenance", "operator", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias").hasAnyRole("maintenance", "operador", "admin")
                 .requestMatchers("/api/v1/ocorrencias/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
                 .requestMatchers(HttpMethod.POST, "/api/v1/exports/**").authenticated()

@@ -2,6 +2,7 @@
 // Layout: tabela tradicional bem feita (estilo Stripe Dashboard).
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -13,12 +14,6 @@ import Modal from '../components/Modal';
 import './DataSources.css';
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9'];
-const RANGES = [
-  { key: '1h',  label: 'Última hora' },
-  { key: '6h',  label: '6 horas' },
-  { key: '24h', label: '24 horas' },
-  { key: '7d',  label: '7 dias' },
-];
 
 function formatBucketTs(iso, range) {
   if (!iso) return '';
@@ -28,12 +23,12 @@ function formatBucketTs(iso, range) {
   return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 }
 
-const STATUS_META = {
-  HEALTHY:  { label: 'Saudável',  tone: 'success' },
-  DEGRADED: { label: 'Degradada', tone: 'warning' },
-  DOWN:     { label: 'Em baixo',  tone: 'danger'  },
-  UNKNOWN:  { label: 'Sem dados', tone: 'neutral' },
-  DISABLED: { label: 'Desativada', tone: 'muted'  },
+const STATUS_TONES = {
+  HEALTHY:  'success',
+  DEGRADED: 'warning',
+  DOWN:     'danger',
+  UNKNOWN:  'neutral',
+  DISABLED: 'muted',
 };
 
 const STATUS_FILTER_ORDER = ['ALL', 'HEALTHY', 'DEGRADED', 'DOWN', 'UNKNOWN'];
@@ -63,6 +58,20 @@ function uptimeTone(pct) {
 }
 
 export default function DataSources() {
+  const { t } = useTranslation();
+  const RANGES = [
+    { key: '1h',  label: t('pages.dataSources.rangeLastHour') },
+    { key: '6h',  label: t('pages.dataSources.range6h') },
+    { key: '24h', label: t('pages.dataSources.range24h') },
+    { key: '7d',  label: t('pages.dataSources.range7d') },
+  ];
+  const STATUS_META = {
+    HEALTHY:  { label: t('pages.dataSources.states.healthy'),  tone: 'success' },
+    DEGRADED: { label: t('pages.dataSources.states.degraded'), tone: 'warning' },
+    DOWN:     { label: t('pages.dataSources.states.down'),     tone: 'danger'  },
+    UNKNOWN:  { label: t('pages.dataSources.states.unknown'),  tone: 'neutral' },
+    DISABLED: { label: t('pages.dataSources.states.disabled'), tone: 'muted'   },
+  };
   const [sources, setSources] = useState([]);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterTipo, setFilterTipo] = useState('ALL');
@@ -129,7 +138,7 @@ export default function DataSources() {
       setReportMessage('');
     } catch (err) {
       console.error('Erro a enviar report:', err);
-      const msg = err.response?.data?.message || 'Falha a enviar email. Confirma a configuração de SMTP.';
+      const msg = err.response?.data?.message || t('pages.dataSources.sendFailed');
       toast.error(msg);
     } finally {
       setReporting(false);
@@ -143,7 +152,7 @@ export default function DataSources() {
       .catch((err) => {
         if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
           console.error('Erro a carregar DataSources:', err);
-          toast.error('Falha a carregar fontes');
+          toast.error(t('pages.dataSources.loadFailed'));
         }
       })
       .finally(() => setLoading(false));
@@ -225,17 +234,15 @@ export default function DataSources() {
   return (
     <div className="datasources-page">
       <header className="ds-header">
-        <h1 className="ds-title">Fontes de Dados</h1>
-        <p className="ds-subtitle">
-          Monitorização das fontes externas e dos seus pulses periódicos.
-        </p>
+        <h1 className="ds-title">{t('pages.dataSources.title')}</h1>
+        <p className="ds-subtitle">{t('pages.dataSources.subtitle')}</p>
       </header>
 
       <div className="ds-stats">
-        <StatPill value={counts.HEALTHY}  label="Saudáveis"  tone="success" />
-        <StatPill value={counts.DEGRADED} label="Degradadas" tone="warning" />
-        <StatPill value={counts.DOWN}     label="Em baixo"   tone="danger"  />
-        <StatPill value={counts.UNKNOWN}  label="Sem dados"  tone="neutral" />
+        <StatPill value={counts.HEALTHY}  label={t('pages.dataSources.stats.healthy')}  tone="success" />
+        <StatPill value={counts.DEGRADED} label={t('pages.dataSources.stats.degraded')} tone="warning" />
+        <StatPill value={counts.DOWN}     label={t('pages.dataSources.stats.down')}     tone="danger"  />
+        <StatPill value={counts.UNKNOWN}  label={t('pages.dataSources.stats.noData')}   tone="neutral" />
       </div>
 
       <div className="ds-toolbar">
@@ -246,27 +253,27 @@ export default function DataSources() {
           </svg>
           <input
             type="search"
-            placeholder="Procurar fonte…"
+            placeholder={t('pages.dataSources.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Procurar fontes de dados"
+            aria-label={t('pages.dataSources.ariaSearch')}
           />
         </div>
 
         <div className="ds-filters">
           <div className="ds-filter">
-            <span className="ds-filter-label">Estado</span>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} aria-label="Filtrar por estado">
+            <span className="ds-filter-label">{t('pages.dataSources.filterState')}</span>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} aria-label={t('pages.dataSources.ariaFilterByState')}>
               {STATUS_FILTER_ORDER.map((k) => (
-                <option key={k} value={k}>{k === 'ALL' ? 'Todos' : STATUS_META[k].label}</option>
+                <option key={k} value={k}>{k === 'ALL' ? t('pages.dataSources.filterAll') : STATUS_META[k].label}</option>
               ))}
             </select>
           </div>
           <div className="ds-filter">
-            <span className="ds-filter-label">Tipo</span>
-            <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} aria-label="Filtrar por tipo">
-              {tipos.map((t) => (
-                <option key={t} value={t}>{t === 'ALL' ? 'Todos' : t}</option>
+            <span className="ds-filter-label">{t('pages.dataSources.filterType')}</span>
+            <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} aria-label={t('pages.dataSources.ariaFilterByType')}>
+              {tipos.map((tp) => (
+                <option key={tp} value={tp}>{tp === 'ALL' ? t('pages.dataSources.filterAll') : tp}</option>
               ))}
             </select>
           </div>
@@ -278,24 +285,24 @@ export default function DataSources() {
           <thead>
             <tr>
               <th className="ds-th ds-th-sortable ds-th-status" onClick={() => toggleSort('status')} aria-sort={sortBy.key === 'status' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Estado {sortIcon('status')}</span>
+                <span>{t('pages.dataSources.headers.state')} {sortIcon('status')}</span>
               </th>
               <th className="ds-th ds-th-sortable" onClick={() => toggleSort('nome')} aria-sort={sortBy.key === 'nome' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Nome {sortIcon('nome')}</span>
+                <span>{t('pages.dataSources.headers.name')} {sortIcon('nome')}</span>
               </th>
               <th className="ds-th ds-th-sortable" onClick={() => toggleSort('tipo')} aria-sort={sortBy.key === 'tipo' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Tipo {sortIcon('tipo')}</span>
+                <span>{t('pages.dataSources.headers.type')} {sortIcon('tipo')}</span>
               </th>
               <th className="ds-th ds-th-sortable ds-th-right" onClick={() => toggleSort('lastSync')} aria-sort={sortBy.key === 'lastSync' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Último pulse {sortIcon('lastSync')}</span>
+                <span>{t('pages.dataSources.headers.lastPulse')} {sortIcon('lastSync')}</span>
               </th>
               <th className="ds-th ds-th-sortable ds-th-right" onClick={() => toggleSort('uptimePct24h')} aria-sort={sortBy.key === 'uptimePct24h' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Uptime 24h {sortIcon('uptimePct24h')}</span>
+                <span>{t('pages.dataSources.headers.uptime24h')} {sortIcon('uptimePct24h')}</span>
               </th>
               <th className="ds-th ds-th-sortable ds-th-right" onClick={() => toggleSort('uptimePct7d')} aria-sort={sortBy.key === 'uptimePct7d' ? (sortBy.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <span>Uptime 7d {sortIcon('uptimePct7d')}</span>
+                <span>{t('pages.dataSources.headers.uptime7d')} {sortIcon('uptimePct7d')}</span>
               </th>
-              <th className="ds-th">Owner</th>
+              <th className="ds-th">{t('pages.dataSources.headers.owner')}</th>
             </tr>
           </thead>
           <tbody>
@@ -309,10 +316,10 @@ export default function DataSources() {
               <tr>
                 <td colSpan={7} className="ds-empty-cell">
                   <div className="ds-empty">
-                    <h3>Sem fontes com estes filtros</h3>
-                    <p>Limpa a pesquisa ou ajusta os filtros para ver todas as fontes.</p>
+                    <h3>{t('pages.dataSources.emptyTitle')}</h3>
+                    <p>{t('pages.dataSources.emptyHint')}</p>
                     <button type="button" className="ds-btn-ghost" onClick={() => { setFilterStatus('ALL'); setFilterTipo('ALL'); setSearch(''); }}>
-                      Limpar filtros
+                      {t('pages.dataSources.clearFilters')}
                     </button>
                   </div>
                 </td>
@@ -332,8 +339,8 @@ export default function DataSources() {
                       </span>
                     </td>
                     <td className="ds-td-name">
-                      <div className="ds-name" title={d.nome}>{d.nome}</div>
-                      {d.descricao && <div className="ds-desc" title={d.descricao}>{d.descricao}</div>}
+                      <div className="ds-name" title={t(`pages.dataSources.sourceName.${d.tipo}`, d.nome)}>{t(`pages.dataSources.sourceName.${d.tipo}`, d.nome)}</div>
+                      {d.descricao && <div className="ds-desc" title={t(`pages.dataSources.sourceDesc.${d.tipo}`, d.descricao)}>{t(`pages.dataSources.sourceDesc.${d.tipo}`, d.descricao)}</div>}
                     </td>
                     <td>
                       <span className="ds-tipo-pill">{d.tipo}</span>
@@ -341,7 +348,7 @@ export default function DataSources() {
                     <td className="ds-td-right ds-mono">
                       {last ? (
                         <span title={d.lastSync ? new Date(d.lastSync).toLocaleString('pt-PT') : undefined}>
-                          há {last}
+                          {t('pages.dataSources.relativePrefix')}{last}
                         </span>
                       ) : (
                         <span className="ds-muted">—</span>
@@ -365,8 +372,8 @@ export default function DataSources() {
                             <button
                               type="button"
                               className="ds-contact"
-                              title={`Reportar problema · ${d.contactoEmail}`}
-                              aria-label={`Reportar problema da fonte ${d.nome} por email`}
+                              title={`${t('pages.dataSources.reportTooltipPrefix')}${d.contactoEmail}`}
+                              aria-label={t('pages.dataSources.ariaReportEmail', { name: t(`pages.dataSources.sourceName.${d.tipo}`, d.nome) })}
                               onClick={() => openReport(d)}
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -376,7 +383,7 @@ export default function DataSources() {
                             </button>
                           )}
                           {d.contactoTelefone && (
-                            <a className="ds-contact" href={`tel:${d.contactoTelefone}`} title={d.contactoTelefone} aria-label={`Telefonar para ${d.contactoTelefone}`}>
+                            <a className="ds-contact" href={`tel:${d.contactoTelefone}`} title={d.contactoTelefone} aria-label={t('pages.dataSources.ariaCall', { phone: d.contactoTelefone })}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
                               </svg>
@@ -395,19 +402,19 @@ export default function DataSources() {
 
       {!loading && filtered.length > 0 && (
         <div className="ds-footer-meta">
-          {filtered.length} {filtered.length === 1 ? 'fonte' : 'fontes'}
-          {filtered.length !== sources.length && ` de ${sources.length}`}
+          {t('pages.dataSources.sourcesCount', { count: filtered.length })}
+          {filtered.length !== sources.length && t('pages.dataSources.sourcesOf', { total: sources.length })}
         </div>
       )}
 
       <section className="ds-chart-section">
         <header className="ds-chart-header">
           <div>
-            <h2 className="ds-chart-title">Histórico de respostas</h2>
-            <p className="ds-chart-sub">Percentagem de respostas OK por janela temporal.</p>
+            <h2 className="ds-chart-title">{t('pages.dataSources.chartTitle')}</h2>
+            <p className="ds-chart-sub">{t('pages.dataSources.chartSubtitle')}</p>
           </div>
           <div className="ds-chart-controls">
-            <div className="ds-chart-chips" role="group" aria-label="Intervalo">
+            <div className="ds-chart-chips" role="group" aria-label={t('pages.dataSources.ariaRange')}>
               {RANGES.map((r) => (
                 <button
                   key={r.key}
@@ -424,11 +431,11 @@ export default function DataSources() {
               className="ds-chart-source-select"
               value={chartSourceId ?? ''}
               onChange={(e) => setChartSourceId(e.target.value ? Number(e.target.value) : null)}
-              aria-label="Filtrar fonte no gráfico"
+              aria-label={t('pages.dataSources.ariaSourceFilter')}
             >
-              <option value="">Todas as fontes</option>
+              <option value="">{t('pages.dataSources.allSources')}</option>
               {sources.map((s) => (
-                <option key={s.id} value={s.id}>{s.nome}</option>
+                <option key={s.id} value={s.id}>{t(`pages.dataSources.sourceName.${s.tipo}`, s.nome)}</option>
               ))}
             </select>
           </div>
@@ -436,9 +443,9 @@ export default function DataSources() {
 
         <div className="ds-chart-wrapper">
           {timelineLoading ? (
-            <div className="ds-chart-empty">A carregar…</div>
+            <div className="ds-chart-empty">{t('pages.dataSources.chartLoading')}</div>
           ) : chartData.points.length === 0 ? (
-            <div className="ds-chart-empty">Sem dados no intervalo selecionado.</div>
+            <div className="ds-chart-empty">{t('pages.dataSources.chartEmpty')}</div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData.points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -499,39 +506,39 @@ export default function DataSources() {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         </div>
-        <h3 id="modal-title" className="modal-title">Reportar problema</h3>
+        <h3 id="modal-title" className="modal-title">{t('pages.dataSources.reportModalTitle')}</h3>
         <p id="modal-message" className="modal-message">
-          Envia um email ao responsável pela fonte com os detalhes abaixo.
+          {t('pages.dataSources.reportModalMessage')}
         </p>
 
         {reportTarget && (
           <div className="ds-report-summary">
             <div className="ds-report-row">
-              <span className="ds-report-key">Fonte</span>
+              <span className="ds-report-key">{t('pages.dataSources.reportSource')}</span>
               <span className="ds-report-val">
-                {reportTarget.nome}
+                {t(`pages.dataSources.sourceName.${reportTarget.tipo}`, reportTarget.nome)}
                 <span className="ds-tipo-pill ds-report-tipo">{reportTarget.tipo}</span>
               </span>
             </div>
             <div className="ds-report-row">
-              <span className="ds-report-key">Estado</span>
+              <span className="ds-report-key">{t('pages.dataSources.reportState')}</span>
               <span className={`ds-status ds-status-${(STATUS_META[reportTarget.status] || STATUS_META.UNKNOWN).tone}`}>
                 <span className={`ds-status-dot ds-status-dot-${(STATUS_META[reportTarget.status] || STATUS_META.UNKNOWN).tone}`} aria-hidden="true" />
                 {(STATUS_META[reportTarget.status] || STATUS_META.UNKNOWN).label}
               </span>
             </div>
             <div className="ds-report-row">
-              <span className="ds-report-key">Para</span>
+              <span className="ds-report-key">{t('pages.dataSources.reportTo')}</span>
               <span className="ds-report-val ds-report-email">{reportTarget.contactoEmail || '—'}</span>
             </div>
           </div>
         )}
 
-        <label className="ds-report-label" htmlFor="ds-report-msg">Mensagem (opcional)</label>
+        <label className="ds-report-label" htmlFor="ds-report-msg">{t('pages.dataSources.reportMessageLabel')}</label>
         <textarea
           id="ds-report-msg"
           className="ds-report-textarea"
-          placeholder="Descreve o problema observado…"
+          placeholder={t('pages.dataSources.reportTextareaPlaceholder')}
           value={reportMessage}
           onChange={(e) => setReportMessage(e.target.value)}
           rows={4}
@@ -541,10 +548,10 @@ export default function DataSources() {
 
         <div className="modal-actions">
           <button type="button" className="btn btn-primary" onClick={submitReport} disabled={reporting}>
-            {reporting ? 'A enviar…' : 'Enviar email'}
+            {reporting ? t('pages.dataSources.reportSubmitting') : t('pages.dataSources.reportSubmit')}
           </button>
           <button type="button" className="btn btn-secondary" onClick={closeReport} disabled={reporting}>
-            Cancelar
+            {t('pages.dataSources.reportCancel')}
           </button>
         </div>
       </Modal>

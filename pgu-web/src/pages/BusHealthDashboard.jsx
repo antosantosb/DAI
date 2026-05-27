@@ -1,25 +1,35 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { createStompClient } from '../services/stompClient';
 import './Buses.css';
 
 /**
- * Deriva o label/estado de saúde a partir do uptime.
- * Em vez de receber uma string fixa do backend (que estava
- * hard-coded a "Good Performance"), usamos thresholds baseados
- * na percentagem de amostras recebidas nas últimas N horas.
+ * Deriva o estado de saúde (chave canónica) a partir do uptime.
+ * O label visível é traduzido via i18next ao renderizar.
  */
 const deriveHealthStatus = (pct) => {
-  if (pct == null || Number.isNaN(pct)) return 'Sem Dados';
-  if (pct >= 95) return 'Bom Desempenho';
-  if (pct >= 80) return 'Desempenho Degradado';
-  if (pct >  0) return 'Desempenho Fraco';
-  return 'Offline';
+  if (pct == null || Number.isNaN(pct)) return 'NO_DATA';
+  if (pct >= 95) return 'GOOD';
+  if (pct >= 80) return 'DEGRADED';
+  if (pct >  0) return 'WEAK';
+  return 'OFFLINE';
 };
 
 export default function BusHealthDashboard() {
+  const { t } = useTranslation();
   const [healthData, setHealthData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const statusLabel = (key) => {
+    switch (key) {
+      case 'GOOD': return t('pages.health.statusGood');
+      case 'DEGRADED': return t('pages.health.statusDegraded');
+      case 'WEAK': return t('pages.health.statusWeak');
+      case 'OFFLINE': return t('pages.health.statusOffline');
+      default: return t('pages.health.statusNoData');
+    }
+  };
 
   useEffect(() => {
     // 1. Initial Load via HTTP
@@ -76,7 +86,7 @@ export default function BusHealthDashboard() {
                     busId: telemetryUpdate.busId,
                     lastSync: currentTime,
                     uptimePercentage: null,
-                    healthStatus: 'Sem Dados',
+                    healthStatus: 'NO_DATA',
                   }
                 ];
               }
@@ -100,15 +110,15 @@ export default function BusHealthDashboard() {
 
   const getBadgeStyle = (status) => {
     switch (status) {
-      case 'Bom Desempenho':
+      case 'GOOD':
         return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
-      case 'Desempenho Degradado':
+      case 'DEGRADED':
         return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
-      case 'Desempenho Fraco':
+      case 'WEAK':
         return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' };
-      case 'Offline':
+      case 'OFFLINE':
         return { backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' };
-      default: // Sem Dados
+      default: // NO_DATA
         return { backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' };
     }
   };
@@ -124,17 +134,17 @@ export default function BusHealthDashboard() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Saúde da Rede IoT</h1>
-          <p className="page-subtitle">Monitorização em tempo real do estado de sincronização</p>
+          <h1>{t('pages.health.iotTitle')}</h1>
+          <p className="page-subtitle">{t('pages.health.iotSubtitle')}</p>
         </div>
       </div>
 
-      {loading && <p style={{ padding: '0 2rem', color: '#6b7280' }}>A carregar dados de saúde...</p>}
+      {loading && <p style={{ padding: '0 2rem', color: '#6b7280' }}>{t('pages.health.loading')}</p>}
 
       {!loading && healthData.length === 0 && (
         <div className="empty-state">
           <div className="empty-state-icon">&#128653;</div>
-          <div className="empty-state-text">Nenhum dado de saúde disponível.</div>
+          <div className="empty-state-text">{t('pages.health.noHealth')}</div>
         </div>
       )}
 
@@ -143,8 +153,8 @@ export default function BusHealthDashboard() {
           const badgeStyle = getBadgeStyle(bus.healthStatus);
           const barColor = getProgressBarColor(bus.uptimePercentage);
           const formattedLastSync = bus.lastSync
-            ? `Última comunicação: ${new Date(bus.lastSync).toLocaleTimeString('pt-PT')}`
-            : 'Sem dados';
+            ? `${t('pages.health.lastCommPrefix')}: ${new Date(bus.lastSync).toLocaleTimeString('pt-PT')}`
+            : t('pages.health.statusNoData');
 
           return (
             <div key={bus.busId} className="bus-card">
@@ -160,7 +170,7 @@ export default function BusHealthDashboard() {
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   ...badgeStyle
                 }}>
-                  {bus.healthStatus}
+                  {statusLabel(bus.healthStatus)}
                 </div>
               </div>
 
@@ -171,7 +181,7 @@ export default function BusHealthDashboard() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
-                    <span>Uptime Diário</span>
+                    <span>{t('pages.health.uptimeDaily')}</span>
                     <span>{bus.uptimePercentage == null ? '—' : `${bus.uptimePercentage}%`}</span>
                   </div>
                   <div style={{ width: '100%', height: '10px', backgroundColor: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>

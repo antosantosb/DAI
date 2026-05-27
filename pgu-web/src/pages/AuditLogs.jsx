@@ -1,8 +1,55 @@
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import './AuditLogs.css';
 
+// Sprint 0 (F6 follow-up): mapeia as strings de @LogActivity (PT, vindas do
+// backend) para keys i18n para suportar PT/EN. Se a action nao estiver no
+// mapa (logs antigos / actions novas), mostra a string original.
+const ACTION_KEY_MAP = {
+  'Criar autocarro': 'createBus',
+  'Criar autocarros em batch': 'createBusesBatch',
+  'Atualizar autocarro': 'updateBus',
+  'Eliminar autocarro': 'deleteBus',
+  'Criar paragem': 'createStop',
+  'Atualizar paragem': 'updateStop',
+  'Eliminar paragem': 'deleteStop',
+  'Criar fonte de dados': 'createDataSource',
+  'Atualizar fonte de dados': 'updateDataSource',
+  'Remover fonte de dados': 'removeDataSource',
+  'Reportar problema na fonte de dados': 'reportDataSource',
+  'Submeter exportação de telemetria': 'submitTelemetryExport',
+  'Submeter exportação de logs': 'submitLogsExport',
+  'Eliminar exportação': 'deleteExport',
+  'Atualizar parâmetros globais': 'updateGlobalSettings',
+  'Upload GTFS': 'gtfsUpload',
+  'Sincronizar GTFS TUB': 'gtfsSyncTub',
+  'Reverter importação GTFS': 'gtfsRevert',
+  'Atualizar config GTFS': 'gtfsUpdateConfig',
+  'Criar rota': 'createRoute',
+  'Atualizar rota': 'updateRoute',
+  'Eliminar rota': 'deleteRoute',
+  'Criar segmento de rota': 'createRouteSegment',
+  'Criar segmentos de rota (batch)': 'createRouteSegmentsBatch',
+  'Atualizar segmento de rota': 'updateRouteSegment',
+  'Criar utilizador': 'createUser',
+  'Atualizar utilizador': 'updateUser',
+  'Ativar/Desativar utilizador': 'toggleUser',
+  'Eliminar utilizador': 'deleteUser',
+  'Criar Ocorrência': 'createOcorrencia',
+  'Assumir Ocorrência': 'assumeOcorrencia',
+  'Registar Ação Corretiva': 'correctiveAction',
+  'Fechar Ocorrência': 'closeOcorrencia',
+  'Marcar Falso Positivo': 'markFalsePositive',
+};
+
 export default function AuditLogs() {
+  const { t } = useTranslation();
+  const translateAction = (action) => {
+    if (!action) return '—';
+    const slug = ACTION_KEY_MAP[action];
+    return slug ? t(`pages.auditLogs.actionMap.${slug}`) : action;
+  };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -79,15 +126,15 @@ export default function AuditLogs() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Logs de Auditoria</h1>
-          <p className="page-subtitle">Registo de operações realizadas no sistema</p>
+          <h1>{t('pages.auditLogs.title')}</h1>
+          <p className="page-subtitle">{t('pages.auditLogs.subtitleAlt')}</p>
         </div>
         {lastRefresh && (
           <div className="audit-refresh-info">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
-            Atualização automática a cada 30s
+            {t('pages.auditLogs.autoRefresh')}
           </div>
         )}
       </div>
@@ -102,7 +149,7 @@ export default function AuditLogs() {
           </div>
           <div className="audit-stat-content">
             <div className="audit-stat-value">{logs.length}</div>
-            <div className="audit-stat-label">Total</div>
+            <div className="audit-stat-label">{t('pages.auditLogs.total')}</div>
           </div>
         </div>
         <div className="audit-stat-card">
@@ -113,7 +160,7 @@ export default function AuditLogs() {
           </div>
           <div className="audit-stat-content">
             <div className="audit-stat-value">{successCount}</div>
-            <div className="audit-stat-label">Sucesso</div>
+            <div className="audit-stat-label">{t('pages.auditLogs.success')}</div>
           </div>
         </div>
         <div className="audit-stat-card">
@@ -124,7 +171,7 @@ export default function AuditLogs() {
           </div>
           <div className="audit-stat-content">
             <div className="audit-stat-value">{errorCount}</div>
-            <div className="audit-stat-label">Erros</div>
+            <div className="audit-stat-label">{t('pages.auditLogs.errors')}</div>
           </div>
         </div>
         <div className="audit-stat-card">
@@ -135,7 +182,7 @@ export default function AuditLogs() {
           </div>
           <div className="audit-stat-content">
             <div className="audit-stat-value">{uniqueUsers}</div>
-            <div className="audit-stat-label">Utilizadores</div>
+            <div className="audit-stat-label">{t('pages.auditLogs.users')}</div>
           </div>
         </div>
       </div>
@@ -147,16 +194,16 @@ export default function AuditLogs() {
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
           <input
-            placeholder="Pesquisar por utilizador, ação, método ou recurso..."
+            placeholder={t('pages.auditLogs.searchFull')}
             value={search} onChange={e => setSearch(e.target.value)}
-            aria-label="Pesquisar logs"
+            aria-label={t('pages.auditLogs.ariaSearch')}
           />
         </div>
-        <div className="audit-filters" role="group" aria-label="Filtrar por estado">
+        <div className="audit-filters" role="group" aria-label={t('pages.auditLogs.ariaFilterGroup')}>
           {[
-            { key: 'all', label: 'Todos', count: logs.length },
-            { key: 'success', label: 'Sucesso', count: successCount },
-            { key: 'error', label: 'Erros', count: errorCount },
+            { key: 'all', label: t('pages.auditLogs.filterAll'), count: logs.length },
+            { key: 'success', label: t('pages.auditLogs.filterSuccess'), count: successCount },
+            { key: 'error', label: t('pages.auditLogs.filterErrors'), count: errorCount },
           ].map(f => (
             <button key={f.key}
               className={`btn btn-filter${filter === f.key ? ' btn-filter--active' : ''}`}
@@ -171,7 +218,7 @@ export default function AuditLogs() {
       {loading ? (
         <div className="audit-empty-state">
           <span className="audit-spinner" />
-          <div className="audit-empty-title">A carregar logs...</div>
+          <div className="audit-empty-title">{t('pages.auditLogs.loading')}</div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="audit-empty-state">
@@ -181,29 +228,29 @@ export default function AuditLogs() {
             </svg>
           </div>
           <div className="audit-empty-title">
-            {search ? 'Nenhum resultado encontrado' : logs.length === 0 ? 'Sem logs registados' : 'Nenhum log corresponde ao filtro'}
+            {search ? t('pages.auditLogs.noResults') : logs.length === 0 ? t('pages.auditLogs.noLogs') : t('pages.auditLogs.noFilterMatch')}
           </div>
           <div className="audit-empty-text">
-            {search ? `Nenhum log corresponde a "${search}".` : 'Os logs de atividade aparecerão aqui automaticamente.'}
+            {search ? t('pages.auditLogs.noResultsFor', { q: search }) : t('pages.auditLogs.logsAppear')}
           </div>
         </div>
       ) : (
         <>
           <div className="audit-results-info">
             {filtered.length === logs.length
-              ? `${logs.length} registos`
-              : `${filtered.length} de ${logs.length} registos`}
+              ? t('pages.auditLogs.recordCount', { count: logs.length })
+              : t('pages.auditLogs.recordCountOf', { shown: filtered.length, total: logs.length })}
           </div>
           <div className="table-container">
             <table className="data-table" role="table">
               <thead>
                 <tr>
-                  <th style={{ width: '15%' }}>Data</th>
-                  <th style={{ width: '12%' }}>Utilizador</th>
-                  <th style={{ width: '18%' }}>Ação</th>
-                  <th style={{ width: '22%' }}>Recurso</th>
-                  <th style={{ width: '8%' }}>Estado</th>
-                  <th>Erro</th>
+                  <th style={{ width: '15%' }}>{t('pages.auditLogs.thDate')}</th>
+                  <th style={{ width: '12%' }}>{t('pages.auditLogs.thUser')}</th>
+                  <th style={{ width: '18%' }}>{t('pages.auditLogs.thAction')}</th>
+                  <th style={{ width: '22%' }}>{t('pages.auditLogs.thResource')}</th>
+                  <th style={{ width: '8%' }}>{t('pages.auditLogs.thState')}</th>
+                  <th>{t('pages.auditLogs.thError')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,7 +258,7 @@ export default function AuditLogs() {
                   <tr key={log.id} className={!log.success ? 'audit-row--error' : ''}>
                     <td className="audit-cell-date">{formatDate(log.createdAt)}</td>
                     <td><span className="audit-user-badge">{log.username || '—'}</span></td>
-                    <td><span className="audit-action-label">{log.action || '—'}</span></td>
+                    <td><span className="audit-action-label">{translateAction(log.action)}</span></td>
                     <td className="audit-cell-resource">
                       <span className="audit-resource-class">{log.className || '—'}</span>
                       <span className="audit-resource-method">.{log.method || '—'}()</span>
@@ -219,7 +266,7 @@ export default function AuditLogs() {
                     <td>
                       <span className={`audit-status-badge ${log.success ? 'audit-status--ok' : 'audit-status--err'}`}>
                         <span className="audit-status-dot" />
-                        {log.success ? 'OK' : 'Erro'}
+                        {log.success ? t('pages.auditLogs.stateOk') : t('pages.auditLogs.stateErr')}
                       </span>
                     </td>
                     <td className="audit-cell-error" title={log.errorMsg || ''}>

@@ -6,7 +6,7 @@
   "registrationAllowed": false,
   "internationalizationEnabled": true,
   "defaultLocale": "pt",
-  "supportedLocales": ["pt"],
+  "supportedLocales": ["pt", "en"],
 
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",

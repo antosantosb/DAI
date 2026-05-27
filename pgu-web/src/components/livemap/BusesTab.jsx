@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import BusCard from './BusCard';
 import { getBusDisplayStatus } from './constants';
 
@@ -13,6 +14,7 @@ export default function BusesTab({
   busSort,
   setBusSort,
 }) {
+  const { t } = useTranslation();
   const busList = useMemo(() =>
     Object.values(buses)
       .filter(bus => {
@@ -81,7 +83,7 @@ export default function BusesTab({
       if (!groups[key]) {
         groups[key] = {
           route,
-          routeName: route ? route.name : 'Sem Rota',
+          routeName: route ? route.name : t('livemap.noRouteFallback'),
           routeCode: route ? route.code : '—',
           routeColor: route ? (route.color || '#6366f1') : '#94a3b8',
           buses: [],
@@ -108,15 +110,15 @@ export default function BusesTab({
       <div className="livemap-stats">
         <div className="livemap-stat">
           <div className="livemap-stat-value">{activeBusCount}</div>
-          <div className="livemap-stat-label">Ativos</div>
+          <div className="livemap-stat-label">{t('livemap.statsActives')}</div>
         </div>
         <div className="livemap-stat">
           <div className="livemap-stat-value">{activeRouteIds.size}</div>
-          <div className="livemap-stat-label">Rotas Ativas</div>
+          <div className="livemap-stat-label">{t('livemap.statsActiveRoutes')}</div>
         </div>
         <div className="livemap-stat">
           <div className="livemap-stat-value">{totalPassengers}</div>
-          <div className="livemap-stat-label">Passageiros</div>
+          <div className="livemap-stat-label">{t('livemap.statsPassengers')}</div>
         </div>
       </div>
 
@@ -125,7 +127,7 @@ export default function BusesTab({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
           <input
             type="text"
-            placeholder="Pesquisar autocarro..."
+            placeholder={t('livemap.searchBus')}
             value={busSearch}
             onChange={e => setBusSearch(e.target.value)}
           />
@@ -138,16 +140,16 @@ export default function BusesTab({
           value={busSort}
           onChange={e => setBusSort(e.target.value)}
         >
-          <option value="route">Por Rota</option>
-          <option value="name">Por Codigo</option>
-          <option value="passengers">Por Passageiros</option>
-          <option value="speed">Por Velocidade</option>
+          <option value="route">{t('livemap.filterByRoute')}</option>
+          <option value="name">{t('livemap.filterByCode')}</option>
+          <option value="passengers">{t('livemap.filterByPassengers')}</option>
+          <option value="speed">{t('livemap.filterBySpeed')}</option>
         </select>
       </div>
 
       {filteredBusList.length === 0 ? (
         <div className="livemap-empty">
-          {busSearch ? 'Nenhum resultado encontrado' : 'Nenhum autocarro ativo'}
+          {busSearch ? t('livemap.noResultsFound') : t('livemap.noActiveBus')}
         </div>
       ) : busSort === 'route' && filteredGroupedByRoute ? (
         <div className="livemap-bus-groups">

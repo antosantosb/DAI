@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
@@ -6,6 +7,7 @@ import Modal from '../components/Modal';
 const PAGE_SIZE = 50;
 
 export default function Stops() {
+  const { t } = useTranslation();
   const { hasRole } = useAuth();
   const isAdmin = hasRole('admin');
   const [stops, setStops] = useState([]);
@@ -58,7 +60,7 @@ export default function Stops() {
       : api.post('/stops', payload);
 
     req.then(() => { resetForm(); load(); })
-       .catch(err => alert('Erro: ' + (err.response?.data?.message || err.message)));
+       .catch(err => alert(t('pages.stops.errorPrefix') + (err.response?.data?.message || err.message)));
   };
 
   const startEdit = (stop) => {
@@ -117,21 +119,23 @@ export default function Stops() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Paragens</h1>
-          <p className="page-subtitle">{stops.length} paragens registadas</p>
+          <h1>{t('pages.stops.title')}</h1>
+          <p className="page-subtitle">{t('pages.stops.registered', { count: stops.length })}</p>
         </div>
         {isAdmin && (
           <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            + Nova Paragem
+            {t('pages.stops.newButton')}
           </button>
         )}
       </div>
 
       <div className="bus-toolbar" style={{ marginBottom: 20 }}>
         <div className="search-bar">
-          <span className="search-bar-icon">&#128269;</span>
+          <svg className="search-bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
           <input
-            placeholder="Pesquisar paragem..."
+            placeholder={t('pages.stops.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -141,36 +145,36 @@ export default function Stops() {
       {showForm && (
         <div className="form-overlay">
           <form className="form-card" onSubmit={handleSubmit}>
-            <h3>{editing ? 'Editar Paragem' : 'Nova Paragem'}</h3>
+            <h3>{editing ? t('pages.stops.edit') : t('pages.stops.create')}</h3>
             <div className="form-grid">
               <div className="form-group">
-                <label>Nome</label>
+                <label>{t('pages.stops.fieldName')}</label>
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Codigo</label>
+                <label>{t('pages.stops.fieldCode')}</label>
                 <input value={form.code} onChange={e => setForm({...form, code: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Max Autocarros no Painel</label>
+                <label>{t('pages.stops.maxBusesPanel')}</label>
                 <input type="number" min="1" max="10" value={form.maxBusesDisplay} onChange={e => setForm({...form, maxBusesDisplay: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Mensagem do Painel</label>
-                <input value={form.panelMessage} onChange={e => setForm({...form, panelMessage: e.target.value})} placeholder="Opcional" />
+                <label>{t('pages.stops.panelMessage')}</label>
+                <input value={form.panelMessage} onChange={e => setForm({...form, panelMessage: e.target.value})} placeholder={t('pages.stops.panelMessagePlaceholder')} />
               </div>
               <div className="form-group">
-                <label>Latitude</label>
+                <label>{t('common.latitude')}</label>
                 <input type="number" step="any" value={form.latitude} onChange={e => setForm({...form, latitude: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Longitude</label>
+                <label>{t('common.longitude')}</label>
                 <input type="number" step="any" value={form.longitude} onChange={e => setForm({...form, longitude: e.target.value})} required={!editing} />
               </div>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary">{editing ? 'Guardar' : 'Criar'}</button>
-              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">{editing ? t('pages.stops.save') : t('common.create')}</button>
+              <button type="button" className="btn btn-secondary" onClick={resetForm}>{t('pages.stops.cancel')}</button>
             </div>
           </form>
         </div>
@@ -180,14 +184,14 @@ export default function Stops() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '70px' }}>ID</th>
-              <th>Nome</th>
-              <th style={{ width: '110px' }}>Codigo</th>
-              <th style={{ width: '80px' }}>Painel</th>
-              <th style={{ width: '150px' }}>Mensagem</th>
-              <th style={{ width: '130px' }}>Latitude</th>
-              <th style={{ width: '130px' }}>Longitude</th>
-              <th style={{ width: '170px' }}>Acoes</th>
+              <th style={{ width: '70px' }}>{t('pages.stops.headers.id')}</th>
+              <th>{t('pages.stops.headers.name')}</th>
+              <th style={{ width: '110px' }}>{t('pages.stops.headers.code')}</th>
+              <th style={{ width: '80px' }}>{t('pages.stops.headers.panel')}</th>
+              <th style={{ width: '150px' }}>{t('pages.stops.headers.message')}</th>
+              <th style={{ width: '130px' }}>{t('pages.stops.headers.latitude')}</th>
+              <th style={{ width: '130px' }}>{t('pages.stops.headers.longitude')}</th>
+              <th style={{ width: '170px' }}>{t('pages.stops.headers.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -203,8 +207,8 @@ export default function Stops() {
                 <td className="actions">
                   {isAdmin && (
                     <>
-                      <button className="btn btn-sm" onClick={() => startEdit(stop)}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(stop.id)}>Apagar</button>
+                      <button className="btn btn-sm" onClick={() => startEdit(stop)}>{t('common.edit')}</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(stop.id)}>{t('common.delete')}</button>
                     </>
                   )}
                 </td>
@@ -213,13 +217,13 @@ export default function Stops() {
             {visibleCount < filtered.length && (
               <tr ref={loaderRef}>
                 <td colSpan="8" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
-                  A carregar mais paragens… ({visibleCount} de {filtered.length})
+                  {t('pages.stops.loadingMore', { current: visibleCount, total: filtered.length })}
                 </td>
               </tr>
             )}
             {filtered.length === 0 && (
               <tr><td colSpan="8" className="empty">
-                {search ? 'Nenhuma paragem encontrada' : 'Nenhuma paragem registada'}
+                {search ? t('pages.stops.notFound') : t('pages.stops.noStops')}
               </td></tr>
             )}
           </tbody>
@@ -230,10 +234,10 @@ export default function Stops() {
       <Modal
         open={deleteModal.open}
         type="danger"
-        title="Apagar paragem?"
-        message="Esta operação é irreversível. A paragem será removida do sistema."
-        confirmText="Apagar"
-        cancelText="Cancelar"
+        title={t('pages.stops.deleteTitle')}
+        message={t('pages.stops.deleteMessage')}
+        confirmText={t('pages.stops.confirmDelete')}
+        cancelText={t('pages.stops.cancel')}
         onConfirm={confirmDelete}
         onClose={() => setDeleteModal({ open: false, id: null })}
       />

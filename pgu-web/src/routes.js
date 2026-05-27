@@ -42,81 +42,82 @@ export const routes = [
     access: ['admin', 'operador'],
     children: [
       // ---- PRINCIPAL (cockpit do dia-a-dia) ----
+      // Sprint 0 (F6): labelKey/sectionKey resolvidos via i18n no Layout.
       {
         index: true,
         loader: () => import('./pages/Dashboard'),
-        nav: { section: 'Principal', label: 'Dashboard', iconKey: 'IconDashboard' },
+        nav: { sectionKey: 'sections.main', labelKey: 'nav.dashboard', iconKey: 'IconDashboard' },
       },
       {
         path: 'health',
         loader: () => import('./pages/BusHealthDashboard'),
-        nav: { section: 'Principal', label: 'Saúde', iconKey: 'IconHealth' },
+        nav: { sectionKey: 'sections.main', labelKey: 'nav.health', iconKey: 'IconHealth' },
       },
       {
         path: 'buses',
         loader: () => import('./pages/Buses'),
-        nav: { section: 'Principal', label: 'Autocarros', iconKey: 'IconBus' },
+        nav: { sectionKey: 'sections.main', labelKey: 'nav.buses', iconKey: 'IconBus' },
       },
       {
         path: 'ocorrencias',
         loader: () => import('./pages/Ocorrencias'),
-        nav: { section: 'Principal', label: 'Ocorrências', iconKey: 'IconAlarm', badge: 'alarms' },
+        nav: { sectionKey: 'sections.main', labelKey: 'nav.ocorrencias', iconKey: 'IconAlarm', badge: 'alarms' },
       },
       // ---- OPERAÇÕES (planeamento) ----
       {
         path: 'analytics',
         loader: () => import('./pages/AnalyticsDashboard'),
-        nav: { section: 'Operações', label: 'Analytics', iconKey: 'IconAnalytics' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.analytics', iconKey: 'IconAnalytics' },
       },
       {
         path: 'routes',
         loader: () => import('./pages/Routes'),
-        nav: { section: 'Operações', label: 'Rotas', iconKey: 'IconRoute' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.routes', iconKey: 'IconRoute' },
       },
       {
         path: 'stops',
         loader: () => import('./pages/Stops'),
-        nav: { section: 'Operações', label: 'Paragens', iconKey: 'IconStop' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.stops', iconKey: 'IconStop' },
       },
       {
         path: 'exports',
         loader: () => import('./pages/Exports'),
-        nav: { section: 'Operações', label: 'Exportações', iconKey: 'IconExport' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.exports', iconKey: 'IconExport' },
       },
       // ---- ADMINISTRAÇÃO (pessoas + fontes + config) ----
       {
         path: 'users',
         loader: () => import('./pages/Users'),
         access: ['admin'],
-        nav: { section: 'Administração', label: 'Utilizadores', iconKey: 'IconUsers' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.users', iconKey: 'IconUsers' },
       },
       {
         path: 'drivers',
         loader: () => import('./pages/Drivers'),
         access: ['admin'],
-        nav: { section: 'Administração', label: 'Motoristas', iconKey: 'IconUsers' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.drivers', iconKey: 'IconDriver' },
       },
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),
-        nav: { section: 'Administração', label: 'Fontes', iconKey: 'IconDataSource' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.dataSources', iconKey: 'IconDataSource' },
       },
       {
         path: 'gtfs',
         loader: () => import('./pages/GtfsManager'),
         access: ['admin'],
-        nav: { section: 'Administração', label: 'GTFS', iconKey: 'IconGtfs' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.gtfs', iconKey: 'IconGtfs' },
       },
       {
         path: 'audit',
         loader: () => import('./pages/AuditLogs'),
-        nav: { section: 'Administração', label: 'Logs', iconKey: 'IconAudit' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.audit', iconKey: 'IconAudit' },
       },
       {
         path: 'configuracoes',
         loader: () => import('./pages/GlobalConfig'),
         access: ['admin'],
-        nav: { section: 'Administração', label: 'Parâmetros', iconKey: 'IconSettings' },
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.settings', iconKey: 'IconSettings' },
       },
     ],
   },

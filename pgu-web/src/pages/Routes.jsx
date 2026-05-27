@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
@@ -7,6 +8,7 @@ import './Routes.css';
 const PAGE_SIZE = 50;
 
 export default function Routes() {
+  const { t } = useTranslation();
   const { hasRole } = useAuth();
   const isAdmin = hasRole('admin');
   const [routes, setRoutes] = useState([]);
@@ -63,9 +65,9 @@ export default function Routes() {
     req.then(() => {
       resetForm();
       load();
-      showModalMsg({ type: 'success', title: 'Sucesso', message: editing ? 'Rota atualizada com sucesso.' : 'Rota criada com sucesso.' });
+      showModalMsg({ type: 'success', title: t('pages.routes.successTitle'), message: editing ? t('pages.routes.successUpdated') : t('pages.routes.successCreated') });
     }).catch(err => {
-      showModalMsg({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message });
+      showModalMsg({ type: 'danger', title: t('pages.routes.errorTitle'), message: err.response?.data?.message || err.message });
     });
   };
 
@@ -89,9 +91,9 @@ export default function Routes() {
   const handleDelete = (id) => {
     showModalMsg({
       type: 'danger',
-      title: 'Apagar Rota?',
-      message: 'A rota e todas as associacoes de paragens serao removidas.',
-      confirmText: 'Apagar',
+      title: t('pages.routes.deleteTitle'),
+      message: t('pages.routes.deleteMessage'),
+      confirmText: t('pages.routes.deleteConfirm'),
       onConfirm: () => { closeModal(); api.delete(`/routes/${id}`).then(load); },
     });
   };
@@ -170,21 +172,23 @@ export default function Routes() {
 
       <div className="page-header">
         <div>
-          <h1>Rotas</h1>
-          <p className="page-subtitle">{routes.length} rotas registadas</p>
+          <h1>{t('pages.routes.title')}</h1>
+          <p className="page-subtitle">{t('pages.routes.registered', { count: routes.length })}</p>
         </div>
         {isAdmin && (
           <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            + Nova Rota
+            {t('pages.routes.newButton')}
           </button>
         )}
       </div>
 
       <div className="bus-toolbar" style={{ marginBottom: 20 }}>
         <div className="search-bar">
-          <span className="search-bar-icon">&#128269;</span>
+          <svg className="search-bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
           <input
-            placeholder="Pesquisar rota..."
+            placeholder={t('pages.routes.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -194,18 +198,18 @@ export default function Routes() {
       {showForm && (
         <div className="form-overlay">
           <form className="form-card" onSubmit={handleSubmit}>
-            <h3>{editing ? 'Editar Rota' : 'Nova Rota'}</h3>
+            <h3>{editing ? t('pages.routes.edit') : t('pages.routes.create')}</h3>
             <div className="form-grid">
               <div className="form-group">
-                <label>Nome</label>
+                <label>{t('pages.routes.fieldName')}</label>
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Codigo</label>
+                <label>{t('pages.routes.fieldCode')}</label>
                 <input value={form.code} onChange={e => setForm({...form, code: e.target.value})} required={!editing} />
               </div>
               <div className="form-group">
-                <label>Cor</label>
+                <label>{t('pages.routes.fieldColor')}</label>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="color"
@@ -221,8 +225,8 @@ export default function Routes() {
             {/* Stop assignment */}
             <div className="route-stops-section">
               <div className="route-stops-header">
-                <label>Paragens da Rota</label>
-                <span className="form-hint">{routeStops.length} paragens &middot; Arrasta para reordenar</span>
+                <label>{t('pages.routes.stopsOfRoute')}</label>
+                <span className="form-hint">{t('pages.routes.stopsAddedHint', { count: routeStops.length })}</span>
               </div>
 
               <div className="route-stops-add">
@@ -232,7 +236,7 @@ export default function Routes() {
                   disabled={availableStops.length === 0}
                 >
                   <option value="">
-                    {availableStops.length === 0 ? 'Todas as paragens adicionadas' : '+ Adicionar paragem...'}
+                    {availableStops.length === 0 ? t('pages.routes.allStopsAdded') : t('pages.routes.addStopPlaceholder')}
                   </option>
                   {availableStops.map(s => (
                     <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
@@ -242,7 +246,7 @@ export default function Routes() {
 
               {routeStops.length === 0 ? (
                 <div className="route-stops-empty">
-                  Nenhuma paragem adicionada. Seleciona paragens acima.
+                  {t('pages.routes.emptyStops')}
                 </div>
               ) : (
                 <div className="route-stops-list">
@@ -263,9 +267,9 @@ export default function Routes() {
                         <span className="route-stop-code">{stop.code}</span>
                       </div>
                       <div className="route-stop-actions">
-                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx - 1)} disabled={idx === 0} title="Subir">&#9650;</button>
-                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx + 1)} disabled={idx === routeStops.length - 1} title="Descer">&#9660;</button>
-                        <button type="button" className="route-stop-btn route-stop-btn--remove" onClick={() => removeStop(idx)} title="Remover">&#10005;</button>
+                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx - 1)} disabled={idx === 0} title={t('pages.routes.moveUp')}>&#9650;</button>
+                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx + 1)} disabled={idx === routeStops.length - 1} title={t('pages.routes.moveDown')}>&#9660;</button>
+                        <button type="button" className="route-stop-btn route-stop-btn--remove" onClick={() => removeStop(idx)} title={t('pages.routes.removeStop')}>&#10005;</button>
                       </div>
                     </div>
                   ))}
@@ -274,8 +278,8 @@ export default function Routes() {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary">{editing ? 'Guardar' : 'Criar'}</button>
-              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">{editing ? t('pages.routes.save') : t('common.create')}</button>
+              <button type="button" className="btn btn-secondary" onClick={resetForm}>{t('pages.routes.cancel')}</button>
             </div>
           </form>
         </div>
@@ -285,12 +289,12 @@ export default function Routes() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '70px' }}>ID</th>
-              <th style={{ width: '110px' }}>Codigo</th>
-              <th>Nome</th>
-              <th style={{ width: '130px' }}>Cor</th>
-              <th style={{ width: '100px' }}>Paragens</th>
-              <th style={{ width: '170px' }}>Acoes</th>
+              <th style={{ width: '70px' }}>{t('pages.routes.headers.id')}</th>
+              <th style={{ width: '110px' }}>{t('pages.routes.headers.code')}</th>
+              <th>{t('pages.routes.headers.name')}</th>
+              <th style={{ width: '130px' }}>{t('pages.routes.headers.color')}</th>
+              <th style={{ width: '100px' }}>{t('pages.routes.headers.stops')}</th>
+              <th style={{ width: '170px' }}>{t('pages.routes.headers.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -311,8 +315,8 @@ export default function Routes() {
                 <td className="actions">
                   {isAdmin && (
                     <>
-                      <button className="btn btn-sm" onClick={() => startEdit(route)}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(route.id)}>Apagar</button>
+                      <button className="btn btn-sm" onClick={() => startEdit(route)}>{t('common.edit')}</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(route.id)}>{t('common.delete')}</button>
                     </>
                   )}
                 </td>
@@ -321,13 +325,13 @@ export default function Routes() {
             {visibleCount < filtered.length && (
               <tr ref={loaderRef}>
                 <td colSpan="6" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
-                  A carregar mais rotas… ({visibleCount} de {filtered.length})
+                  {t('pages.routes.loadingMore', { current: visibleCount, total: filtered.length })}
                 </td>
               </tr>
             )}
             {filtered.length === 0 && (
               <tr><td colSpan="6" className="empty">
-                {search ? 'Nenhuma rota encontrada' : 'Nenhuma rota registada'}
+                {search ? t('pages.routes.notFound') : t('pages.routes.noRoutes')}
               </td></tr>
             )}
           </tbody>

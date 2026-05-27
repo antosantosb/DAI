@@ -6,12 +6,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
-  IconSettings, IconDataSource,
+  IconSettings, IconDataSource, IconDriver,
 } from './NavIcon';
+import LanguageSwitcher from './LanguageSwitcher';
 import { getOcorrencias } from '../services/ocorrenciasApi';
 import { routes, hasAccess } from '../routes';
 import './Layout.css';
@@ -31,15 +33,16 @@ const ICON_COMPONENTS = {
   IconAlarm,
   IconSettings,
   IconDataSource,
+  IconDriver,
 };
 
-// Ordem fixa das sections (para o sidebar nao reordenar conforme o user).
-const SECTION_ORDER = ['Principal', 'Operações', 'Administração'];
+// Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
+const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.administration'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.
  * Itera os children de /backoffice do manifest, filtra por nav + acesso, e
- * agrupa por section.
+ * agrupa por sectionKey.
  */
 function buildNavSections(authState) {
   const backoffice = routes.find((r) => r.path === '/backoffice');
@@ -50,24 +53,24 @@ function buildNavSections(authState) {
     .filter((c) => c.nav)
     .filter((c) => hasAccess(c.access ?? parentAccess, authState));
 
-  // Agrupar por section, preservando ordem do SECTION_ORDER
+  // Agrupar por sectionKey, preservando ordem do SECTION_ORDER
   const grouped = new Map();
   for (const it of items) {
-    const sec = it.nav.section || 'Outros';
+    const sec = it.nav.sectionKey || 'sections.other';
     if (!grouped.has(sec)) grouped.set(sec, []);
     grouped.get(sec).push(it);
   }
 
   const result = [];
-  for (const section of SECTION_ORDER) {
-    if (grouped.has(section)) {
-      result.push({ section, items: grouped.get(section) });
-      grouped.delete(section);
+  for (const sectionKey of SECTION_ORDER) {
+    if (grouped.has(sectionKey)) {
+      result.push({ sectionKey, items: grouped.get(sectionKey) });
+      grouped.delete(sectionKey);
     }
   }
   // Sections custom (nao previstas no SECTION_ORDER) vao para o fim
-  for (const [section, items] of grouped.entries()) {
-    result.push({ section, items });
+  for (const [sectionKey, items] of grouped.entries()) {
+    result.push({ sectionKey, items });
   }
   return result;
 }
@@ -84,6 +87,7 @@ export default function Layout() {
   const auth = useAuth();
   const { logout, username, roles } = auth;
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [alarmsCount, setAlarmsCount] = useState(0);
 
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function Layout() {
   );
 
   const isAdmin = roles.includes('admin');
-  const displayRole = isAdmin ? 'Administrador' : 'Operador';
+  const displayRole = isAdmin ? t('auth.roles.admin') : t('auth.roles.operador');
   const avatarLetter = username ? username.charAt(0).toUpperCase() : '?';
 
   return (
@@ -123,24 +127,25 @@ export default function Layout() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          {navSections.map(({ section, items }) => (
-            <div key={section}>
-              <span className="sidebar-section-label">{section}</span>
+          {navSections.map(({ sectionKey, items }) => (
+            <div key={sectionKey}>
+              <span className="sidebar-section-label">{t(sectionKey)}</span>
               {items.map((item) => {
                 const Icon = ICON_COMPONENTS[item.nav.iconKey];
                 const to = buildLink(item);
                 const showBadge = item.nav.badge === 'alarms' && alarmsCount > 0;
+                const label = t(item.nav.labelKey);
                 return (
                   <NavLink
                     key={to}
                     to={to}
                     end={!!item.index}
-                    aria-label={item.nav.label}
+                    aria-label={label}
                   >
                     <span className="nav-icon" aria-hidden="true">
                       {Icon ? <Icon /> : null}
                     </span>
-                    {item.nav.label}
+                    {label}
                     {showBadge && <span className="nav-badge">{alarmsCount}</span>}
                   </NavLink>
                 );
@@ -161,8 +166,8 @@ export default function Layout() {
             <button
               className="sidebar-home"
               onClick={() => navigate('/')}
-              title="Voltar ao início"
-              aria-label="Voltar ao início"
+              title={t('auth.homeTitle')}
+              aria-label={t('auth.homeTitle')}
             >
               <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
                 <path d="M3 10L10 3L17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -172,8 +177,8 @@ export default function Layout() {
             <button
               className="sidebar-logout"
               onClick={logout}
-              title="Sair"
-              aria-label="Terminar sessão"
+              title={t('auth.logoutTitle')}
+              aria-label={t('auth.logoutTitle')}
             >
               <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
                 <path d="M7 17H4C3.45 17 3 16.55 3 16V4C3 3.45 3.45 3 4 3H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -187,6 +192,9 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      <div className="layout-lang">
+        <LanguageSwitcher />
+      </div>
     </div>
   );
 }

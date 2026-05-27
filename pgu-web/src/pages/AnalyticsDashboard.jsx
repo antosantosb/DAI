@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
   BarChart, Bar, AreaChart, Area,
@@ -55,13 +56,13 @@ const getOccupancyColor = (rate) => {
   return '#ef4444'; // high
 };
 
-const TABS = [
-  { key: 'fleet', label: 'Frota' },
-  { key: 'buses', label: 'Autocarros' },
-  { key: 'geo', label: 'Geográfico' },
-];
-
 export default function AnalyticsDashboard() {
+  const { t } = useTranslation();
+  const TABS = [
+    { key: 'fleet', label: t('pages.analytics.tabFleet') },
+    { key: 'buses', label: t('pages.analytics.tabBuses') },
+    { key: 'geo', label: t('pages.analytics.tabGeo') },
+  ];
   const [fleetData, setFleetData]             = useState([]);
   const [delayData, setDelayData]             = useState([]);
   const [efficiencyData, setEfficiencyData]   = useState([]);
@@ -182,8 +183,8 @@ export default function AnalyticsDashboard() {
     <div className="analytics-page">
       <div className="page-header">
         <div>
-          <h1>Gestão e Analytics</h1>
-          <p className="page-subtitle">Ferramentas de decisão baseadas em histórico</p>
+          <h1>{t('pages.analytics.pageTitle')}</h1>
+          <p className="page-subtitle">{t('pages.analytics.pageSubtitle')}</p>
         </div>
         <a
           href={`${window.location.origin}/metabase/`}
@@ -194,7 +195,7 @@ export default function AnalyticsDashboard() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" />
           </svg>
-          Metabase
+          {t('pages.analytics.metabase')}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>
@@ -204,7 +205,7 @@ export default function AnalyticsDashboard() {
       {/* Dynamic Filter Card */}
       <form onSubmit={handleFilter} className="analytics-filter-card">
         <div className="filter-group">
-          <label>Data de Início</label>
+          <label>{t('pages.analytics.startDate')}</label>
           <input
             type="date"
             value={startDate}
@@ -212,7 +213,7 @@ export default function AnalyticsDashboard() {
           />
         </div>
         <div className="filter-group">
-          <label>Data de Fim</label>
+          <label>{t('pages.analytics.endDate')}</label>
           <input
             type="date"
             value={endDate}
@@ -220,7 +221,7 @@ export default function AnalyticsDashboard() {
           />
         </div>
         <div className="filter-group">
-          <label>Hora de Início</label>
+          <label>{t('pages.analytics.startHour')}</label>
           <input
             type="time"
             value={startHour}
@@ -228,7 +229,7 @@ export default function AnalyticsDashboard() {
           />
         </div>
         <div className="filter-group">
-          <label>Hora de Fim</label>
+          <label>{t('pages.analytics.endHour')}</label>
           <input
             type="time"
             value={endHour}
@@ -240,11 +241,11 @@ export default function AnalyticsDashboard() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
             </svg>
-            Filtrar
+            {t('pages.analytics.filter')}
           </button>
           {(isFiltered || startDate || endDate || startHour || endHour) && (
             <button type="button" onClick={handleClear} className="btn-clear">
-              Limpar
+              {t('pages.analytics.clear')}
             </button>
           )}
         </div>
@@ -264,7 +265,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {loading ? (
-        <p className="analytics-loading">A carregar gráficos…</p>
+        <p className="analytics-loading">{t('pages.analytics.loadingCharts')}</p>
       ) : (
         <>
           {/* ═══ TAB FROTA ═══ */}
@@ -274,21 +275,21 @@ export default function AnalyticsDashboard() {
               <div className="analytics-kpi-row">
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">{avgFleetOccupancy ? `${avgFleetOccupancy}%` : '—'}</span>
-                  <span className="kpi-label">Taxa Média de Ocupação</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiAvgOccupancy')}</span>
                 </div>
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">{peakPassengers}</span>
-                  <span className="kpi-label">Pico de Passageiros</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiPeakPassengers')}</span>
                 </div>
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">{avgActiveBuses}</span>
-                  <span className="kpi-label">Autocarros Ativos Médios</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiAvgActiveBuses')}</span>
                 </div>
               </div>
 
               <div className="analytics-grid">
                 <section className="bus-card analytics-card">
-                  <h3>Evolução de Tráfego e Ocupação da Frota</h3>
+                  <h3>{t('pages.analytics.fleetEvolution')}</h3>
                   <div className="chart-container chart-container--lg">
                     <ResponsiveContainer>
                       <LineChart data={fleetData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -299,24 +300,24 @@ export default function AnalyticsDashboard() {
                         <RechartsTooltip
                           contentStyle={TOOLTIP_STYLE}
                           formatter={(value, name) => {
-                            if (name === 'Ocupação da Frota (%)') return [`${fmt1(value)}%`, name];
+                            if (name === t('pages.analytics.fleetOccupancyPct')) return [`${fmt1(value)}%`, name];
                             return [value, name];
                           }}
                         />
                         <Legend wrapperStyle={{ fontSize: 13 }} />
-                        <Line yAxisId="left"  type="monotone" dataKey="totalPassengers" name="Passageiros Totais" stroke={CHART.passengers} strokeWidth={2.5} activeDot={{ r: 6 }} dot={false} />
-                        <Line yAxisId="right" type="monotone" dataKey="activeBuses"     name="Autocarros Ativos"   stroke={CHART.buses}      strokeWidth={2.5} dot={false} />
-                        <Line yAxisId="right" type="monotone" dataKey="occupancyRate"   name="Ocupação da Frota (%)" stroke="#f59e0b"        strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                        <Line yAxisId="left"  type="monotone" dataKey="totalPassengers" name={t('pages.analytics.totalPassengers')} stroke={CHART.passengers} strokeWidth={2.5} activeDot={{ r: 6 }} dot={false} />
+                        <Line yAxisId="right" type="monotone" dataKey="activeBuses"     name={t('pages.analytics.activeBuses')}   stroke={CHART.buses}      strokeWidth={2.5} dot={false} />
+                        <Line yAxisId="right" type="monotone" dataKey="occupancyRate"   name={t('pages.analytics.fleetOccupancyPct')} stroke="#f59e0b"        strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  {fleetData.length === 0 && <p className="analytics-empty">Sem dados de frota no intervalo selecionado.</p>}
+                  {fleetData.length === 0 && <p className="analytics-empty">{t('pages.analytics.noFleetData')}</p>}
                 </section>
 
                 <section className="bus-card analytics-card">
-                  <h3>Distribuição de Estados por Rota</h3>
+                  <h3>{t('pages.analytics.stateDistribution')}</h3>
                   <p className="analytics-subtitle">
-                    Proporção do tempo em cada estado operacional. Ideal perto de 100% <span style={{color: CHART.active, fontWeight:600}}>Ativo</span>.
+                    {t('pages.analytics.stateSubtitlePrefix')}<span style={{color: CHART.active, fontWeight:600}}>{t('pages.analytics.stateActive')}</span>.
                   </p>
                   <div className="chart-container chart-container--lg">
                     <ResponsiveContainer>
@@ -326,13 +327,13 @@ export default function AnalyticsDashboard() {
                         <YAxis stroke={CHART.axis} tick={{ fontSize: 12 }} tickFormatter={(v) => `${Math.round(v * 100)}%`} domain={[0, 1]} />
                         <RechartsTooltip cursor={{ fill: CHART.grid }} content={<DelaysTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 13 }} />
-                        <Bar dataKey="activeCount"   stackId="s" name="Ativo"     fill={CHART.active} />
-                        <Bar dataKey="atStopCount"   stackId="s" name="Em paragem" fill={CHART.atStop} />
-                        <Bar dataKey="delayedCount"  stackId="s" name="Atrasado"   fill={CHART.delayed} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="activeCount"   stackId="s" name={t('pages.analytics.stateActive')}     fill={CHART.active} />
+                        <Bar dataKey="atStopCount"   stackId="s" name={t('pages.analytics.stateAtStop')} fill={CHART.atStop} />
+                        <Bar dataKey="delayedCount"  stackId="s" name={t('pages.analytics.stateDelayed')}   fill={CHART.delayed} radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  {delayData.length === 0 && <p className="analytics-empty">Sem eventos operacionais registados no intervalo selecionado.</p>}
+                  {delayData.length === 0 && <p className="analytics-empty">{t('pages.analytics.noOperationalEvents')}</p>}
                 </section>
               </div>
             </>
@@ -345,36 +346,36 @@ export default function AnalyticsDashboard() {
               <div className="analytics-kpi-row">
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">{overallAvgOccupancy ? `${overallAvgOccupancy}%` : '—'}</span>
-                  <span className="kpi-label">Ocupação Média Geral</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiOverallAvgOccupancy')}</span>
                 </div>
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">{overallMaxOccupancy ? `${overallMaxOccupancy}%` : '—'}</span>
-                  <span className="kpi-label">Pico de Ocupação Geral</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiOverallMaxOccupancy')}</span>
                 </div>
                 <div className="analytics-kpi-card">
                   <span className="kpi-value">
                     {mostUtilizedBus ? `${mostUtilizedBus.busId} (${mostUtilizedBus.avgOccupancyRate.toFixed(1)}%)` : '—'}
                   </span>
-                  <span className="kpi-label">Autocarro Mais Solicitado</span>
+                  <span className="kpi-label">{t('pages.analytics.kpiMostUtilized')}</span>
                 </div>
               </div>
 
               <div className="analytics-grid">
                 <section className="bus-card analytics-card">
                   <div className="card-header-actions">
-                    <h3>Eficiência da Frota</h3>
+                    <h3>{t('pages.analytics.fleetEfficiency')}</h3>
                     <div className="metric-toggle">
                       <button
                         className={`btn-toggle ${efficiencyMetric === 'passengers' ? 'active' : ''}`}
                         onClick={() => setEfficiencyMetric('passengers')}
                       >
-                        Passageiros
+                        {t('pages.analytics.passengers')}
                       </button>
                       <button
                         className={`btn-toggle ${efficiencyMetric === 'occupancy' ? 'active' : ''}`}
                         onClick={() => setEfficiencyMetric('occupancy')}
                       >
-                        Taxa de Ocupação (%)
+                        {t('pages.analytics.occupancyRateLabel')}
                       </button>
                     </div>
                   </div>
@@ -389,23 +390,23 @@ export default function AnalyticsDashboard() {
                         <Legend wrapperStyle={{ fontSize: 13 }} />
                         {efficiencyMetric === 'passengers' ? (
                           <>
-                            <Bar dataKey="avgPassengers" name="Média (Pax)"  fill={CHART.avgPax} radius={[0, 4, 4, 0]} />
-                            <Bar dataKey="maxPassengers" name="Máximo (Pax)" fill={CHART.maxPax} radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="avgPassengers" name={t('pages.analytics.avgPax')}  fill={CHART.avgPax} radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="maxPassengers" name={t('pages.analytics.maxPax')} fill={CHART.maxPax} radius={[0, 4, 4, 0]} />
                           </>
                         ) : (
                           <>
-                            <Bar dataKey="avgOccupancyRate" name="Ocupação Média (%)"  fill={CHART.avgPax} radius={[0, 4, 4, 0]} />
-                            <Bar dataKey="maxOccupancyRate" name="Ocupação Máxima (%)" fill={CHART.maxPax} radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="avgOccupancyRate" name={t('pages.analytics.avgOccupancyPct')}  fill={CHART.avgPax} radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="maxOccupancyRate" name={t('pages.analytics.maxOccupancyPct')} fill={CHART.maxPax} radius={[0, 4, 4, 0]} />
                           </>
                         )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  {efficiencyData.length === 0 && <p className="analytics-empty">Sem dados de eficiência.</p>}
+                  {efficiencyData.length === 0 && <p className="analytics-empty">{t('pages.analytics.noEfficiency')}</p>}
                 </section>
 
                 <section className="bus-card analytics-card">
-                  <h3>Velocidade Média da Frota</h3>
+                  <h3>{t('pages.analytics.avgFleetSpeed')}</h3>
                   <div className="chart-container chart-container--lg">
                     <ResponsiveContainer>
                       <AreaChart data={speedData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -418,12 +419,12 @@ export default function AnalyticsDashboard() {
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
                         <XAxis dataKey="minute" stroke={CHART.axis} tick={{ fontSize: 12 }} />
                         <YAxis stroke={CHART.axis} tick={{ fontSize: 12 }} unit=" km/h" />
-                        <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt1(v)} km/h`, 'Vel. Média']} />
+                        <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt1(v)} km/h`, t('pages.analytics.avgSpeedLabel')]} />
                         <Area type="monotone" dataKey="avgSpeed" stroke={CHART.speed} strokeWidth={2.5} fill="url(#speedGrad)" dot={false} activeDot={{ r: 5 }} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                  {speedData.length === 0 && <p className="analytics-empty">Sem dados de velocidade no intervalo selecionado.</p>}
+                  {speedData.length === 0 && <p className="analytics-empty">{t('pages.analytics.noSpeedData')}</p>}
                 </section>
               </div>
             </>
@@ -433,49 +434,49 @@ export default function AnalyticsDashboard() {
           {activeTab === 'geo' && (
             <div className="analytics-grid">
               <section className="bus-card analytics-card">
-                <h3>Zonas Quentes (Densidade de Passageiros)</h3>
+                <h3>{t('pages.analytics.hotZones')}</h3>
                 <HeatmapAnalytics />
               </section>
 
               <section className="bus-card analytics-card">
-                <h3>Pontos de Congestionamento</h3>
+                <h3>{t('pages.analytics.congestionPoints')}</h3>
                 <p className="analytics-subtitle">
-                  Autocarros com velocidade &lt;15 km/h e mais de 10 passageiros — possível trânsito ou paragem prolongada.
+                  {t('pages.analytics.congestionSubtitle')}
                 </p>
                 {congestionData.length === 0 ? (
-                  <p className="analytics-empty">Nenhum ponto de congestionamento detetado no intervalo selecionado.</p>
+                  <p className="analytics-empty">{t('pages.analytics.noCongestion')}</p>
                 ) : (
                   <>
                     <div className="congestion-summary">
                       <div className="congestion-stat">
                         <span className="congestion-stat-value">{congestionData.length}</span>
-                        <span className="congestion-stat-label">Registos</span>
+                        <span className="congestion-stat-label">{t('pages.analytics.congestionRecords')}</span>
                       </div>
                       <div className="congestion-stat">
                         <span className="congestion-stat-value">{new Set(congestionData.map(c => c.busId)).size}</span>
-                        <span className="congestion-stat-label">Autocarros</span>
+                        <span className="congestion-stat-label">{t('pages.analytics.congestionBuses')}</span>
                       </div>
                       <div className="congestion-stat">
                         <span className="congestion-stat-value">{new Set(congestionData.map(c => c.routeCode).filter(Boolean)).size}</span>
-                        <span className="congestion-stat-label">Rotas Afetadas</span>
+                        <span className="congestion-stat-label">{t('pages.analytics.congestionRoutes')}</span>
                       </div>
                       <div className="congestion-stat">
                         <span className="congestion-stat-value">
                           {Math.max(...congestionData.map(c => c.occupancyRate || 0)).toFixed(1)}<small>%</small>
                         </span>
-                        <span className="congestion-stat-label">Máx. Ocupação</span>
+                        <span className="congestion-stat-label">{t('pages.analytics.congestionMaxOcc')}</span>
                       </div>
                     </div>
                     <div className="congestion-table-wrap">
                       <table className="congestion-table">
                         <thead>
                           <tr>
-                            <th>Autocarro</th>
-                            <th>Rota</th>
-                            <th>Velocidade</th>
-                            <th>Passageiros</th>
-                            <th>Ocupação (%)</th>
-                            <th>Hora</th>
+                            <th>{t('pages.analytics.tableBus')}</th>
+                            <th>{t('pages.analytics.tableRoute')}</th>
+                            <th>{t('pages.analytics.tableSpeed')}</th>
+                            <th>{t('pages.analytics.tablePassengers')}</th>
+                            <th>{t('pages.analytics.tableOccupancy')}</th>
+                            <th>{t('pages.analytics.tableTime')}</th>
                           </tr>
                         </thead>
                         <tbody>

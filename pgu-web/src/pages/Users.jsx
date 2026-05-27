@@ -1,14 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import './Users.css';
-
-// Apenas operador — contas admin são geridas diretamente no Keycloak
-const ROLE_OPTIONS = [
-  { value: 'operador', label: 'Operador' },
-  { value: 'motorista', label: 'Motorista' },
-];
 
 const EMPTY_FORM = {
   username: '', email: '', firstName: '', lastName: '',
@@ -17,6 +12,12 @@ const EMPTY_FORM = {
 };
 
 export default function Users() {
+  const { t } = useTranslation();
+  // Apenas operador — contas admin são geridas diretamente no Keycloak
+  const ROLE_OPTIONS = [
+    { value: 'operador', label: t('pages.users.roleOperator') },
+    { value: 'motorista', label: t('pages.users.roleDriver') },
+  ];
   const { username: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export default function Users() {
       const { data } = await api.get('/drivers/next-mechanographic-number');
       setForm(prev => ({ ...prev, mechanographicNumber: data.mechanographicNumber }));
     } catch (err) {
-      showModal({ type: 'danger', title: 'Erro', message: 'Não foi possível gerar o número.' });
+      showModal({ type: 'danger', title: t('pages.users.errorTitle'), message: t('pages.users.errorMecNum') });
     }
   };
 
@@ -90,13 +91,13 @@ export default function Users() {
       resetForm();
       load();
       showModal({
-        type: 'success', title: 'Sucesso',
-        message: editing ? 'Utilizador atualizado.' : 'Conta criada com sucesso.',
+        type: 'success', title: t('pages.users.successTitle'),
+        message: editing ? t('pages.users.userUpdated') : t('pages.users.accountCreated'),
       });
     }).catch(err => {
       showModal({
-        type: 'danger', title: 'Erro',
-        message: err.response?.data?.message || err.message || 'Erro ao processar pedido.',
+        type: 'danger', title: t('pages.users.errorTitle'),
+        message: err.response?.data?.message || err.message || t('pages.users.errorProcessing'),
       });
     }).finally(() => setSubmitting(false));
   };
@@ -118,16 +119,18 @@ export default function Users() {
   const handleToggle = (user) => {
     showModal({
       type: 'warning',
-      title: `${user.enabled ? 'Desativar' : 'Ativar'} ${user.username}?`,
+      title: user.enabled
+        ? t('pages.users.toggleDeactivateTitle', { username: user.username })
+        : t('pages.users.toggleActivateTitle', { username: user.username }),
       message: user.enabled
-        ? 'O utilizador não poderá aceder ao sistema até ser reativado.'
-        : 'O utilizador voltará a ter acesso ao sistema.',
-      confirmText: user.enabled ? 'Desativar' : 'Ativar',
+        ? t('pages.users.toggleDeactivateMessage')
+        : t('pages.users.toggleActivateMessage'),
+      confirmText: user.enabled ? t('pages.users.toggleDeactivate') : t('pages.users.toggleActivate'),
       onConfirm: () => {
         closeModal();
         api.patch(`/users/${user.id}/toggle`, { enabled: !user.enabled })
           .then(load)
-          .catch(err => showModal({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message }));
+          .catch(err => showModal({ type: 'danger', title: t('pages.users.errorTitle'), message: err.response?.data?.message || err.message }));
       },
     });
   };
@@ -135,26 +138,26 @@ export default function Users() {
   const handleDelete = (user) => {
     showModal({
       type: 'danger',
-      title: `Eliminar ${user.username}?`,
-      message: 'Esta ação é irreversível. A conta será permanentemente eliminada do sistema.',
-      confirmText: 'Eliminar',
+      title: t('pages.users.deleteUserTitle', { username: user.username }),
+      message: t('pages.users.deleteUserMessage'),
+      confirmText: t('pages.users.deleteUserConfirm'),
       onConfirm: () => {
         closeModal();
         api.delete(`/users/${user.id}`)
           .then(() => {
             load();
-            showModal({ type: 'success', title: 'Sucesso', message: 'Conta eliminada com sucesso.' });
+            showModal({ type: 'success', title: t('pages.users.successTitle'), message: t('pages.users.accountDeleted') });
           })
-          .catch(err => showModal({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message }));
+          .catch(err => showModal({ type: 'danger', title: t('pages.users.errorTitle'), message: err.response?.data?.message || err.message }));
       },
     });
   };
 
   const getRoleLabel = (roles) => {
-    if (!roles?.length) return 'Sem role';
-    if (roles.includes('admin')) return 'Admin';
-    if (roles.includes('operador')) return 'Operador';
-    if (roles.includes('motorista')) return 'Motorista';
+    if (!roles?.length) return t('pages.users.roleNone');
+    if (roles.includes('admin')) return t('pages.users.roleAdmin');
+    if (roles.includes('operador')) return t('pages.users.roleOperator');
+    if (roles.includes('motorista')) return t('pages.users.roleDriver');
     return roles[0];
   };
 
@@ -195,12 +198,12 @@ export default function Users() {
 
       <div className="page-header">
         <div>
-          <h1>Utilizadores</h1>
-          <p className="page-subtitle">Gestão de contas e permissões do sistema</p>
+          <h1>{t('pages.users.title')}</h1>
+          <p className="page-subtitle">{t('pages.users.subtitleAlt')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Nova Conta
+          {t('pages.users.newAccount')}
         </button>
       </div>
 
@@ -214,7 +217,7 @@ export default function Users() {
           </div>
           <div className="user-stat-content">
             <div className="user-stat-value">{users.length}</div>
-            <div className="user-stat-label">Total de Contas</div>
+            <div className="user-stat-label">{t('pages.users.totalAccounts')}</div>
           </div>
         </div>
         <div className="user-stat-card user-stat-card--active">
@@ -225,7 +228,7 @@ export default function Users() {
           </div>
           <div className="user-stat-content">
             <div className="user-stat-value">{activeCount}</div>
-            <div className="user-stat-label">Contas Ativas</div>
+            <div className="user-stat-label">{t('pages.users.activeAccounts')}</div>
           </div>
         </div>
         <div className="user-stat-card user-stat-card--disabled">
@@ -236,7 +239,7 @@ export default function Users() {
           </div>
           <div className="user-stat-content">
             <div className="user-stat-value">{disabledCount}</div>
-            <div className="user-stat-label">Desativadas</div>
+            <div className="user-stat-label">{t('pages.users.disabledAccounts')}</div>
           </div>
         </div>
       </div>
@@ -248,17 +251,17 @@ export default function Users() {
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
           <input
-            placeholder="Pesquisar por nome, email ou username..."
+            placeholder={t('pages.users.searchPlaceholderFull')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            aria-label="Pesquisar utilizadores"
+            aria-label={t('pages.users.ariaSearchUsers')}
           />
         </div>
-        <div className="user-filters" role="group" aria-label="Filtrar por estado">
+        <div className="user-filters" role="group" aria-label={t('pages.users.ariaFilterByState')}>
           {[
-            { key: 'all', label: 'Todos', count: users.length },
-            { key: 'active', label: 'Ativos', count: activeCount },
-            { key: 'disabled', label: 'Desativados', count: disabledCount },
+            { key: 'all', label: t('pages.users.filterAllLabel'), count: users.length },
+            { key: 'active', label: t('pages.users.filterActiveLabel'), count: activeCount },
+            { key: 'disabled', label: t('pages.users.filterDisabledLabel'), count: disabledCount },
           ].map(f => (
             <button
               key={f.key}
@@ -266,7 +269,7 @@ export default function Users() {
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
             >
-              {f.label} ({f.count})
+              {`${f.label} (${f.count})`}
             </button>
           ))}
         </div>
@@ -284,16 +287,16 @@ export default function Users() {
           <div className="user-modal" onClick={e => e.stopPropagation()}>
             <div className="user-modal-header">
               <h3 id="user-modal-title">
-                {editing ? 'Editar Utilizador' : 'Nova Conta'}
+                {editing ? t('pages.users.modalEditUser') : t('pages.users.modalNewAccount')}
                 <span className={`user-modal-badge ${editing ? 'user-modal-badge--edit' : 'user-modal-badge--new'}`}>
-                  {editing ? 'Edição' : 'Novo'}
+                  {editing ? t('pages.users.badgeEdit') : t('pages.users.badgeNew')}
                 </span>
               </h3>
               <button
                 className="user-modal-close"
                 onClick={resetForm}
                 type="button"
-                aria-label="Fechar modal"
+                aria-label={t('pages.users.closeModal')}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -302,12 +305,12 @@ export default function Users() {
               <div className="user-modal-body">
                 <div className="form-grid">
                   <div className="form-group">
-                    <label htmlFor="user-username">Username</label>
+                    <label htmlFor="user-username">{t('pages.users.labelUsername')}</label>
                     <input
                       id="user-username"
                       value={form.username}
                       onChange={e => setForm({ ...form, username: e.target.value })}
-                      placeholder="nome.utilizador"
+                      placeholder={t('pages.users.placeholderUsername')}
                       required
                       disabled={!!editing}
                       autoComplete="username"
@@ -315,61 +318,61 @@ export default function Users() {
                     {editing && (
                       <span className="form-hint">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                        Não editável (restrição Keycloak)
+                        {t('pages.users.hintUsernameKeycloak')}
                       </span>
                     )}
                   </div>
                   <div className="form-group">
-                    <label htmlFor="user-email">Email</label>
+                    <label htmlFor="user-email">{t('pages.users.labelEmail')}</label>
                     <input
                       id="user-email"
                       type="email"
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
-                      placeholder="email@exemplo.pt"
+                      placeholder={t('pages.users.placeholderEmail')}
                       required
                       autoComplete="email"
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="user-firstname">Nome</label>
+                    <label htmlFor="user-firstname">{t('pages.users.labelFirstName')}</label>
                     <input
                       id="user-firstname"
                       value={form.firstName}
                       onChange={e => setForm({ ...form, firstName: e.target.value })}
-                      placeholder="Primeiro nome"
+                      placeholder={t('pages.users.placeholderFirstName')}
                       autoComplete="given-name"
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="user-lastname">Apelido</label>
+                    <label htmlFor="user-lastname">{t('pages.users.labelLastName')}</label>
                     <input
                       id="user-lastname"
                       value={form.lastName}
                       onChange={e => setForm({ ...form, lastName: e.target.value })}
-                      placeholder="Apelido"
+                      placeholder={t('pages.users.placeholderLastName')}
                       autoComplete="family-name"
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="user-password">{editing ? 'Nova Password' : 'Password'}</label>
+                    <label htmlFor="user-password">{editing ? t('pages.users.labelNewPassword') : t('pages.users.labelPassword')}</label>
                     <input
                       id="user-password"
                       type="password"
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
-                      placeholder={editing ? 'Deixar vazio para manter' : 'Min. 6 caracteres'}
+                      placeholder={editing ? t('pages.users.placeholderPasswordEdit') : t('pages.users.placeholderPassword')}
                       required={!editing}
                       minLength={6}
                       autoComplete={editing ? 'new-password' : 'new-password'}
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="user-role">Role</label>
+                    <label htmlFor="user-role">{t('pages.users.labelRole')}</label>
                     {form.role === 'admin' ? (
                       <>
-                        <input id="user-role" value="Administrador" disabled />
-                        <span className="form-hint">Role de admin não editável</span>
+                        <input id="user-role" value={t('pages.users.roleAdminLong')} disabled />
+                        <span className="form-hint">{t('pages.users.hintRoleAdmin')}</span>
                       </>
                     ) : (
                       <select
@@ -383,20 +386,20 @@ export default function Users() {
                         ))}
                       </select>
                     )}
-                    {editing && <span className="form-hint">Role não editável após criação</span>}
+                    {editing && <span className="form-hint">{t('pages.users.hintRoleEdit')}</span>}
                   </div>
 
                   {form.role === 'motorista' && !editing && (
                     <>
                       <div className="form-group">
-                        <label htmlFor="user-mecnum">Nº Mecanográfico</label>
+                        <label htmlFor="user-mecnum">{t('pages.users.labelMecNum')}</label>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input
                             id="user-mecnum"
                             type="text"
                             value={form.mechanographicNumber}
                             onChange={e => setForm({ ...form, mechanographicNumber: e.target.value })}
-                            placeholder="ex.: M-001"
+                            placeholder={t('pages.users.placeholderMecNum')}
                             required
                             style={{ flex: 1 }}
                           />
@@ -404,20 +407,20 @@ export default function Users() {
                             type="button"
                             className="btn btn-secondary"
                             onClick={generateMecNum}
-                            title="Gerar próximo número livre"
+                            title={t('pages.users.btnGenerateTitle')}
                           >
-                            Gerar
+                            {t('pages.users.btnGenerate')}
                           </button>
                         </div>
                       </div>
                       <div className="form-group">
-                        <label htmlFor="user-phone">Telefone</label>
+                        <label htmlFor="user-phone">{t('pages.users.labelPhone')}</label>
                         <input
                           id="user-phone"
                           type="tel"
                           value={form.phoneNumber}
                           onChange={e => setForm({ ...form, phoneNumber: e.target.value })}
-                          placeholder="opcional"
+                          placeholder={t('pages.users.placeholderPhone')}
                         />
                       </div>
                     </>
@@ -426,16 +429,16 @@ export default function Users() {
               </div>
               <div className="user-modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancelar
+                  {t('pages.users.btnCancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? (
                     <>
                       <span className="user-loading-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
-                      A processar...
+                      {t('pages.users.btnProcessing')}
                     </>
                   ) : (
-                    editing ? 'Guardar Alterações' : 'Criar Conta'
+                    editing ? t('pages.users.btnSaveChanges') : t('pages.users.btnCreateAccount')
                   )}
                 </button>
               </div>
@@ -448,19 +451,19 @@ export default function Users() {
       {loading ? (
         <div className="user-loading">
           <div className="user-loading-spinner" />
-          <span>A carregar utilizadores...</span>
+          <span>{t('pages.users.loadingUsers')}</span>
         </div>
       ) : (
         <div className="table-container">
           <table className="data-table" role="table">
             <thead>
               <tr>
-                <th style={{ width: '25%' }}>Utilizador</th>
-                <th style={{ width: '22%' }}>Email</th>
-                <th style={{ width: '13%' }}>Role</th>
-                <th style={{ width: '12%' }}>Estado</th>
-                <th style={{ width: '12%' }}>Criado</th>
-                <th style={{ width: '16%' }}>Ações</th>
+                <th style={{ width: '25%' }}>{t('pages.users.headers.user')}</th>
+                <th style={{ width: '22%' }}>{t('pages.users.headers.email')}</th>
+                <th style={{ width: '13%' }}>{t('pages.users.headers.role')}</th>
+                <th style={{ width: '12%' }}>{t('pages.users.headers.state')}</th>
+                <th style={{ width: '12%' }}>{t('pages.users.headers.created')}</th>
+                <th style={{ width: '16%' }}>{t('pages.users.headers.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -503,7 +506,7 @@ export default function Users() {
                     <td>
                       <span className={`user-status ${user.enabled ? 'user-status--active' : 'user-status--disabled'}`}>
                         <span className="user-status-dot" aria-hidden="true" />
-                        {user.enabled ? 'Ativo' : 'Inativo'}
+                        {user.enabled ? t('pages.users.stateActive') : t('pages.users.stateInactive')}
                       </span>
                     </td>
                     <td className="user-date">
@@ -516,25 +519,25 @@ export default function Users() {
                         <button
                           className="btn btn-sm"
                           onClick={() => startEdit(user)}
-                          aria-label={`Editar ${user.username}`}
+                          aria-label={t('pages.users.ariaEdit', { username: user.username })}
                         >
-                          Editar
+                          {t('pages.users.btnEdit')}
                         </button>
                         {!isAdmin && (
                           <>
                             <button
                               className={`btn btn-sm ${user.enabled ? 'btn-warning' : 'btn-success'}`}
                               onClick={() => handleToggle(user)}
-                              aria-label={`${user.enabled ? 'Desativar' : 'Ativar'} ${user.username}`}
+                              aria-label={user.enabled ? t('pages.users.ariaDeactivate', { username: user.username }) : t('pages.users.ariaActivate', { username: user.username })}
                             >
-                              {user.enabled ? 'Desativar' : 'Ativar'}
+                              {user.enabled ? t('pages.users.btnDeactivate') : t('pages.users.btnActivate')}
                             </button>
                             <button
                               className="btn btn-sm btn-danger"
                               onClick={() => handleDelete(user)}
-                              aria-label={`Eliminar ${user.username}`}
+                              aria-label={t('pages.users.ariaDelete', { username: user.username })}
                             >
-                              Eliminar
+                              {t('pages.users.btnDelete')}
                             </button>
                           </>
                         )}
@@ -554,23 +557,23 @@ export default function Users() {
                       </div>
                       <div className="user-empty-title">
                         {search
-                          ? 'Nenhum resultado encontrado'
+                          ? t('pages.users.emptyNoResults')
                           : filter !== 'all'
-                            ? `Nenhum utilizador ${filter === 'active' ? 'ativo' : 'desativado'}`
-                            : 'Sem contas registadas'
+                            ? (filter === 'active' ? t('pages.users.emptyNoActive') : t('pages.users.emptyNoDisabled'))
+                            : t('pages.users.emptyNoAccounts')
                         }
                       </div>
                       <div className="user-empty-text">
                         {search
-                          ? `Nenhum utilizador corresponde a "${search}". Tenta outro termo.`
+                          ? t('pages.users.emptyNoResultsHint', { q: search })
                           : filter !== 'all'
-                            ? `Não existem utilizadores ${filter === 'active' ? 'ativos' : 'desativados'} de momento.`
-                            : 'Cria a primeira conta para começar a gerir o sistema.'
+                            ? (filter === 'active' ? t('pages.users.emptyNoActiveHint') : t('pages.users.emptyNoDisabledHint'))
+                            : t('pages.users.emptyCreateFirst')
                         }
                       </div>
                       {!search && filter === 'all' && (
                         <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(true); }}>
-                          Criar Primeira Conta
+                          {t('pages.users.createFirstButton')}
                         </button>
                       )}
                     </div>

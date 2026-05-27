@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
@@ -26,20 +27,19 @@ const PauseIcon = (p) => <Icon {...p} d={<><rect x="6" y="4" width="4" height="1
 const GlobeIcon = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>}/>;
 const InfoIcon = (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></>}/>;
 
-const SOURCE_LABELS = {
-  UPLOAD: 'Upload Manual',
-  TUB_MANUAL: 'TUB (manual)',
-  TUB_SCHEDULED: 'TUB (agendado)',
-};
-
-const STATUS_MAP = {
-  PROCESSING: { label: 'A processar', cls: 'gtfs-badge--processing', icon: ClockIcon },
-  COMPLETED: { label: 'Concluido', cls: 'gtfs-badge--completed', icon: CheckIcon },
-  FAILED: { label: 'Falhou', cls: 'gtfs-badge--failed', icon: XIcon },
-  REVERTED: { label: 'Revertido', cls: 'gtfs-badge--reverted', icon: UndoIcon },
-};
-
 export default function GtfsManager() {
+  const { t } = useTranslation();
+  const SOURCE_LABELS = {
+    UPLOAD: t('pages.gtfs.sourceUpload'),
+    TUB_MANUAL: t('pages.gtfs.sourceTubManual'),
+    TUB_SCHEDULED: t('pages.gtfs.sourceTubScheduled'),
+  };
+  const STATUS_MAP = {
+    PROCESSING: { label: t('pages.gtfs.stProcessing'), cls: 'gtfs-badge--processing', icon: ClockIcon },
+    COMPLETED: { label: t('pages.gtfs.stCompleted'), cls: 'gtfs-badge--completed', icon: CheckIcon },
+    FAILED: { label: t('pages.gtfs.stFailed'), cls: 'gtfs-badge--failed', icon: XIcon },
+    REVERTED: { label: t('pages.gtfs.stReverted'), cls: 'gtfs-badge--reverted', icon: UndoIcon },
+  };
   const { hasRole } = useAuth();
   const isAdmin = hasRole('admin');
   const [activeTab, setActiveTab] = useState('upload');
@@ -81,7 +81,7 @@ export default function GtfsManager() {
   const handleFile = async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.zip')) {
-      toast.error('Apenas ficheiros .zip são aceites');
+      toast.error(t('pages.gtfs.onlyZip'));
       return;
     }
     setSelectedFile(file);
@@ -93,7 +93,7 @@ export default function GtfsManager() {
       const { data } = await api.post('/gtfs/preview', formData);
       setPreview(data);
     } catch (err) {
-      toast.error('Erro ao analisar ficheiro: ' + (err.response?.data?.error || err.message));
+      toast.error(t('pages.gtfs.previewError') + (err.response?.data?.error || err.message));
       setSelectedFile(null);
     }
   };
@@ -105,13 +105,13 @@ export default function GtfsManager() {
       const formData = new FormData();
       formData.append('file', selectedFile);
       await api.post('/gtfs/upload', formData);
-      toast.success('Importação iniciada');
+      toast.success(t('pages.gtfs.importStarted'));
       setSelectedFile(null);
       setPreview(null);
       setActiveTab('history');
       setTimeout(fetchImports, 2000);
     } catch (err) {
-      toast.error('Erro no upload: ' + (err.response?.data?.error || err.message));
+      toast.error(t('pages.gtfs.uploadError') + (err.response?.data?.error || err.message));
     } finally {
       setUploading(false);
     }
@@ -121,11 +121,11 @@ export default function GtfsManager() {
     setSyncing(true);
     try {
       await api.post('/gtfs/sync-tub');
-      toast.success('Sincronização TUB iniciada');
+      toast.success(t('pages.gtfs.tubSyncStarted'));
       setActiveTab('history');
       setTimeout(fetchImports, 2000);
     } catch (err) {
-      toast.error('Erro: ' + (err.response?.data?.error || err.message));
+      toast.error(t('pages.gtfs.errorPrefix') + (err.response?.data?.error || err.message));
     } finally {
       setSyncing(false);
     }
@@ -134,19 +134,19 @@ export default function GtfsManager() {
   const handleRevert = async (imp) => {
     setModal({
       open: true,
-      title: 'Reverter importação',
-      message: `Tens a certeza que queres reverter a importação #${imp.id}? Isto irá apagar ${imp.stopsCreated} paragens e ${imp.routesCreated} rotas criadas por esta importação.`,
+      title: t('pages.gtfs.revertTitle'),
+      message: t('pages.gtfs.revertModalMessage', { id: imp.id, stops: imp.stopsCreated, routes: imp.routesCreated }),
       type: 'danger',
-      confirmText: 'Reverter',
-      cancelText: 'Cancelar',
+      confirmText: t('pages.gtfs.revert'),
+      cancelText: t('pages.gtfs.cancel'),
       onConfirm: async () => {
         setModal({ open: false });
         try {
           await api.post(`/gtfs/imports/${imp.id}/revert`);
-          toast.success('Importação revertida');
+          toast.success(t('pages.gtfs.revertedSuccess'));
           fetchImports();
         } catch (err) {
-          toast.error(err.response?.data?.error || 'Erro ao reverter');
+          toast.error(err.response?.data?.error || t('pages.gtfs.revertError'));
         }
       },
     });
@@ -159,10 +159,10 @@ export default function GtfsManager() {
     try {
       const { data } = await api.put('/gtfs/config', { ...config, ...updates });
       setConfig(data);
-      if (!silent) toast.success('Configuração atualizada');
+      if (!silent) toast.success(t('pages.gtfs.configUpdated'));
       if (updates.scheduleActive) fetchImports();          // refresh lista se ativou
     } catch (err) {
-      toast.error('Erro: ' + (err.response?.data?.error || err.message));
+      toast.error(t('pages.gtfs.errorPrefix') + (err.response?.data?.error || err.message));
     } finally {
       setSavingConfig(false);
     }
@@ -181,7 +181,7 @@ export default function GtfsManager() {
   const closeModal = () => setModal({ open: false });
   const formatDate = (iso) => iso ? new Date(iso).toLocaleString('pt-PT') : '—';
 
-  if (loading) return <div className="gtfs-loading">A carregar...</div>;
+  if (loading) return <div className="gtfs-loading">{t('pages.gtfs.loading')}</div>;
 
   // Stats
   const totalImports = imports.length;
@@ -197,8 +197,8 @@ export default function GtfsManager() {
 
       <div className="page-header">
         <div>
-          <h1>Dados GTFS</h1>
-          <p className="page-subtitle">Importação e gestão de dados de transporte</p>
+          <h1>{t('pages.gtfs.pageTitle')}</h1>
+          <p className="page-subtitle">{t('pages.gtfs.pageSubtitle')}</p>
         </div>
       </div>
 
@@ -208,28 +208,28 @@ export default function GtfsManager() {
           <div className="gtfs-stat-icon gtfs-stat-icon--total"><FileIcon size={20}/></div>
           <div className="gtfs-stat-content">
             <span className="gtfs-stat-value">{totalImports}</span>
-            <span className="gtfs-stat-label">Total</span>
+            <span className="gtfs-stat-label">{t('pages.gtfs.statTotal')}</span>
           </div>
         </div>
         <div className="gtfs-stat-card gtfs-stat-card--completed">
           <div className="gtfs-stat-icon gtfs-stat-icon--completed"><CheckIcon size={20}/></div>
           <div className="gtfs-stat-content">
             <span className="gtfs-stat-value">{completedImports}</span>
-            <span className="gtfs-stat-label">Concluidas</span>
+            <span className="gtfs-stat-label">{t('pages.gtfs.statCompleted')}</span>
           </div>
         </div>
         <div className="gtfs-stat-card gtfs-stat-card--processing">
           <div className="gtfs-stat-icon gtfs-stat-icon--processing"><ClockIcon size={20}/></div>
           <div className="gtfs-stat-content">
             <span className="gtfs-stat-value">{processingImports}</span>
-            <span className="gtfs-stat-label">Em curso</span>
+            <span className="gtfs-stat-label">{t('pages.gtfs.statProcessing')}</span>
           </div>
         </div>
         <div className="gtfs-stat-card gtfs-stat-card--failed">
           <div className="gtfs-stat-icon gtfs-stat-icon--failed"><XIcon size={20}/></div>
           <div className="gtfs-stat-content">
             <span className="gtfs-stat-value">{failedImports}</span>
-            <span className="gtfs-stat-label">Falhadas</span>
+            <span className="gtfs-stat-label">{t('pages.gtfs.statFailed')}</span>
           </div>
         </div>
       </div>
@@ -239,17 +239,17 @@ export default function GtfsManager() {
         <button role="tab" aria-selected={activeTab === 'upload'}
           className={`gtfs-tab ${activeTab === 'upload' ? 'gtfs-tab--active' : ''}`}
           onClick={() => setActiveTab('upload')}>
-          <UploadIcon size={16}/> Importar
+          <UploadIcon size={16}/> {t('pages.gtfs.tabUpload')}
         </button>
         <button role="tab" aria-selected={activeTab === 'history'}
           className={`gtfs-tab ${activeTab === 'history' ? 'gtfs-tab--active' : ''}`}
           onClick={() => setActiveTab('history')}>
-          <ClockIcon size={16}/> Historico
+          <ClockIcon size={16}/> {t('pages.gtfs.tabHistory')}
         </button>
         <button role="tab" aria-selected={activeTab === 'schedule'}
           className={`gtfs-tab ${activeTab === 'schedule' ? 'gtfs-tab--active' : ''}`}
           onClick={() => setActiveTab('schedule')}>
-          <RefreshIcon size={16}/> Agendamento
+          <RefreshIcon size={16}/> {t('pages.gtfs.tabSchedule')}
         </button>
       </div>
 
@@ -259,7 +259,7 @@ export default function GtfsManager() {
           <div className="gtfs-upload-grid">
             {/* Drag & Drop zone */}
             <div className="gtfs-upload-zone-wrapper">
-              <h3 className="gtfs-section-title"><UploadIcon size={18}/> Upload de ficheiro GTFS</h3>
+              <h3 className="gtfs-section-title"><UploadIcon size={18}/> {t('pages.gtfs.uploadSectionTitle')}</h3>
               <div
                 ref={dropRef}
                 className={`gtfs-dropzone ${dragOver ? 'gtfs-dropzone--active' : ''} ${selectedFile ? 'gtfs-dropzone--has-file' : ''}`}
@@ -273,8 +273,8 @@ export default function GtfsManager() {
                 {!selectedFile ? (
                   <>
                     <UploadIcon size={40} className="gtfs-dropzone-icon"/>
-                    <p className="gtfs-dropzone-text">Arrasta um ficheiro ZIP aqui</p>
-                    <p className="gtfs-dropzone-hint">ou clica para selecionar</p>
+                    <p className="gtfs-dropzone-text">{t('pages.gtfs.dropHere')}</p>
+                    <p className="gtfs-dropzone-hint">{t('pages.gtfs.clickToSelect')}</p>
                   </>
                 ) : (
                   <>
@@ -288,30 +288,30 @@ export default function GtfsManager() {
               {/* Preview */}
               {preview && (
                 <div className="gtfs-preview">
-                  <h4 className="gtfs-preview-title"><InfoIcon size={16}/> Preview</h4>
+                  <h4 className="gtfs-preview-title"><InfoIcon size={16}/> {t('pages.gtfs.previewLabel')}</h4>
                   <div className="gtfs-preview-grid">
                     {preview.stopsCount !== undefined && (
                       <div className="gtfs-preview-item">
                         <span className="gtfs-preview-value">{preview.stopsCount}</span>
-                        <span className="gtfs-preview-label">Paragens</span>
+                        <span className="gtfs-preview-label">{t('pages.gtfs.previewStops')}</span>
                       </div>
                     )}
                     {preview.routesCount !== undefined && (
                       <div className="gtfs-preview-item">
                         <span className="gtfs-preview-value">{preview.routesCount}</span>
-                        <span className="gtfs-preview-label">Rotas</span>
+                        <span className="gtfs-preview-label">{t('pages.gtfs.previewRoutes')}</span>
                       </div>
                     )}
                     {preview.shapesCount !== undefined && (
                       <div className="gtfs-preview-item">
                         <span className="gtfs-preview-value">{preview.shapesCount}</span>
-                        <span className="gtfs-preview-label">Shapes</span>
+                        <span className="gtfs-preview-label">{t('pages.gtfs.previewShapes')}</span>
                       </div>
                     )}
                     {preview.tripsCount !== undefined && (
                       <div className="gtfs-preview-item">
                         <span className="gtfs-preview-value">{preview.tripsCount}</span>
-                        <span className="gtfs-preview-label">Viagens</span>
+                        <span className="gtfs-preview-label">{t('pages.gtfs.previewTrips')}</span>
                       </div>
                     )}
                   </div>
@@ -330,11 +330,11 @@ export default function GtfsManager() {
                     <button className="gtfs-btn gtfs-btn--secondary" onClick={() => {
                       setSelectedFile(null); setPreview(null);
                     }}>
-                      Cancelar
+                      {t('pages.gtfs.cancel')}
                     </button>
                     <button className="gtfs-btn gtfs-btn--primary" onClick={handleUpload}
                       disabled={uploading || !preview.valid}>
-                      {uploading ? 'A importar...' : 'Importar'}
+                      {uploading ? t('pages.gtfs.importing') : t('pages.gtfs.importLabel')}
                     </button>
                   </div>
                 </div>
@@ -343,20 +343,19 @@ export default function GtfsManager() {
 
             {/* Sync TUB */}
             <div className="gtfs-tub-zone">
-              <h3 className="gtfs-section-title"><GlobeIcon size={18}/> Sincronizar dos TUB</h3>
+              <h3 className="gtfs-section-title"><GlobeIcon size={18}/> {t('pages.gtfs.syncTubTitle')}</h3>
               <div className="gtfs-tub-card">
                 <p className="gtfs-tub-description">
-                  Descarrega e processa o feed GTFS oficial dos TUB diretamente do site.
-                  Equivalente ao que o sistema faz automaticamente quando agendado.
+                  {t('pages.gtfs.syncTubDescription')}
                 </p>
                 <div className="gtfs-tub-url">
-                  <span className="gtfs-tub-url-label">Fonte:</span>
+                  <span className="gtfs-tub-url-label">{t('pages.gtfs.sourceLabel')}</span>
                   <code className="gtfs-tub-url-value">{config?.gtfsUrl || 'tub.pt/developer/gtfs/feed/tub.zip'}</code>
                 </div>
                 <button className="gtfs-btn gtfs-btn--accent" onClick={handleSyncTub}
                   disabled={syncing}>
                   <DownloadIcon size={16}/>
-                  {syncing ? 'A sincronizar...' : 'Sincronizar agora'}
+                  {syncing ? t('pages.gtfs.syncing') : t('pages.gtfs.syncNow')}
                 </button>
               </div>
             </div>
@@ -370,21 +369,21 @@ export default function GtfsManager() {
           {imports.length === 0 ? (
             <div className="gtfs-empty">
               <FileIcon size={48}/>
-              <p>Nenhuma importação registada</p>
+              <p>{t('pages.gtfs.noImports')}</p>
             </div>
           ) : (
             <div className="gtfs-table-wrapper">
               <table className="gtfs-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Data</th>
-                    <th>Origem</th>
-                    <th>Estado</th>
-                    <th>Paragens</th>
-                    <th>Rotas</th>
-                    <th>Horários</th>
-                    <th>Por</th>
+                    <th>{t('pages.gtfs.thId')}</th>
+                    <th>{t('pages.gtfs.thDate')}</th>
+                    <th>{t('pages.gtfs.thSource')}</th>
+                    <th>{t('pages.gtfs.thState')}</th>
+                    <th>{t('pages.gtfs.thStops')}</th>
+                    <th>{t('pages.gtfs.thRoutes')}</th>
+                    <th>{t('pages.gtfs.thSchedules')}</th>
+                    <th>{t('pages.gtfs.thBy')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -406,12 +405,12 @@ export default function GtfsManager() {
                         </td>
                         <td className="gtfs-cell-num">
                           {imp.stopsCreated > 0 && <span className="gtfs-num-created">+{imp.stopsCreated}</span>}
-                          {imp.stopsUpdated > 0 && <span className="gtfs-num-updated">{imp.stopsUpdated} upd</span>}
+                          {imp.stopsUpdated > 0 && <span className="gtfs-num-updated">{t('pages.gtfs.stopsUpd', { count: imp.stopsUpdated })}</span>}
                           {imp.stopsCreated === 0 && imp.stopsUpdated === 0 && '—'}
                         </td>
                         <td className="gtfs-cell-num">
                           {imp.routesCreated > 0 && <span className="gtfs-num-created">+{imp.routesCreated}</span>}
-                          {imp.routesUpdated > 0 && <span className="gtfs-num-updated">{imp.routesUpdated} upd</span>}
+                          {imp.routesUpdated > 0 && <span className="gtfs-num-updated">{t('pages.gtfs.stopsUpd', { count: imp.routesUpdated })}</span>}
                           {imp.routesCreated === 0 && imp.routesUpdated === 0 && '—'}
                         </td>
                         <td className="gtfs-cell-num">
@@ -423,7 +422,7 @@ export default function GtfsManager() {
                         <td className="gtfs-cell-actions">
                           {imp.canRevert && (
                             <button className="gtfs-btn-icon gtfs-btn-icon--danger"
-                              title="Reverter importação" onClick={() => handleRevert(imp)}>
+                              title={t('pages.gtfs.revertTooltip')} onClick={() => handleRevert(imp)}>
                               <UndoIcon size={15}/>
                             </button>
                           )}
@@ -450,9 +449,9 @@ export default function GtfsManager() {
             <div className="gtfs-schedule-header">
               <div className="gtfs-schedule-status">
                 {config.scheduleActive ? (
-                  <><div className="gtfs-schedule-dot gtfs-schedule-dot--active"/> Agendamento ativo</>
+                  <><div className="gtfs-schedule-dot gtfs-schedule-dot--active"/> {t('pages.gtfs.scheduleActive')}</>
                 ) : (
-                  <><div className="gtfs-schedule-dot gtfs-schedule-dot--inactive"/> Agendamento desativado</>
+                  <><div className="gtfs-schedule-dot gtfs-schedule-dot--inactive"/> {t('pages.gtfs.scheduleInactive')}</>
                 )}
               </div>
               <button
@@ -461,30 +460,30 @@ export default function GtfsManager() {
                 disabled={savingConfig}
               >
                 {savingConfig
-                  ? <><RefreshIcon size={16} className="gtfs-spin"/> A guardar...</>
+                  ? <><RefreshIcon size={16} className="gtfs-spin"/> {t('pages.gtfs.saving')}</>
                   : config.scheduleActive
-                    ? <><PauseIcon size={16}/> Desativar</>
-                    : <><PlayIcon size={16}/> Ativar</>}
+                    ? <><PauseIcon size={16}/> {t('pages.gtfs.deactivate')}</>
+                    : <><PlayIcon size={16}/> {t('pages.gtfs.activate')}</>}
               </button>
             </div>
 
             <div className="gtfs-schedule-body">
               <div className="gtfs-schedule-field">
-                <label className="gtfs-label">Intervalo de sincronização</label>
+                <label className="gtfs-label">{t('pages.gtfs.syncInterval')}</label>
                 <div className="gtfs-interval-options">
                   {[6, 12, 24, 48, 168].map(h => (
                     <button key={h}
                       className={`gtfs-interval-btn ${config.intervalHours === h ? 'gtfs-interval-btn--active' : ''}`}
                       onClick={() => handleConfigUpdate({ intervalHours: h }, { silent: true })}
                     >
-                      {h < 24 ? `${h}h` : h === 24 ? '1 dia' : h === 48 ? '2 dias' : '1 semana'}
+                      {h < 24 ? `${h}h` : h === 24 ? t('pages.gtfs.intervalOneDay') : h === 48 ? t('pages.gtfs.intervalTwoDays') : t('pages.gtfs.intervalOneWeek')}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="gtfs-schedule-field">
-                <label className="gtfs-label">URL do feed GTFS</label>
+                <label className="gtfs-label">{t('pages.gtfs.feedUrl')}</label>
                 <div className="gtfs-url-input-group">
                   <input type="text" className="gtfs-input" value={config.gtfsUrl || ''}
                     onChange={(e) => setConfig(prev => ({ ...prev, gtfsUrl: e.target.value }))}
@@ -492,7 +491,7 @@ export default function GtfsManager() {
                   />
                   <button className="gtfs-btn gtfs-btn--secondary"
                     onClick={() => handleConfigUpdate({ gtfsUrl: config.gtfsUrl })}>
-                    Guardar
+                    {t('pages.gtfs.save')}
                   </button>
                 </div>
               </div>
@@ -500,7 +499,7 @@ export default function GtfsManager() {
               {config.scheduleActive && config.nextRun && (
                 <div className="gtfs-schedule-next">
                   <ClockIcon size={16}/>
-                  Proxima sincronização: <strong>{formatDate(config.nextRun)}</strong>
+                  {t('pages.gtfs.nextSync')}<strong>{formatDate(config.nextRun)}</strong>
                 </div>
               )}
             </div>

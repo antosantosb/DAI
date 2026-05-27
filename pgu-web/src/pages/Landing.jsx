@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Landing.css';
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { authenticated, login, logout, username, roles } = useAuth();
 
   // Motorista nunca tem opção de escolher — vai direto para o painel de bordo.
@@ -39,22 +42,22 @@ export default function Landing() {
               <circle cx="58" cy="34" r="2" fill="#64748b" />
             </svg>
           </div>
-          <h1 className="landing-title">TUB</h1>
-          <p className="landing-subtitle">Plataforma de Gestão Urbana</p>
+          <h1 className="landing-title">{t('landing.title')}</h1>
+          <p className="landing-subtitle">{t('landing.subtitle')}</p>
         </div>
 
         {authenticated && isMotorista ? (
           <div className="landing-login-section">
-            <p className="landing-login-text">A entrar no painel de bordo...</p>
+            <p className="landing-login-text">{t('landing.enteringDriver')}</p>
           </div>
         ) : authenticated ? (
           <>
             <div className="landing-user-info">
               <span className="landing-user-greeting">
-                Bem-vindo, <strong>{username}</strong>
+                {t('landing.welcome')}<strong>{username}</strong>
               </span>
               <span className="landing-user-role">
-                {roles.includes('admin') ? 'Administrador' : 'Operador'}
+                {roles.includes('admin') ? t('auth.roles.admin') : t('auth.roles.operador')}
               </span>
             </div>
 
@@ -71,8 +74,8 @@ export default function Landing() {
                     <line x1="10" y1="26" x2="22" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
-                <h2>Backoffice</h2>
-                <p>Gestão de autocarros, rotas, paragens e monitoramento da frota em tempo real.</p>
+                <h2>{t('landing.cards.backoffice.title')}</h2>
+                <p>{t('landing.cards.backoffice.desc')}</p>
               </div>
 
               <div className="landing-card landing-card--livemap" onClick={() => navigate('/livemap')}>
@@ -85,27 +88,31 @@ export default function Landing() {
                     <circle cx="22" cy="14" r="1.2" fill="currentColor" />
                   </svg>
                 </div>
-                <h2>LiveMap</h2>
-                <p>Mapa interativo com localização dos autocarros em tempo real pela cidade de Braga.</p>
+                <h2>{t('landing.cards.livemap.title')}</h2>
+                <p>{t('landing.cards.livemap.desc')}</p>
               </div>
             </div>
 
             <button className="landing-logout" onClick={logout}>
-              Terminar Sessão
+              {t('landing.logoutButton')}
             </button>
           </>
         ) : (
           <div className="landing-login-section">
             <p className="landing-login-text">
-              Acede à plataforma para gerir a frota e monitorizar autocarros em tempo real.
+              {t('landing.intro')}
             </p>
             <button className="landing-login-btn" onClick={login}>
-              Entrar
+              {t('landing.loginButton')}
             </button>
           </div>
         )}
 
-        <p className="landing-footer-text">Transportes Urbanos de Braga &middot; DAI 2026</p>
+        <p className="landing-footer-text">{t('landing.footer')}</p>
+
+        <div className="landing-lang">
+          <LanguageSwitcher />
+        </div>
       </div>
     </div>
   );

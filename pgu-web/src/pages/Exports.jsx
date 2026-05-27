@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import { createStompClient } from '../services/stompClient';
@@ -25,6 +26,7 @@ const AlertIcon = (p) => <Icon {...p} d={<><path d="M10.29 3.86L1.82 18a2 2 0 0 
 const UsersIcon = (p) => <Icon {...p} d={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>}/>;
 
 export default function Exports() {
+  const { t } = useTranslation();
   const { hasRole, username } = useAuth();
   const isAdmin = hasRole('admin');
   const [activeTab, setActiveTab] = useState('telemetry');
@@ -42,22 +44,22 @@ export default function Exports() {
 
       <div className="page-header">
         <div>
-          <h1>Exportações</h1>
-          <p className="page-subtitle">Relatórios de telemetria e logs do sistema</p>
+          <h1>{t('pages.exports.title')}</h1>
+          <p className="page-subtitle">{t('pages.exports.subtitleAlt')}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="export-tabs" role="tablist" aria-label="Tipo de exportação">
+      <div className="export-tabs" role="tablist" aria-label={t('pages.exports.ariaExportType')}>
         <button role="tab" aria-selected={activeTab === 'telemetry'}
           className={`export-tab ${activeTab === 'telemetry' ? 'export-tab--active' : ''}`}
           onClick={() => setActiveTab('telemetry')}>
-          <TelemetryIcon size={16}/> Telemetria
+          <TelemetryIcon size={16}/> {t('pages.exports.tabTelemetry')}
         </button>
         <button role="tab" aria-selected={activeTab === 'logs'}
           className={`export-tab ${activeTab === 'logs' ? 'export-tab--active' : ''}`}
           onClick={() => setActiveTab('logs')}>
-          <LogIcon size={16}/> Logs do Sistema
+          <LogIcon size={16}/> {t('pages.exports.tabLogs')}
         </button>
       </div>
 
@@ -82,6 +84,7 @@ export default function Exports() {
    ExportPanel — componente reutilizado por ambas as tabs
    ═══════════════════════════════════════════════════════════════════ */
 function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showModal, closeModal, renderForm, extraContent }) {
+  const { t } = useTranslation();
   const [format, setFormat] = useState('CSV');
   const [fromTs, setFromTs] = useState('');
   const [toTs, setToTs] = useState('');
@@ -143,31 +146,31 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
       };
       const { data } = await api.post(endpoint, payload);
       upsertJob(data);
-      toast.info('Pedido submetido');
+      toast.info(t('pages.exports.submitted'));
     } catch (err) {
       console.error(err);
-      toast.error('Falha ao submeter pedido');
+      toast.error(t('pages.exports.submitFailed'));
     } finally { setSubmitting(false); }
   };
 
   // Delete single
   const confirmDelete = (job) => {
     showModal({
-      type: 'danger', title: 'Eliminar relatório?',
-      message: `O relatório ${job.format} (${job.jobUuid.slice(0, 8)}…) será permanentemente eliminado.`,
-      confirmText: 'Eliminar',
+      type: 'danger', title: t('pages.exports.deleteSingleTitle'),
+      message: t('pages.exports.deleteSingleMessage', { format: job.format, uuid: job.jobUuid.slice(0, 8) }),
+      confirmText: t('pages.exports.deleteConfirmBtn'),
       onConfirm: async () => {
         closeModal();
         try {
           await api.delete(`/exports/${job.jobUuid}`);
           setJobs(prev => prev.filter(j => j.jobUuid !== job.jobUuid));
           setSelected(prev => { const n = new Set(prev); n.delete(job.jobUuid); return n; });
-          toast.success('Relatório eliminado');
+          toast.success(t('pages.exports.deletedSuccess'));
         } catch (err) {
           const msg = err?.response?.status === 404
-            ? 'Relatório já não existia no servidor'
-            : (err?.response?.data?.message || err?.message || 'Erro desconhecido');
-          toast.error(`Falhou a remoção: ${msg}`);
+            ? t('pages.exports.alreadyGone')
+            : (err?.response?.data?.message || err?.message || t('common.error'));
+          toast.error(t('pages.exports.deleteFailed', { msg }));
         }
       },
     });
@@ -182,9 +185,9 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
     if (count === 0) return;
     showModal({
       type: 'danger',
-      title: `Eliminar ${count} relatório${count > 1 ? 's' : ''}?`,
-      message: `${count} relatório${count > 1 ? 's serão permanentemente eliminados' : ' será permanentemente eliminado'}. Esta ação é irreversível.`,
-      confirmText: `Eliminar ${count}`,
+      title: t('pages.exports.deleteMultipleTitle', { count }),
+      message: t('pages.exports.deleteMultipleMessage', { count }),
+      confirmText: t('pages.exports.deleteBulkBtn', { count }),
       onConfirm: async () => {
         closeModal();
         let ok = 0, fail = 0;
@@ -193,8 +196,8 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
         }
         setJobs(prev => prev.filter(j => !selectedDeletable.includes(j.jobUuid)));
         setSelected(new Set());
-        if (ok > 0) toast.success(`${ok} relatório${ok > 1 ? 's eliminados' : ' eliminado'}`);
-        if (fail > 0) toast.error(`${fail} não ${fail > 1 ? 'puderam' : 'pôde'} ser eliminado${fail > 1 ? 's' : ''}`);
+        if (ok > 0) toast.success(ok > 1 ? t('pages.exports.bulkDeletedMany', { count: ok }) : t('pages.exports.bulkDeletedSingle', { count: ok }));
+        if (fail > 0) toast.error(fail > 1 ? t('pages.exports.bulkFailedMany', { count: fail }) : t('pages.exports.bulkFailedSingle', { count: fail }));
       },
     });
   };
@@ -223,28 +226,28 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
           <div className="export-stat-icon export-stat-icon--total"><LogIcon size={20}/></div>
           <div className="export-stat-content">
             <div className="export-stat-value">{jobs.length}</div>
-            <div className="export-stat-label">Total</div>
+            <div className="export-stat-label">{t('pages.exports.statTotal')}</div>
           </div>
         </div>
         <div className="export-stat-card export-stat-card--completed">
           <div className="export-stat-icon export-stat-icon--completed"><CheckCircleIcon size={20}/></div>
           <div className="export-stat-content">
             <div className="export-stat-value">{completedCount}</div>
-            <div className="export-stat-label">Concluídos</div>
+            <div className="export-stat-label">{t('pages.exports.statCompleted')}</div>
           </div>
         </div>
         <div className="export-stat-card export-stat-card--pending">
           <div className="export-stat-icon export-stat-icon--pending"><ClockIcon size={20}/></div>
           <div className="export-stat-content">
             <div className="export-stat-value">{pendingCount}</div>
-            <div className="export-stat-label">Em curso</div>
+            <div className="export-stat-label">{t('pages.exports.statPending')}</div>
           </div>
         </div>
         <div className="export-stat-card export-stat-card--failed">
           <div className="export-stat-icon export-stat-icon--failed"><XCircleIcon size={20}/></div>
           <div className="export-stat-content">
             <div className="export-stat-value">{failedCount}</div>
-            <div className="export-stat-label">Falhados</div>
+            <div className="export-stat-label">{t('pages.exports.statFailed')}</div>
           </div>
         </div>
       </div>
@@ -255,15 +258,15 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
       {/* Jobs Table */}
       <div className="export-history">
         <div className="export-history-header">
-          <h2>Relatórios gerados</h2>
+          <h2>{t('pages.exports.history')}</h2>
           <div className="export-history-actions">
             {selectedDeletable.length > 0 && isAdmin && (
               <button type="button" className="btn btn-danger btn-sm" onClick={confirmBulkDelete}>
-                <TrashIcon size={14}/> Eliminar ({selectedDeletable.length})
+                <TrashIcon size={14}/> {t('pages.exports.btnBulkDelete', { count: selectedDeletable.length })}
               </button>
             )}
             <span className="export-retention-note">
-              <InfoIcon size={14}/> Eliminados automaticamente após 7 dias
+              <InfoIcon size={14}/> {t('pages.exports.retentionNote')}
             </span>
           </div>
         </div>
@@ -271,8 +274,8 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
         {jobs.length === 0 ? (
           <div className="export-empty">
             <div className="export-empty-icon"><LogIcon size={28}/></div>
-            <div className="export-empty-title">Sem relatórios</div>
-            <div className="export-empty-text">Utiliza o formulário acima para gerar o teu primeiro relatório.</div>
+            <div className="export-empty-title">{t('pages.exports.emptyTitle')}</div>
+            <div className="export-empty-text">{t('pages.exports.emptyText')}</div>
           </div>
         ) : (
           <div className="table-container">
@@ -281,7 +284,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                 <tr>
                   {isAdmin && (
                     <th className="export-checkbox-cell">
-                      <label className="export-checkbox-label" aria-label="Selecionar todos">
+                      <label className="export-checkbox-label" aria-label={t('pages.exports.ariaSelectAll')}>
                         <input type="checkbox" checked={allSelected}
                           ref={el => { if (el) el.indeterminate = someSelected; }}
                           onChange={toggleSelectAll} disabled={deletableJobs.length === 0} />
@@ -289,7 +292,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                       </label>
                     </th>
                   )}
-                  <th>Formato</th><th>Estado</th><th>Linhas</th><th>Ficheiro</th><th>Ações</th>
+                  <th>{t('pages.exports.tableFormat')}</th><th>{t('pages.exports.tableState')}</th><th>{t('pages.exports.tableRows')}</th><th>{t('pages.exports.tableFile')}</th><th>{t('pages.exports.tableActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,7 +315,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                       <td>
                         <span className={`export-status export-status--${j.status?.toLowerCase()}`}>
                           <span className="export-status-dot" />
-                          {j.status === 'COMPLETED' ? 'Concluído' : j.status === 'PENDING' ? 'Pendente' : j.status === 'PROCESSING' ? 'A processar' : j.status === 'FAILED' ? 'Falhado' : j.status}
+                          {j.status === 'COMPLETED' ? t('pages.exports.statusCompleted') : j.status === 'PENDING' ? t('pages.exports.statusPending') : j.status === 'PROCESSING' ? t('pages.exports.statusProcessing') : j.status === 'FAILED' ? t('pages.exports.statusFailed') : j.status}
                         </span>
                       </td>
                       <td className="export-number">{j.rowCount ?? '-'}</td>
@@ -328,8 +331,8 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                                   try {
                                     const res = await api.get(j.downloadUrl.replace(/^.*\/api\/v1/, ''), { responseType: 'blob' });
                                     window.open(URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })), '_blank');
-                                  } catch { toast.error('Falhou ao abrir o PDF'); }
-                                }}><EyeIcon size={14}/> Ver</button>
+                                  } catch { toast.error(t('pages.exports.openPdfFailed')); }
+                                }}><EyeIcon size={14}/> {t('pages.exports.viewPdf')}</button>
                               )}
                               <button type="button" className="btn btn-sm btn-primary" onClick={async () => {
                                 try {
@@ -339,20 +342,20 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
                                   const a = document.createElement('a'); a.href = url;
                                   a.download = j.fileName || `relatorio.${ext}`;
                                   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-                                } catch { toast.error('Falhou o download'); }
-                              }}><DownloadIcon size={14}/> Descarregar</button>
+                                } catch { toast.error(t('pages.exports.downloadFailed')); }
+                              }}><DownloadIcon size={14}/> {t('pages.exports.download')}</button>
                             </>
                           )}
                           {j.status === 'FAILED' && (
                             <span className="export-error-hint" title={j.errorMessage}>
-                              <InfoIcon size={14}/> Ver erro
+                              <InfoIcon size={14}/> {t('pages.exports.viewError')}
                             </span>
                           )}
                           {(j.status === 'PENDING' || j.status === 'PROCESSING') && (
-                            <span className="export-processing-hint"><span className="export-spinner" />A processar...</span>
+                            <span className="export-processing-hint"><span className="export-spinner" />{t('pages.exports.processing')}</span>
                           )}
                           {isAdmin && isDeletable && (
-                            <button type="button" className="export-delete-btn" onClick={() => confirmDelete(j)} title="Eliminar">
+                            <button type="button" className="export-delete-btn" onClick={() => confirmDelete(j)} title={t('pages.exports.btnDelete')}>
                               <TrashIcon size={14}/>
                             </button>
                           )}
@@ -377,6 +380,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
    TelemetryForm — formulário específico de telemetria (com bus picker)
    ═══════════════════════════════════════════════════════════════════ */
 function TelemetryForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, submitting, handleSubmit }) {
+  const { t } = useTranslation();
   const [busId, setBusId] = useState('');
   const [busOptions, setBusOptions] = useState([]);
   const [busPickerOpen, setBusPickerOpen] = useState(false);
@@ -430,31 +434,31 @@ function TelemetryForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, su
     <form className="export-form" onSubmit={onSubmit}>
       <div className="export-form-fields">
         <div className="export-field">
-          <label htmlFor="export-format">Formato</label>
+          <label htmlFor="export-format">{t('pages.exports.formFormat')}</label>
           <select id="export-format" value={format} onChange={e => setFormat(e.target.value)}>
             <option value="CSV">CSV</option>
             <option value="PDF">PDF</option>
           </select>
         </div>
         <div className="export-field" ref={busFieldRef}>
-          <label htmlFor="export-bus-input">Autocarro</label>
+          <label htmlFor="export-bus-input">{t('pages.exports.formBus')}</label>
           <div className={`export-combobox ${busPickerOpen ? 'is-open' : ''}`}>
             <input id="export-bus-input" type="text" role="combobox"
               aria-expanded={busPickerOpen} aria-controls="export-bus-listbox" aria-autocomplete="list"
-              placeholder="Todos" value={busId}
+              placeholder={t('pages.exports.formBusAll')} value={busId}
               onChange={e => { setBusId(e.target.value); setBusPickerOpen(true); setBusHighlight(-1); }}
               onFocus={() => setBusPickerOpen(true)} onKeyDown={onBusKeyDown} autoComplete="off" />
             {busId && (
-              <button type="button" className="export-combobox-clear" onClick={() => { setBusId(''); setBusPickerOpen(false); }} aria-label="Limpar seleção">
+              <button type="button" className="export-combobox-clear" onClick={() => { setBusId(''); setBusPickerOpen(false); }} aria-label={t('pages.exports.ariaClearSelection')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             )}
-            <button type="button" className="export-combobox-toggle" onClick={() => setBusPickerOpen(o => !o)} aria-label={busPickerOpen ? 'Fechar lista' : 'Abrir lista'} tabIndex={-1}>
+            <button type="button" className="export-combobox-toggle" onClick={() => setBusPickerOpen(o => !o)} aria-label={busPickerOpen ? t('pages.exports.ariaCloseList') : t('pages.exports.ariaOpenList')} tabIndex={-1}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             {busPickerOpen && busOptions.length > 0 && (
               <ul className="export-combobox-list" id="export-bus-listbox" role="listbox">
-                {filteredBuses.length === 0 && <li className="export-combobox-empty">Sem correspondências</li>}
+                {filteredBuses.length === 0 && <li className="export-combobox-empty">{t('pages.exports.noMatches')}</li>}
                 {filteredBuses.map((b, i) => (
                   <li key={b.busCode} role="option" aria-selected={busHighlight === i}
                     className={`export-combobox-item ${busHighlight === i ? 'is-active' : ''}`}
@@ -469,16 +473,16 @@ function TelemetryForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, su
           </div>
         </div>
         <div className="export-field">
-          <label htmlFor="export-from">Desde</label>
+          <label htmlFor="export-from">{t('pages.exports.formFrom')}</label>
           <input id="export-from" type="datetime-local" value={fromTs} onChange={e => setFromTs(e.target.value)} />
         </div>
         <div className="export-field">
-          <label htmlFor="export-to">Até</label>
+          <label htmlFor="export-to">{t('pages.exports.formTo')}</label>
           <input id="export-to" type="datetime-local" value={toTs} onChange={e => setToTs(e.target.value)} />
         </div>
       </div>
       <button type="submit" className="btn btn-primary export-submit-btn" disabled={submitting}>
-        {submitting ? (<><span className="export-spinner" />A gerar...</>) : (<><DownloadIcon size={16}/> Gerar relatório</>)}
+        {submitting ? (<><span className="export-spinner" />{t('pages.exports.btnGenerating')}</>) : (<><DownloadIcon size={16}/> {t('pages.exports.btnGenerateReport')}</>)}
       </button>
     </form>
   );
@@ -488,6 +492,7 @@ function TelemetryForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, su
    LogsForm — formulário específico de logs (formato + datas)
    ═══════════════════════════════════════════════════════════════════ */
 function LogsForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, submitting, handleSubmit }) {
+  const { t } = useTranslation();
   const onSubmit = (e) => {
     e.preventDefault();
     handleSubmit();
@@ -497,23 +502,23 @@ function LogsForm({ format, setFormat, fromTs, setFromTs, toTs, setToTs, submitt
     <form className="export-form" onSubmit={onSubmit}>
       <div className="export-form-fields export-form-fields--logs">
         <div className="export-field">
-          <label htmlFor="log-export-format">Formato</label>
+          <label htmlFor="log-export-format">{t('pages.exports.formFormat')}</label>
           <select id="log-export-format" value={format} onChange={e => setFormat(e.target.value)}>
             <option value="CSV">CSV</option>
             <option value="PDF">PDF</option>
           </select>
         </div>
         <div className="export-field">
-          <label htmlFor="log-export-from">Desde</label>
+          <label htmlFor="log-export-from">{t('pages.exports.formFrom')}</label>
           <input id="log-export-from" type="datetime-local" value={fromTs} onChange={e => setFromTs(e.target.value)} />
         </div>
         <div className="export-field">
-          <label htmlFor="log-export-to">Até</label>
+          <label htmlFor="log-export-to">{t('pages.exports.formTo')}</label>
           <input id="log-export-to" type="datetime-local" value={toTs} onChange={e => setToTs(e.target.value)} />
         </div>
       </div>
       <button type="submit" className="btn btn-primary export-submit-btn" disabled={submitting}>
-        {submitting ? (<><span className="export-spinner" />A gerar...</>) : (<><DownloadIcon size={16}/> Gerar relatório de logs</>)}
+        {submitting ? (<><span className="export-spinner" />{t('pages.exports.btnGenerating')}</>) : (<><DownloadIcon size={16}/> {t('pages.exports.btnGenerateLogsReport')}</>)}
       </button>
     </form>
   );

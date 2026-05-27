@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import i18n from '../i18n';
 import keycloak from '../keycloak';
 
 const AuthContext = createContext(null);
@@ -50,11 +51,12 @@ export default function AuthProvider({ children }) {
     );
   }
 
-  // Sprint 0 (F5): forcar locale PT no redirect para o Keycloak. Sem isto,
-  // o Keycloak respeita o Accept-Language do browser e pode mostrar EN.
+  // Sprint 0 (F5/F6): passa o locale atual da app (pt|en) ao redirect
+  // do Keycloak via ui_locales=. Garante que o ecra de login aparece na
+  // mesma lingua que o user escolheu no LanguageSwitcher.
   const login = () => keycloak.login({
     redirectUri: window.location.origin,
-    locale: 'pt',
+    locale: i18n.language?.startsWith('en') ? 'en' : 'pt',
   });
 
   const logout = () => {

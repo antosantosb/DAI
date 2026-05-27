@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
@@ -7,6 +8,7 @@ import BusDetailPanel from '../components/BusDetailPanel';
 import './Buses.css';
 
 export default function Buses() {
+  const { t } = useTranslation();
   const { hasRole } = useAuth();
   const isAdmin = hasRole('admin');
   const [buses, setBuses] = useState([]);
@@ -110,15 +112,15 @@ export default function Buses() {
     req.then(() => {
       resetForm();
       load();
-      showModal({ type: 'success', title: 'Sucesso', message: editing ? 'Autocarro atualizado com sucesso.' : 'Autocarro criado com sucesso.' });
+      showModal({ type: 'success', title: t('toasts.successGeneric'), message: editing ? t('pages.buses.updateSuccess') : t('pages.buses.createSuccess') });
     }).catch(err => {
-      showModal({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message });
+      showModal({ type: 'danger', title: t('toasts.errorGeneric'), message: err.response?.data?.message || err.message });
     });
   };
 
   const startEdit = (bus) => {
     if (bus.routeId && bus.status !== 'STOPPED') {
-      showModal({ type: 'warning', title: 'Acao indisponivel', message: 'O autocarro tem de estar parado para ser editado.' });
+      showModal({ type: 'warning', title: t('pages.buses.actionUnavailable'), message: t('pages.buses.mustBeStoppedToEdit') });
       return;
     }
     setForm({
@@ -134,9 +136,9 @@ export default function Buses() {
   const handleStop = (bus) => {
     showModal({
       type: 'warning',
-      title: `Parar ${bus.busCode}?`,
-      message: 'O autocarro vai completar a rota atual e parar no extremo. Podes cancelar a paragem a qualquer momento.',
-      confirmText: 'Parar Autocarro',
+      title: t('pages.buses.stopConfirmTitle', { code: bus.busCode }),
+      message: t('pages.buses.stopConfirmMessage'),
+      confirmText: t('pages.buses.stopConfirmAction'),
       onConfirm: () => {
         closeModal();
         api.patch(`/buses/${bus.id}`, { status: 'STOPPING' }).then(load);
@@ -151,7 +153,7 @@ export default function Buses() {
   const handleBatch = () => {
     const n = parseInt(batchCount);
     if (!n || n < 1 || n > 50) {
-      showModal({ type: 'warning', title: 'Valor inválido', message: 'A quantidade deve ser entre 1 e 50.' });
+      showModal({ type: 'warning', title: t('pages.buses.batchInvalidTitle'), message: t('pages.buses.batchInvalidMessage') });
       return;
     }
     setBatchLoading(true);
@@ -160,24 +162,24 @@ export default function Buses() {
         setShowBatch(false);
         setBatchCount('5');
         load();
-        showModal({ type: 'success', title: 'Sucesso', message: `${n} autocarros criados com sucesso.` });
+        showModal({ type: 'success', title: t('toasts.successGeneric'), message: t('pages.buses.batchSuccess', { count: n }) });
       })
       .catch(err => {
-        showModal({ type: 'danger', title: 'Erro', message: err.response?.data?.message || err.message });
+        showModal({ type: 'danger', title: t('toasts.errorGeneric'), message: err.response?.data?.message || err.message });
       })
       .finally(() => setBatchLoading(false));
   };
 
   const handleDecommission = (bus) => {
     if (bus.routeId && bus.status !== 'STOPPED') {
-      showModal({ type: 'warning', title: 'Acao indisponivel', message: 'O autocarro tem de estar parado para ser descomissionado.' });
+      showModal({ type: 'warning', title: t('pages.buses.actionUnavailable'), message: t('pages.buses.mustBeStoppedToDecommission') });
       return;
     }
     showModal({
       type: 'danger',
-      title: `Descomissionar ${bus.busCode}?`,
-      message: 'O autocarro será permanentemente removido do sistema. Esta ação não pode ser revertida.',
-      confirmText: 'Descomissionar',
+      title: t('pages.buses.decommissionConfirmTitle', { code: bus.busCode }),
+      message: t('pages.buses.decommissionConfirmMessage'),
+      confirmText: t('pages.buses.decommissionConfirmAction'),
       onConfirm: () => {
         closeModal();
         api.delete(`/buses/${bus.id}`).then(load);
@@ -194,15 +196,15 @@ export default function Buses() {
   };
 
   const getStatusInfo = (bus) => {
-    const t = telemetry[bus.busCode];
-    if (bus.status === 'STOPPED') return { label: 'Parado', cls: 'stopped', icon: '&#9632;' };
+    const tel = telemetry[bus.busCode];
+    if (bus.status === 'STOPPED') return { label: t('pages.buses.liveStatusStopped'), cls: 'stopped', icon: '&#9632;' };
     if (bus.status === 'STOPPING') {
-      if (t && t.status === 'stopped') return { label: 'A Parar — Em Paragem', cls: 'stopping-at-stop', icon: '&#9679;' };
-      return { label: 'A Parar', cls: 'stopping', icon: '&#9888;' };
+      if (tel && tel.status === 'stopped') return { label: t('pages.buses.liveStatusStoppingAtStop'), cls: 'stopping-at-stop', icon: '&#9679;' };
+      return { label: t('pages.buses.liveStatusStopping'), cls: 'stopping', icon: '&#9888;' };
     }
-    if (!t) return { label: 'Sem Dados', cls: 'unknown', icon: '?' };
-    if (t.status === 'stopped') return { label: 'Em Paragem', cls: 'at-stop', icon: '&#9679;' };
-    return { label: 'Em Viagem', cls: 'active', icon: '&#9654;' };
+    if (!tel) return { label: t('pages.buses.liveStatusNoData'), cls: 'unknown', icon: '?' };
+    if (tel.status === 'stopped') return { label: t('pages.buses.liveStatusAtStop'), cls: 'at-stop', icon: '&#9679;' };
+    return { label: t('pages.buses.liveStatusActive'), cls: 'active', icon: '&#9654;' };
   };
 
   const filtered = buses
@@ -244,16 +246,16 @@ export default function Buses() {
 
       <div className="page-header">
         <div>
-          <h1>Autocarros</h1>
-          <p className="page-subtitle">{buses.length} autocarros registados</p>
+          <h1>{t('pages.buses.title')}</h1>
+          <p className="page-subtitle">{t('pages.buses.subtitle', { count: buses.length })}</p>
         </div>
         {isAdmin && (
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn btn-secondary" onClick={() => setShowBatch(true)}>
-              Gerar Batch
+              {t('pages.buses.batchGenerate')}
             </button>
             <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-              + Novo Autocarro
+              {t('pages.buses.newButton')}
             </button>
           </div>
         )}
@@ -263,33 +265,35 @@ export default function Buses() {
       <div className="bus-quick-stats">
         <div className="quick-stat">
           <span className="quick-stat-dot quick-stat-dot--active"></span>
-          <span className="quick-stat-label">{activeCount} ativos</span>
+          <span className="quick-stat-label">{t('pages.buses.activeCount', { count: activeCount })}</span>
         </div>
         <div className="quick-stat">
           <span className="quick-stat-dot quick-stat-dot--stopped"></span>
-          <span className="quick-stat-label">{stoppedCount} parados</span>
+          <span className="quick-stat-label">{t('pages.buses.stoppedCount', { count: stoppedCount })}</span>
         </div>
       </div>
 
       {/* Search & Filters */}
       <div className="bus-toolbar">
         <div className="search-bar">
-          <span className="search-bar-icon">&#128269;</span>
+          <svg className="search-bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
           <input
-            placeholder="Pesquisar autocarro, matricula ou rota..."
+            placeholder={t('pages.buses.searchPlaceholderFull')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <div className="bus-filters">
           <button className={`btn btn-filter${filter === 'all' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('all')}>
-            Todos ({buses.length})
+            {t('pages.buses.filterAll', { count: buses.length })}
           </button>
           <button className={`btn btn-filter${filter === 'active' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('active')}>
-            Ativos ({buses.length - stoppedCount})
+            {t('pages.buses.filterActive', { count: buses.length - stoppedCount })}
           </button>
           <button className={`btn btn-filter${filter === 'stopped' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('stopped')}>
-            Parados ({stoppedCount})
+            {t('pages.buses.filterStopped', { count: stoppedCount })}
           </button>
         </div>
       </div>
@@ -297,12 +301,12 @@ export default function Buses() {
       {showBatch && (
         <div className="form-overlay">
           <div className="form-card">
-            <h3>Gerar Autocarros em Batch</h3>
+            <h3>{t('pages.buses.batchTitle')}</h3>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', margin: '0 0 16px' }}>
-              Cria N autocarros com matrículas, capacidades e rotas aleatórias. Todos começam parados.
+              {t('pages.buses.batchDescription')}
             </p>
             <div className="form-group">
-              <label>Quantidade (1-50)</label>
+              <label>{t('pages.buses.batchQuantity')}</label>
               <input
                 type="number"
                 min="1"
@@ -313,10 +317,10 @@ export default function Buses() {
             </div>
             <div className="form-actions">
               <button className="btn btn-primary" onClick={handleBatch} disabled={batchLoading}>
-                {batchLoading ? 'A criar...' : `Criar ${batchCount || '?'} Autocarros`}
+                {batchLoading ? t('pages.buses.batchCreating') : t('pages.buses.batchCreateLabel', { count: batchCount || '?' })}
               </button>
               <button className="btn btn-secondary" onClick={() => setShowBatch(false)} disabled={batchLoading}>
-                Cancelar
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -326,36 +330,36 @@ export default function Buses() {
       {showForm && (
         <div className="form-overlay">
           <form className="form-card" onSubmit={handleSubmit}>
-            <h3>{editing ? 'Editar Autocarro' : 'Novo Autocarro'}</h3>
+            <h3>{editing ? t('pages.buses.edit') : t('pages.buses.create')}</h3>
             <div className="form-grid">
               <div className="form-group">
-                <label>Codigo</label>
+                <label>{t('pages.buses.code')}</label>
                 <div className="input-prefix-wrap">
                   <span className="input-prefix">TUB-</span>
-                  <input value={form.busCode} onChange={e => handleBusCodeChange(e.target.value)} onBlur={handleBusCodeBlur} placeholder="001" required />
+                  <input value={form.busCode} onChange={e => handleBusCodeChange(e.target.value)} onBlur={handleBusCodeBlur} placeholder={t('pages.buses.codePlaceholder')} required />
                 </div>
-                {form.busCode && <span className="form-hint">Resultado: {formatBusCode(form.busCode)}</span>}
+                {form.busCode && <span className="form-hint">{t('pages.buses.codeResult', { value: formatBusCode(form.busCode) })}</span>}
               </div>
               <div className="form-group">
-                <label>Matricula</label>
+                <label>{t('pages.buses.licensePlate')}</label>
                 <input value={form.licensePlate} onChange={e => setForm({...form, licensePlate: formatPlate(e.target.value)})} placeholder="AA-00-AA" maxLength={8} required />
-                <span className="form-hint">Formato: AA-00-AA</span>
+                <span className="form-hint">{t('pages.buses.licensePlateFormat')}</span>
               </div>
               <div className="form-group">
-                <label>Capacidade</label>
+                <label>{t('pages.buses.capacity')}</label>
                 <input type="number" value={form.capacity} onChange={e => setForm({...form, capacity: e.target.value})} required />
               </div>
               <div className="form-group">
-                <label>Rota</label>
+                <label>{t('pages.buses.route')}</label>
                 <select value={form.routeId} onChange={e => setForm({...form, routeId: e.target.value})}>
-                  <option value="">Sem rota</option>
+                  <option value="">{t('pages.buses.noRoute')}</option>
                   {routes.map(r => <option key={r.id} value={r.id}>{r.code} - {r.name}</option>)}
                 </select>
               </div>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary">{editing ? 'Guardar' : 'Criar'}</button>
-              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.create')}</button>
+              <button type="button" className="btn btn-secondary" onClick={resetForm}>{t('common.cancel')}</button>
             </div>
           </form>
         </div>
@@ -376,7 +380,7 @@ export default function Buses() {
           <div className="empty-state">
             <div className="empty-state-icon">&#128653;</div>
             <div className="empty-state-text">
-              {search ? 'Nenhum autocarro encontrado' : 'Nenhum autocarro registado'}
+              {search ? t('pages.buses.notFound') : t('pages.buses.noBuses')}
             </div>
           </div>
         )}

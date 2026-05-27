@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Modal.css';
 
 export default function Modal({ open, onClose, onConfirm, title, message, type = 'info', confirmText, cancelText, children }) {
+  const { t } = useTranslation();
   const dialogRef = useRef(null);
   const lastFocusedRef = useRef(null);
 
@@ -86,11 +88,11 @@ export default function Modal({ open, onClose, onConfirm, title, message, type =
                 className={`btn ${type === 'danger' ? 'btn-danger' : type === 'warning' ? 'btn-warning' : 'btn-primary'}`}
                 onClick={onConfirm}
               >
-                {confirmText || 'Confirmar'}
+                {confirmText || t('modal.confirmDefault')}
               </button>
             )}
             <button className="btn btn-secondary" onClick={onClose}>
-              {cancelText || (onConfirm ? 'Cancelar' : 'Fechar')}
+              {cancelText || (onConfirm ? t('modal.cancelDefault') : t('common.close'))}
             </button>
           </div>
         )}

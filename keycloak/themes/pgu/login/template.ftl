@@ -9,8 +9,26 @@
 </head>
 <body class="kc-login">
     <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+
+        <#-- Sprint 0 (F6): language switcher no canto inferior esquerdo.
+             Ordem fixa PT -> EN para coincidir com o switcher do backoffice. -->
+        <#if realm.internationalizationEnabled?? && realm.internationalizationEnabled
+             && locale?? && locale.supported?? && locale.supported?size gt 1>
+            <div class="pgu-lang-switcher" role="group" aria-label="Language">
+                <#list ["pt", "en"] as code>
+                    <#list locale.supported as l>
+                        <#if l.languageTag == code>
+                            <a class="pgu-lang-btn ${(locale.currentLanguageTag == l.languageTag)?then('is-active','')}"
+                               href="${l.url}">${l.languageTag?upper_case}</a>
+                        </#if>
+                    </#list>
+                </#list>
+            </div>
+        </#if>
+
         <div id="kc-header">
             <div id="kc-header-wrapper">TUB</div>
+            <div id="kc-header-subtitle">${msg("loginSubtitle")}</div>
         </div>
         <div style="width:100%;max-width:420px;margin-top:32px;">
             <div class="login-pf-page">
@@ -29,7 +47,7 @@
             </div>
         </div>
         <p style="margin-top:40px;font-size:12px;color:rgba(255,255,255,0.25);font-weight:500;letter-spacing:0.5px;">
-            Transportes Urbanos de Braga &middot; DAI 2026
+            ${msg("footerText")}
         </p>
     </div>
 </body>

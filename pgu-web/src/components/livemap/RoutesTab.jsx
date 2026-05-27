@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getBusDisplayStatus } from './constants';
 
 // Sort numérico natural: L2 < L10 < L11
@@ -18,6 +19,7 @@ export default function RoutesTab({
   routeSort,
   setRouteSort,
 }) {
+  const { t } = useTranslation();
   const busList = useMemo(() =>
     Object.values(buses).map(bus => {
       const backend = backendBuses[bus.busId];
@@ -64,11 +66,11 @@ export default function RoutesTab({
       <div className="livemap-stats">
         <div className="livemap-stat">
           <div className="livemap-stat-value">{routes.length}</div>
-          <div className="livemap-stat-label">Total Rotas</div>
+          <div className="livemap-stat-label">{t('livemap.statsTotalRoutes')}</div>
         </div>
         <div className="livemap-stat">
           <div className="livemap-stat-value">{stops.length}</div>
-          <div className="livemap-stat-label">Total Paragens</div>
+          <div className="livemap-stat-label">{t('livemap.statsTotalStops')}</div>
         </div>
       </div>
 
@@ -77,7 +79,7 @@ export default function RoutesTab({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
           <input
             type="text"
-            placeholder="Pesquisar rota..."
+            placeholder={t('livemap.searchRoute')}
             value={routeSearch}
             onChange={e => setRouteSearch(e.target.value)}
           />
@@ -90,15 +92,15 @@ export default function RoutesTab({
           value={routeSort}
           onChange={e => setRouteSort(e.target.value)}
         >
-          <option value="name">Por Nome</option>
-          <option value="code">Por Codigo</option>
-          <option value="stops">Por Paragens</option>
+          <option value="name">{t('livemap.filterByName')}</option>
+          <option value="code">{t('livemap.filterByCode')}</option>
+          <option value="stops">{t('livemap.filterByStops')}</option>
         </select>
       </div>
 
       {filteredRoutes.length === 0 ? (
         <div className="livemap-empty">
-          {routeSearch ? 'Nenhum resultado encontrado' : 'Nenhuma rota registada'}
+          {routeSearch ? t('livemap.noResultsFound') : t('livemap.noRouteRegistered')}
         </div>
       ) : (
         <div className="livemap-route-list">
@@ -117,9 +119,9 @@ export default function RoutesTab({
                   <span className="livemap-route-code">{route.code}</span>
                 </div>
                 <div className="livemap-route-meta">
-                  {isActive && <span className="livemap-route-bus-count">{busCount} bus</span>}
-                  {!isActive && <span className="livemap-route-no-service">Sem servico</span>}
-                  <span className="livemap-route-stops">{route.stops?.length || 0} paragens</span>
+                  {isActive && <span className="livemap-route-bus-count">{busCount} {t('livemap.busCountSuffix')}</span>}
+                  {!isActive && <span className="livemap-route-no-service">{t('livemap.noService')}</span>}
+                  <span className="livemap-route-stops">{route.stops?.length || 0} {t('livemap.stopsSuffix')}</span>
                 </div>
               </div>
             );
@@ -129,7 +131,7 @@ export default function RoutesTab({
 
       {selectedRoute && (
         <button className="livemap-btn-reset" onClick={() => onRouteClick(null)}>
-          Mostrar Todas as Rotas
+          {t('livemap.showAllRoutes')}
         </button>
       )}
     </>

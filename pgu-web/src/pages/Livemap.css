@@ -1284,3 +1284,11 @@
 .livemap-msg-badge-state.falhou    { color: var(--color-danger); }
 .livemap-msg-badge-state.cancelada { color: var(--color-text-light); }
 
+
+/* Sprint 0 (F6): LanguageSwitcher no canto inferior esquerdo do mapa. */
+.livemap-lang {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 500;
+}

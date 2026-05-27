@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import BusIcon from '../components/BusIcon';
 import StatIcon from '../components/StatIcon';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({ buses: 0, stops: 0, routes: 0, active: 0, stopping: 0, stopped: 0 });
   const [recentTelemetry, setRecentTelemetry] = useState([]);
   const [activeAlarms, setActiveAlarms] = useState([]);
@@ -42,12 +44,12 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Dashboard</h1>
-          <p className="page-subtitle">Vista geral do sistema TUB</p>
+          <h1>{t('pages.dashboard.title')}</h1>
+          <p className="page-subtitle">{t('pages.dashboard.subtitleAlt')}</p>
         </div>
         <div className="dash-live">
           <span className="live-dot"></span>
-          <span className="dash-live-text">Em tempo real</span>
+          <span className="dash-live-text">{t('pages.dashboard.liveLabel')}</span>
         </div>
       </div>
 
@@ -56,28 +58,28 @@ export default function Dashboard() {
           <div className="stat-icon stat-icon--primary"><StatIcon type="bus" /></div>
           <div className="stat-content">
             <span className="stat-number">{stats.buses}</span>
-            <span className="stat-label">Autocarros</span>
+            <span className="stat-label">{t('pages.dashboard.totalBuses')}</span>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon stat-icon--success"><StatIcon type="stop" /></div>
           <div className="stat-content">
             <span className="stat-number">{stats.stops}</span>
-            <span className="stat-label">Paragens</span>
+            <span className="stat-label">{t('pages.dashboard.totalStops')}</span>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon stat-icon--warning"><StatIcon type="route" /></div>
           <div className="stat-content">
             <span className="stat-number">{stats.routes}</span>
-            <span className="stat-label">Rotas</span>
+            <span className="stat-label">{t('pages.dashboard.totalRoutes')}</span>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon stat-icon--primary"><StatIcon type="active" /></div>
           <div className="stat-content">
             <span className="stat-number">{stats.active}</span>
-            <span className="stat-label">Ativos</span>
+            <span className="stat-label">{t('pages.dashboard.activeBuses')}</span>
           </div>
         </div>
       </div>
@@ -85,37 +87,37 @@ export default function Dashboard() {
       <div className="dash-grid">
         <div className="dash-panel">
           <div className="dash-panel-header">
-            <h3>Estado da Frota</h3>
+            <h3>{t('pages.dashboard.fleetState')}</h3>
           </div>
           <div className="dash-panel-body">
             <div className="fleet-bars">
-              <FleetBar label="Ativos" count={stats.active} total={stats.buses} color="var(--color-success)" />
-              <FleetBar label="Parados" count={stats.stopped} total={stats.buses} color="#94a3b8" />
+              <FleetBar label={t('pages.dashboard.fleetActives')} count={stats.active} total={stats.buses} color="var(--color-success)" />
+              <FleetBar label={t('pages.dashboard.fleetStopped')} count={stats.stopped} total={stats.buses} color="#94a3b8" />
             </div>
           </div>
         </div>
 
         <div className="dash-panel">
           <div className="dash-panel-header">
-            <h3>Alarmes Ativos</h3>
+            <h3>{t('pages.dashboard.activeAlarms')}</h3>
             {activeAlarms.some(a => a.prioridade === 'CRITICA') && (
-              <span className="pulse-badge">Crítico</span>
+              <span className="pulse-badge">{t('pages.dashboard.criticalBadge')}</span>
             )}
           </div>
           <div className="dash-panel-body">
             <div className="alarmes-widget">
               <div className="alarmes-status-row">
-                <span>Ocorrências Abertas</span>
+                <span>{t('pages.dashboard.openOcorrencias')}</span>
                 <span className="alarmes-count-badge">{activeAlarms.length}</span>
               </div>
               <div className="alarmes-status-row">
-                <span>Alarmes Críticos</span>
+                <span>{t('pages.dashboard.criticalAlarms')}</span>
                 <span className="alarmes-count-badge" style={{ color: activeAlarms.filter(a => a.prioridade === 'CRITICA').length > 0 ? '#ef4444' : '#64748b' }}>
                   {activeAlarms.filter(a => a.prioridade === 'CRITICA').length}
                 </span>
               </div>
               <a href="/backoffice/ocorrencias" className="link-ocorrencias">
-                Ir para Gestão de Ocorrências →
+                {t('pages.dashboard.goToOcorrencias')}
               </a>
             </div>
           </div>
@@ -123,26 +125,26 @@ export default function Dashboard() {
 
         <div className="dash-panel">
           <div className="dash-panel-header">
-            <h3>Telemetria Recente</h3>
+            <h3>{t('pages.dashboard.recentTelemetry')}</h3>
             <span className="live-dot"></span>
           </div>
           <div className="dash-panel-body dash-panel-body--list">
             {recentTelemetry.length === 0 && (
-              <div className="dash-empty">Sem dados de telemetria</div>
+              <div className="dash-empty">{t('pages.dashboard.noTelemetry')}</div>
             )}
-            {recentTelemetry.map((t, i) => (
+            {recentTelemetry.map((tm, i) => (
               <div key={i} className="telemetry-row">
-                <BusIcon status={t.status === 'active' ? 'active' : 'at-stop'} />
+                <BusIcon status={tm.status === 'active' ? 'active' : 'at-stop'} />
                 <div className="telemetry-info">
-                  <div className="telemetry-bus">{t.busId}</div>
+                  <div className="telemetry-bus">{tm.busId}</div>
                   <div className="telemetry-detail">
-                    <span className="telemetry-speed">{t.speed?.toFixed(0) || 0} km/h</span>
+                    <span className="telemetry-speed">{tm.speed?.toFixed(0) || 0} km/h</span>
                     <span className="telemetry-sep">|</span>
-                    <span className="telemetry-pax">{t.passengers} pax</span>
+                    <span className="telemetry-pax">{tm.passengers} pax</span>
                   </div>
                 </div>
-                <div className={`telemetry-status telemetry-status--${t.status}`}>
-                  {t.status === 'active' ? 'Viagem' : 'Paragem'}
+                <div className={`telemetry-status telemetry-status--${tm.status}`}>
+                  {tm.status === 'active' ? t('pages.dashboard.trip') : t('pages.dashboard.atStop')}
                 </div>
               </div>
             ))}

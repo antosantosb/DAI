@@ -517,3 +517,35 @@
   white-space: nowrap;
   overflow: visible;
 }
+
+/* Sprint 0 (F6 follow-up): botoes de filtro consistentes em todas as paginas
+   (Users, AuditLogs, Buses, AnalyticsDashboard, Exports). Antes estavam
+   definidos so em Buses.css, ficavam sem estilo nas outras paginas. */
+.btn-filter {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-filter:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-filter--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.btn-filter--active:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: #fff;
+}

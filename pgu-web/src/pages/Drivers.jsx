@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import Modal from '../components/Modal';
 import './Drivers.css';
 
 export default function Drivers() {
+  const { t } = useTranslation();
   const [drivers, setDrivers] = useState([]);
   const [allBuses, setAllBuses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export default function Drivers() {
       setAssignModal({ open: false, driver: null });
       await fetchData();
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Atribuição falhou');
+      setErrorMsg(err.response?.data?.message || err.message || t('pages.drivers.assignFailed'));
     }
   };
 
@@ -51,21 +53,21 @@ export default function Drivers() {
       await api.post('/drivers/unassign', { driverId });
       await fetchData();
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Desatribuição falhou');
+      setErrorMsg(err.response?.data?.message || err.message || t('pages.drivers.unassignFailed'));
     }
   };
 
-  if (loading) return <div className="empty-state">A carregar motoristas...</div>;
+  if (loading) return <div className="empty-state">{t('pages.drivers.loadingDrivers')}</div>;
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Motoristas</h1>
-          <div className="page-subtitle">Gestão operacional — atribuir autocarros e ver estado</div>
+          <h1>{t('pages.drivers.title')}</h1>
+          <div className="page-subtitle">{t('pages.drivers.subtitleAlt')}</div>
         </div>
         <Link to="/backoffice/users" className="btn btn-primary">
-          + Criar Motorista (em Utilizadores)
+          {t('pages.drivers.createInUsers')}
         </Link>
       </div>
 
@@ -73,19 +75,19 @@ export default function Drivers() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Nº Mecanográfico</th>
-              <th>Telefone</th>
-              <th>Estado</th>
-              <th>Autocarro Atual</th>
-              <th>Ações</th>
+              <th>{t('pages.drivers.headers.name')}</th>
+              <th>{t('pages.drivers.headers.mechNumber')}</th>
+              <th>{t('pages.drivers.headers.phone')}</th>
+              <th>{t('pages.drivers.headers.status')}</th>
+              <th>{t('pages.drivers.headers.currentBus')}</th>
+              <th>{t('pages.drivers.headers.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {drivers.length === 0 ? (
               <tr>
                 <td colSpan="6" className="empty">
-                  Sem motoristas registados. <Link to="/backoffice/users">Criar em Utilizadores →</Link>
+                  {t('pages.drivers.noDriversRegistered')} <Link to="/backoffice/users">{t('pages.drivers.createInUsersLink')}</Link>
                 </td>
               </tr>
             ) : (
@@ -98,14 +100,14 @@ export default function Drivers() {
                     <td>{driver.phoneNumber || '—'}</td>
                     <td>
                       <span className={`driver-status driver-status--${driver.status === 'ON_DUTY' ? 'on-duty' : driver.status === 'AVAILABLE' ? 'available' : 'offline'}`}>
-                        {driver.status === 'ON_DUTY' ? 'Em serviço' : driver.status === 'AVAILABLE' ? 'Disponível' : driver.status}
+                        {driver.status === 'ON_DUTY' ? t('pages.drivers.statusOnDuty') : driver.status === 'AVAILABLE' ? t('pages.drivers.statusAvailable') : driver.status}
                       </span>
                     </td>
                     <td>
                       {driver.currentBusCode ? (
                         <span className="current-bus">
                           {driver.currentBusCode}
-                          {busActive && <span className="bus-active-dot" title="Em andamento">●</span>}
+                          {busActive && <span className="bus-active-dot" title={t('pages.drivers.busInProgress')}>●</span>}
                         </span>
                       ) : <span style={{ color: '#94a3b8' }}>—</span>}
                     </td>
@@ -115,16 +117,16 @@ export default function Drivers() {
                           onClick={() => handleUnassign(driver.id)}
                           className="btn btn-unassign btn-sm"
                           disabled={busActive}
-                          title={busActive ? 'Não é possível desatribuir — autocarro em andamento' : 'Desatribuir do autocarro atual'}
+                          title={busActive ? t('pages.drivers.unassignDisabledTitle') : t('pages.drivers.unassignTitle')}
                         >
-                          Desatribuir
+                          {t('pages.drivers.unassignAction')}
                         </button>
                       ) : (
                         <button
                           onClick={() => setAssignModal({ open: true, driver })}
                           className="btn btn-primary btn-sm"
                         >
-                          Atribuir Autocarro
+                          {t('pages.drivers.assignBus')}
                         </button>
                       )}
                     </td>
@@ -140,17 +142,17 @@ export default function Drivers() {
       {assignModal.open && (
         <Modal
           open
-          title={`Atribuir autocarro a ${assignModal.driver?.name}`}
+          title={t('pages.drivers.assignModalTitle', { name: assignModal.driver?.name })}
           onClose={() => setAssignModal({ open: false, driver: null })}
         >
           <div className="assign-bus-list">
             {allBuses.length === 0 ? (
               <p className="assign-bus-empty">
-                Ainda não há autocarros registados. Cria em <Link to="/backoffice/buses" onClick={() => setAssignModal({ open: false, driver: null })}>Autocarros</Link>.
+                {t('pages.drivers.noBusesYet')} <Link to="/backoffice/buses" onClick={() => setAssignModal({ open: false, driver: null })}>{t('pages.drivers.busesLinkLabel')}</Link>.
               </p>
             ) : availableBuses.length === 0 ? (
               <p className="assign-bus-empty">
-                Todos os autocarros já têm motorista atribuído. Para reatribuir, primeiro remove o motorista actual.
+                {t('pages.drivers.allAssigned')}
               </p>
             ) : (
               availableBuses.map(bus => (
@@ -167,7 +169,7 @@ export default function Drivers() {
                         <span className="assign-bus-route-name">{bus.routeName}</span>
                       </>
                     ) : (
-                      <span className="assign-bus-no-route">Sem rota</span>
+                      <span className="assign-bus-no-route">{t('pages.drivers.noRoute')}</span>
                     )}
                     <span className="assign-bus-status">{bus.status}</span>
                   </span>
@@ -180,7 +182,7 @@ export default function Drivers() {
 
       {/* Modal de erro */}
       {errorMsg && (
-        <Modal open title="Erro" onClose={() => setErrorMsg(null)}>
+        <Modal open title={t('pages.drivers.errorTitle')} onClose={() => setErrorMsg(null)}>
           <p style={{ color: '#ef4444' }}>{errorMsg}</p>
         </Modal>
       )}

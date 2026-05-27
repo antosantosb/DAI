@@ -88,6 +88,19 @@ export const IconUsers = () => (
   </svg>
 );
 
+// Sprint 0 (F6 follow-up): icone proprio para Motoristas (id card) para
+// distinguir de Utilizadores na sidebar.
+export const IconDriver = () => (
+  <svg {...common} aria-hidden="true">
+    <rect x="2" y="4" width="20" height="16" rx="2.5" />
+    <circle cx="8.5" cy="11" r="2.6" />
+    <path d="M4.5 17.5c.7-1.7 2.3-2.8 4-2.8s3.3 1.1 4 2.8" />
+    <line x1="14.5" y1="9.5" x2="19.5" y2="9.5" />
+    <line x1="14.5" y1="13" x2="19.5" y2="13" />
+    <line x1="14.5" y1="16.5" x2="17.5" y2="16.5" />
+  </svg>
+);
+
 export const IconGtfs = () => (
   <svg {...common} aria-hidden="true">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

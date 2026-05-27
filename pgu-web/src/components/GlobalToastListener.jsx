@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { createStompClient } from '../services/stompClient';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
@@ -12,27 +13,33 @@ const COLLAPSE_DELAY_MS = 10000;
 // do <ToastContainer>, por isso temos de incluir 'pgu-toast' aqui.
 const GTFS_BASE_CLASS = 'pgu-toast pgu-gtfs-collapsible';
 
-// Helper: cria o conteúdo do toast de progresso GTFS a partir de um payload
-// { step, message, progress }. Partilhado entre o resume on-mount e o WS handler.
-function gtfsProgressContent(p) {
-  return (
-    <div>
-      <div className="pgu-toast-title">Sincronização GTFS</div>
-      <div className="pgu-toast-sub">{p.message}</div>
-      <div className="pgu-progress-track">
-        <div className="pgu-progress-fill" style={{ width: `${p.progress}%` }} />
-      </div>
-    </div>
-  );
-}
-
 /**
  * Subscreve tópicos STOMP globais e emite toasts.
  * Invisível — montar uma única vez no Layout.
  */
 export default function GlobalToastListener() {
+  const { t } = useTranslation();
   const collapseTimerRef = useRef(null);
   const { authenticated } = useAuth();
+
+  // Helper: cria o conteúdo do toast de progresso GTFS a partir de um payload
+  // { step, message, progress }. Partilhado entre o resume on-mount e o WS handler.
+  const gtfsProgressContent = (p) => {
+    // Mapeia step backend (DOWNLOADING/PROCESSING_STOPS/...) para mensagem
+    // traduzida. Fallback para p.message se step desconhecido.
+    const stepKey = p.step ? `toasts.gtfsSteps.${p.step}` : null;
+    const translated = stepKey ? t(stepKey, { defaultValue: '' }) : '';
+    const text = translated || p.message || '';
+    return (
+      <div>
+        <div className="pgu-toast-title">{t('toasts.gtfsTitle')}</div>
+        <div className="pgu-toast-sub">{text}</div>
+        <div className="pgu-progress-track">
+          <div className="pgu-progress-fill" style={{ width: `${p.progress}%` }} />
+        </div>
+      </div>
+    );
+  };
 
   const armCollapseTimer = () => {
     if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
@@ -86,7 +93,7 @@ export default function GlobalToastListener() {
           try {
             const p = JSON.parse(message.body);
             if (p.status === 'emergency') {
-              toast.error(`Emergência: autocarro ${p.busId}`, {
+              toast.error(t('toasts.emergency', { busId: p.busId }), {
                 autoClose: 10000,
                 toastId: `emergency-${p.busId}`,
               });
@@ -103,10 +110,10 @@ export default function GlobalToastListener() {
               toast.success(
                 ({ closeToast }) => (
                   <div>
-                    <div className="pgu-toast-title">Relatório {job.format} pronto</div>
+                    <div className="pgu-toast-title">{t('toasts.exportReady', { format: job.format })}</div>
                     {job.fileName && <div className="pgu-toast-sub">{job.fileName}</div>}
                     <a href={job.downloadUrl} onClick={() => closeToast()} className="pgu-toast-action">
-                      Descarregar
+                      {t('toasts.exportDownload')}
                     </a>
                   </div>
                 ),
@@ -114,7 +121,7 @@ export default function GlobalToastListener() {
               );
             }
             if (job.status === 'FAILED') {
-              toast.error(`Exportação falhou`, {
+              toast.error(t('toasts.exportFailed'), {
                 autoClose: 8000,
                 toastId: `exp-${job.jobUuid}`,
               });
@@ -131,9 +138,9 @@ export default function GlobalToastListener() {
               toast.error(
                 <div>
                   <div className="pgu-toast-title">{o.tipoAnomalia}</div>
-                  <div className="pgu-toast-sub">Ativo {o.ativoId}</div>
+                  <div className="pgu-toast-sub">{t('toasts.alertAssetLabel', { id: o.ativoId })}</div>
                   <a href={`/backoffice/ocorrencias/${o.id}`} className="pgu-toast-action">
-                    Ver
+                    {t('toasts.alertViewLink')}
                   </a>
                 </div>,
                 { autoClose: false, closeOnClick: false, toastId: `alerta-${o.id}` }
@@ -152,15 +159,15 @@ export default function GlobalToastListener() {
             if (p.step === 'COMPLETED') {
               clearCollapseTimer();
               toast.dismiss(id);
-              toast.success('Sincronização GTFS concluída', { autoClose: 5000, toastId: 'gtfs-done' });
+              toast.success(t('toasts.gtfsCompleted'), { autoClose: 5000, toastId: 'gtfs-done' });
             } else if (p.step === 'FAILED') {
               clearCollapseTimer();
               toast.dismiss(id);
-              toast.error('Sincronização GTFS falhou', { autoClose: 8000, toastId: 'gtfs-fail' });
+              toast.error(t('toasts.gtfsFailed'), { autoClose: 8000, toastId: 'gtfs-fail' });
             } else if (p.step === 'SKIPPED') {
               clearCollapseTimer();
               toast.dismiss(id);
-              toast.info('Dados GTFS já atualizados', { autoClose: 3000, toastId: 'gtfs-skip' });
+              toast.info(t('toasts.gtfsSkipped'), { autoClose: 3000, toastId: 'gtfs-skip' });
             } else {
               // Sprint 0 (F4 follow-up): conteudo atualizado em vivo. Primeira vez
               // chama toast.loading(); subsequentes usam toast.update() para
@@ -183,7 +190,7 @@ export default function GlobalToastListener() {
         stompClient.subscribe('/topic/alertas-escalada', (message) => {
           if (!message.body) return;
           try {
-            toast.warn('Escalamento crítico', {
+            toast.warn(t('toasts.escalation'), {
               autoClose: false,
               toastId: `esc-${Date.now()}`,
             });

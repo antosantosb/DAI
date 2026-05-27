@@ -34,9 +34,8 @@ body.kc-login {
   text-align: center;
 }
 
-#kc-header-wrapper::after {
-  content: 'Plataforma de Gestão Urbana';
-  display: block;
+#kc-header-subtitle {
+  text-align: center;
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
@@ -566,26 +565,81 @@ a#mode-barcode:hover {
   text-decoration: underline;
 }
 
-/* Codigo manual (quando o user clica em "Unable to scan?") */
+/* Codigo manual (quando o user clica em "Unable to scan?") — compacto */
 #kc-totp-secret-key {
   display: block;
-  margin: 12px auto;
-  padding: 12px 16px;
+  margin: 4px auto;
+  padding: 6px 10px;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  border-radius: 6px;
   color: #c7d2fe;
   font-family: ui-monospace, Menlo, monospace;
-  font-size: 13px;
-  letter-spacing: 1px;
+  font-size: 11.5px;
+  letter-spacing: 0.5px;
   word-break: break-all;
   text-align: center;
+  line-height: 1.4;
 }
 
 /* Modo TOTP setup: compactar alert do topo, titulo, paddings do card */
 .login-pf-page:has(#kc-totp-secret-qr-code) .card-pf,
-body:has(#kc-totp-secret-qr-code) .login-pf-page .card-pf {
-  padding: 16px 18px !important;
+.login-pf-page:has(#kc-totp-secret-key) .card-pf,
+body:has(#kc-totp-secret-qr-code) .login-pf-page .card-pf,
+body:has(#kc-totp-secret-key) .login-pf-page .card-pf {
+  padding: 12px 16px !important;
+}
+
+/* Reduzir form-group margin em modo TOTP */
+.login-pf-page:has(#kc-totp-secret-qr-code) .form-group,
+.login-pf-page:has(#kc-totp-secret-key) .form-group,
+.login-pf-page:has(#kc-totp-secret-qr-code) .card-pf .form-group,
+.login-pf-page:has(#kc-totp-secret-key) .card-pf .form-group {
+  margin-bottom: 8px !important;
+  gap: 2px !important;
+}
+
+/* Lista numerada em modo TOTP — menor */
+.login-pf-page:has(#kc-totp-secret-qr-code) ol,
+.login-pf-page:has(#kc-totp-secret-key) ol {
+  font-size: 11.5px !important;
+  margin: 4px 0 !important;
+  line-height: 1.35 !important;
+  padding-left: 18px !important;
+}
+
+.login-pf-page:has(#kc-totp-secret-qr-code) ol > li,
+.login-pf-page:has(#kc-totp-secret-key) ol > li {
+  margin-bottom: 3px !important;
+}
+
+.login-pf-page:has(#kc-totp-secret-qr-code) ol ul,
+.login-pf-page:has(#kc-totp-secret-key) ol ul {
+  font-size: 11px !important;
+  margin: 1px 0 !important;
+}
+
+/* QR code mais pequeno (140px em vez de 150) */
+.login-pf-page:has(#kc-totp-secret-qr-code) img#kc-totp-secret-qr-code {
+  width: 140px !important;
+  height: 140px !important;
+  margin: 4px auto !important;
+  padding: 5px !important;
+}
+
+/* Submit button mais compacto */
+.login-pf-page:has(#kc-totp-secret-qr-code) #kc-form-buttons,
+.login-pf-page:has(#kc-totp-secret-key) #kc-form-buttons {
+  margin-top: 6px !important;
+}
+
+.login-pf-page:has(#kc-totp-secret-qr-code) #kc-form-buttons input[type="submit"],
+.login-pf-page:has(#kc-totp-secret-qr-code) #kc-form-buttons button,
+.login-pf-page:has(#kc-totp-secret-key) #kc-form-buttons input[type="submit"],
+.login-pf-page:has(#kc-totp-secret-key) #kc-form-buttons button {
+  padding: 10px 16px !important;
+  font-size: 12.5px !important;
+  min-height: 38px !important;
 }
 
 /* Alert "You need to set up..." compactado */
@@ -628,31 +682,34 @@ body:has(#kc-totp-secret-qr-code) .login-pf-page .card-pf {
   font-size: 12px !important;
 }
 
-/* Lista de "Type / Algorithm / Digits / Interval / Counter" no modo manual */
+/* Lista de "Type / Algorithm / Digits / Interval / Counter" no modo manual.
+   Grelha horizontal compacta para poupar altura. */
 ul#kc-totp-settings {
   list-style: none;
-  padding: 0;
-  margin: 12px 0;
+  padding: 6px 10px;
+  margin: 4px 0;
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
 }
 
 ul#kc-totp-settings li {
-  padding: 8px 14px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 12.5px;
+  padding: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.75);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 0;
+  line-height: 1.3;
 }
-
-ul#kc-totp-settings li:last-child { border-bottom: 0; }
 
 ul#kc-totp-settings li span:first-child {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 ul#kc-totp-settings li span:last-child {
@@ -664,4 +721,45 @@ ul#kc-totp-settings li span:last-child {
 input#totp,
 input#userLabel {
   letter-spacing: 1px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Sprint 0 (F6): Language switcher fixo no canto inferior esquerdo
+   das paginas do Keycloak (login, TOTP setup, update password).
+   ────────────────────────────────────────────────────────────── */
+.pgu-lang-switcher {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: inline-flex;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 0;
+  backdrop-filter: blur(8px);
+}
+
+.pgu-lang-btn {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none !important;
+  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+
+.pgu-lang-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.pgu-lang-btn.is-active {
+  background: rgba(99, 102, 241, 0.85);
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.5);
 }
