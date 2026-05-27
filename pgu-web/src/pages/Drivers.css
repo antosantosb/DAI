@@ -408,3 +408,20 @@ a.btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
 }
+
+/* Sprint 0 (follow-up): coluna 'Nome' nos Drivers — avatar + nome com gap
+   suficiente para nao ficarem colados. */
+.driver-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.driver-name-cell > span,
+.driver-name-cell > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

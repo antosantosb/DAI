@@ -939,7 +939,17 @@
       "profileSaved": "Perfil atualizado.",
       "passwordChanged": "Password alterada.",
       "passwordsDontMatch": "As passwords não coincidem.",
-      "currentPasswordWrong": "Password atual incorreta."
+      "currentPasswordWrong": "Password atual incorreta.",
+      "usernameAdminLocked": "O username de admin não pode ser alterado aqui.",
+      "photoSection": "Foto de perfil",
+      "photoSectionHint": "Gere a tua foto pessoal",
+      "changePhoto": "Alterar foto",
+      "removePhoto": "Remover foto",
+      "photoUploaded": "Foto atualizada.",
+      "photoRemoved": "Foto removida.",
+      "photoTooBig": "Imagem demasiado grande (máx 2MB).",
+      "photoBadType": "Tipo de ficheiro não suportado.",
+      "uploading": "A carregar..."
     },
     "bordo": {
       "accountButton": "Conta",

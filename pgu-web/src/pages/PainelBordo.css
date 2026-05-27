@@ -249,11 +249,17 @@
 .pb-stop:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 23px;
-  top: 36px;
-  bottom: -10px;
+  /* Linha alinhada com o centro do dot. padding-left=12, dot=12px com
+     box-sizing border-box → centro a 18px → left=17 (largura 2 / 2). */
+  left: 17px;
+  /* Linha cobre do centro do dot atual ate o centro do dot do proximo.
+     Como o flex .pb-stop usa align-items:center, o dot fica em top:50%.
+     Sem gap entre items, top:50% + height:100% liga centro a centro. */
+  top: 50%;
+  height: 100%;
   width: 2px;
   background: var(--color-border);
+  z-index: 0;
 }
 
 .pb-stop--current {
@@ -279,6 +285,10 @@
   background: var(--color-border-medium);
   flex-shrink: 0;
   border: 2px solid var(--color-border);
+  /* box-sizing border-box: o border conta dentro dos 12px, garantindo que o
+     centro visual do dot fica em (padding-left + 6px) = 18px. A linha
+     vertical em left:17px alinha perfeitamente. */
+  box-sizing: border-box;
   z-index: 1;
   transition: all 0.2s;
 }
@@ -286,9 +296,8 @@
 .pb-stop--current .pb-stop-dot {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  box-shadow: 0 0 12px var(--color-primary-glow);
-  width: 14px;
-  height: 14px;
+  box-shadow: 0 0 0 4px var(--color-primary-light), 0 0 14px var(--color-primary-glow);
+  /* Mantem dimensoes do dot para preservar alinhamento da linha vertical. */
 }
 
 .pb-stop--past .pb-stop-dot {

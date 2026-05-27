@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import dai.tub.pgu.dto.UserRepresentationDTO;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,8 @@ import java.util.List;
 @Service
 public class KeycloakAdminService
 {
+    private static final Logger log = LoggerFactory.getLogger(KeycloakAdminService.class);
+
     private final RestClient restClient;
     private final ObjectMapper mapper;
 
@@ -515,6 +520,48 @@ public class KeycloakAdminService
      * Atualiza o atributo "avatarKey" de um utilizador Keycloak.
      * Passa {@code null} ou string vazia para remover o atributo.
      */
+    /**
+     * Sprint 0 (follow-up): em Keycloak 24+ a User Profile rejeita atributos
+     * nao declarados por defeito. Sem isto, o {@link #setAvatarKey} aparenta
+     * funcionar (PUT 204) mas o attribute "avatarKey" e' silenciosamente
+     * filtrado e nao persiste — apos refresh o avatar desaparece.
+     *
+     * <p>Solucao: PUT em {@code /users/profile} com
+     * {@code unmanagedAttributePolicy=ENABLED}. Idempotent — corre uma vez no
+     * boot. Best-effort: se falhar (ex. Keycloak ainda nao up), apenas loga.
+     */
+    @PostConstruct
+    public void ensureUnmanagedAttributesEnabled()
+    {
+        try {
+            String token = getAdminToken();
+            String url = adminApiBase() + "/users/profile";
+            String body = restClient.get()
+                .uri(url)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(String.class);
+            JsonNode current = mapper.readTree(body);
+            String policy = current.path("unmanagedAttributePolicy").asText("");
+            if ("ENABLED".equals(policy) || "ADMIN_EDIT".equals(policy) || "ADMIN_VIEW".equals(policy)) {
+                log.info("Keycloak unmanagedAttributePolicy ja' em {} — skip", policy);
+                return;
+            }
+            ObjectNode updated = (ObjectNode) current;
+            updated.put("unmanagedAttributePolicy", "ENABLED");
+            restClient.put()
+                .uri(url)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(mapper.writeValueAsString(updated))
+                .retrieve()
+                .toBodilessEntity();
+            log.info("Keycloak unmanagedAttributePolicy set to ENABLED (permite avatarKey)");
+        } catch (Exception e) {
+            log.warn("Nao foi possivel garantir unmanagedAttributePolicy=ENABLED: {}", e.getMessage());
+        }
+    }
+
     public void setAvatarKey(String userId, String avatarKey)
     {
         String token = getAdminToken();

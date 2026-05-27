@@ -7,14 +7,13 @@ import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.http.Method;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * Sprint 0 (F0): wrapper sobre o {@link MinioClient} com a API que o resto da
@@ -30,20 +29,23 @@ import java.util.regex.Pattern;
  * {@code http://localhost:9000}) para o browser conseguir aceder.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class StorageService {
 
+    /** Cliente interno (rede Docker) — usado para upload/download/stat/remove. */
     private final MinioClient minioClient;
+
+    /** Cliente publico (visivel pelo browser) — usado para gerar presigned URLs. */
+    private final MinioClient publicMinioClient;
+
+    public StorageService(MinioClient minioClient,
+                          @Qualifier("public") MinioClient publicMinioClient) {
+        this.minioClient = minioClient;
+        this.publicMinioClient = publicMinioClient;
+    }
 
     @Value("${pgu.storage.presigned-ttl-seconds:86400}")
     private int defaultPresignedTtlSeconds;
-
-    @Value("${pgu.storage.public-endpoint}")
-    private String publicEndpoint;
-
-    @Value("${pgu.storage.endpoint}")
-    private String internalEndpoint;
 
     /**
      * Faz upload de um stream para um bucket.
@@ -95,18 +97,17 @@ public class StorageService {
      */
     public String presignedUrl(String bucket, String key, int ttlSeconds) {
         try {
-            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            // Usa o publicMinioClient — a signature e' calculada com o host
+            // publico (ex. localhost:9000) que o browser vai usar. Sem isto,
+            // o MinIO devolve SignatureDoesNotMatch porque recalcula o
+            // canonical request com o host do request (localhost) e nao
+            // bate com o que o backend interno (minio:9000) assinou.
+            return publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(key)
                     .expiry(ttlSeconds, TimeUnit.SECONDS)
                     .build());
-            // Substitui endpoint interno pelo publico para o browser conseguir aceder.
-            if (publicEndpoint != null && !publicEndpoint.isBlank()
-                    && !publicEndpoint.equals(internalEndpoint)) {
-                url = url.replaceFirst(Pattern.quote(internalEndpoint), publicEndpoint);
-            }
-            return url;
         } catch (Exception e) {
             throw new StorageException("Erro a gerar presigned URL: " + bucket + "/" + key, e);
         }

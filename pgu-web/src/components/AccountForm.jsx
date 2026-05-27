@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthProvider';
 import Avatar from './Avatar';
 import './AccountForm.css';
 
@@ -28,6 +29,11 @@ export default function AccountForm({
   compact = false,
 }) {
   const { t } = useTranslation();
+  const { hasRole } = useAuth();
+  // Sprint 0 (follow-up): admin nao pode mudar o proprio username — quebra
+  // referencias historicas (audit_log, drivers, exports, etc.) e o token JWT
+  // emitido pelo Keycloak continua a apontar ao username antigo ate refresh.
+  const isAdmin = hasRole('admin');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
@@ -140,12 +146,14 @@ export default function AccountForm({
     if (savingProfile) return;
     setSavingProfile(true);
     try {
-      await onSaveProfile({
+      const patch = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        username: username.trim(),
         email: email.trim(),
-      });
+      };
+      // Admin nao pode mudar o proprio username; nao incluir no payload.
+      if (!isAdmin) patch.username = username.trim();
+      await onSaveProfile(patch);
     } finally {
       setSavingProfile(false);
     }
@@ -254,7 +262,15 @@ export default function AccountForm({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              disabled={isAdmin}
+              readOnly={isAdmin}
+              title={isAdmin ? t('pages.minhaConta.usernameAdminLocked') : undefined}
             />
+            {isAdmin && (
+              <small className="account-field-hint">
+                {t('pages.minhaConta.usernameAdminLocked')}
+              </small>
+            )}
           </label>
           <label className="account-field">
             <span>{t('pages.minhaConta.email')}</span>

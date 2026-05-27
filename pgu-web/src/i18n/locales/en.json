@@ -939,7 +939,17 @@
       "profileSaved": "Profile updated.",
       "passwordChanged": "Password changed.",
       "passwordsDontMatch": "Passwords do not match.",
-      "currentPasswordWrong": "Current password incorrect."
+      "currentPasswordWrong": "Current password incorrect.",
+      "usernameAdminLocked": "Admin username cannot be changed here.",
+      "photoSection": "Profile photo",
+      "photoSectionHint": "Manage your personal photo",
+      "changePhoto": "Change photo",
+      "removePhoto": "Remove photo",
+      "photoUploaded": "Photo updated.",
+      "photoRemoved": "Photo removed.",
+      "photoTooBig": "Image too large (max 2MB).",
+      "photoBadType": "Unsupported file type.",
+      "uploading": "Uploading..."
     },
     "bordo": {
       "accountButton": "Account",
