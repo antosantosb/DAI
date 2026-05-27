@@ -303,10 +303,13 @@
   }
 }
 
-/* Sprint 0 (F6): LanguageSwitcher fixo no canto inferior esquerdo da landing. */
+/* Sprint 0 (F6/F7): Theme + LanguageSwitcher fixos no canto inferior esquerdo. */
 .landing-lang {
   position: fixed;
   bottom: 20px;
   left: 20px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

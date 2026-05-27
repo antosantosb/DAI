@@ -115,6 +115,10 @@
   background: #f9fafb;
 }
 
+[data-theme="dark"] .telemetry-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .telemetry-info {
   flex: 1;
   display: flex;
@@ -189,10 +193,24 @@
   background: #fde8e8;
 }
 
+/* Sprint 0 (F7): dark mode override — fundo subtil em tons de danger */
+[data-theme="dark"] .alarmes-status-row {
+  background: rgba(248, 113, 113, 0.10);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+[data-theme="dark"] .alarmes-status-row:hover {
+  background: rgba(248, 113, 113, 0.18);
+}
+
 .alarmes-count-badge {
   font-size: 20px;
   font-weight: 800;
-  color: #ef4444;
+  color: var(--color-danger);
+}
+
+[data-theme="dark"] .alarmes-count-badge {
+  color: #fca5a5;
 }
 
 .pulse-badge {
@@ -200,8 +218,8 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background-color: #ef4444;
-  color: white;
+  background-color: var(--color-danger);
+  color: #fff;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
@@ -237,7 +255,11 @@
 }
 
 .link-ocorrencias:hover {
-  color: #4f46e5;
+  color: var(--color-primary-hover, #4f46e5);
   text-decoration: underline;
+}
+
+[data-theme="dark"] .link-ocorrencias:hover {
+  color: #a5b4fc;
 }
 

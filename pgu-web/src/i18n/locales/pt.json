@@ -1041,5 +1041,9 @@
     "switcher": "Idioma",
     "pt": "Português",
     "en": "English"
+  },
+  "theme": {
+    "switchToDark": "Mudar para tema escuro",
+    "switchToLight": "Mudar para tema claro"
   }
 }

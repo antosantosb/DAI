@@ -24,12 +24,15 @@
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Sprint 0 (F6): LanguageSwitcher fixo no canto inferior direito do backoffice. */
+/* Sprint 0 (F6/F7): Theme + Language switchers fixos no canto inferior direito. */
 .layout-lang {
   position: fixed;
   bottom: 20px;
   right: 20px;
   z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .sidebar-brand {

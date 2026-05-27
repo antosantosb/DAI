@@ -13,12 +13,14 @@ import BusesTab from '../components/livemap/BusesTab';
 import RoutesTab from '../components/livemap/RoutesTab';
 import AccountTab from '../components/livemap/AccountTab';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import './Livemap.css';
 
 export default function Livemap() {
   const { t } = useTranslation();
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
+  const tileLayerRef = useRef(null);
   const stopLayerGroup = useRef(null);
   const routeLayerGroup = useRef(null);
   const busMarkersRef = useRef({});
@@ -60,7 +62,7 @@ export default function Livemap() {
       preferCanvas: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(mapInstance.current);
@@ -74,6 +76,7 @@ export default function Livemap() {
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
+        tileLayerRef.current = null;
       }
     };
   }, []);
@@ -650,6 +653,7 @@ export default function Livemap() {
           </button>
         </div>
         <div className="livemap-lang">
+          <ThemeSwitcher />
           <LanguageSwitcher />
         </div>
       </div>

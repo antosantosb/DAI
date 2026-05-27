@@ -491,6 +491,10 @@
   flex-shrink: 0;
 }
 
+[data-theme="dark"] .color-dot {
+  border-color: rgba(255,255,255,0.15);
+}
+
 /* ========== LIVE INDICATOR ========== */
 .live-dot {
   width: 8px;

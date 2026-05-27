@@ -14,6 +14,7 @@ import {
   IconSettings, IconDataSource, IconDriver,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
+import ThemeSwitcher from './ThemeSwitcher';
 import { getOcorrencias } from '../services/ocorrenciasApi';
 import { routes, hasAccess } from '../routes';
 import './Layout.css';
@@ -193,6 +194,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <div className="layout-lang">
+        <ThemeSwitcher />
         <LanguageSwitcher />
       </div>
     </div>

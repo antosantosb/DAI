@@ -37,13 +37,13 @@
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
-  background: #fff;
-  border: 2px solid rgba(0, 0, 0, 0.2);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-medium);
   border-radius: 6px;
   cursor: pointer;
   color: var(--color-text-secondary);
   transition: all 0.15s ease;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-xs);
   white-space: nowrap;
 }
 
@@ -1285,10 +1285,135 @@
 .livemap-msg-badge-state.cancelada { color: var(--color-text-light); }
 
 
-/* Sprint 0 (F6): LanguageSwitcher no canto inferior esquerdo do mapa. */
+/* Sprint 0 (F6/F7): Theme + LanguageSwitcher no canto inferior esquerdo do mapa. */
 .livemap-lang {
   position: absolute;
   bottom: 20px;
   left: 20px;
   z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Sprint 0 (F7): Dark mode overrides para Livemap.
+   Popups Leaflet, disabled states e outros literais que não
+   conseguimos resolver só com CSS variables. */
+
+[data-theme="dark"] .livemap-bus-card--deactivated::before {
+  background: #64748b;
+}
+
+[data-theme="dark"] .livemap-msg-btn:disabled {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-light);
+}
+
+[data-theme="dark"] .livemap-msg-textarea:disabled {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-light);
+}
+
+[data-theme="dark"] .livemap-msg-textarea.error {
+  background: rgba(248, 113, 113, 0.12) !important;
+}
+
+[data-theme="dark"] .livemap-msg-btn-send:disabled {
+  background: var(--color-border-medium);
+  color: var(--color-text-light);
+}
+
+[data-theme="dark"] .livemap-ws-badge.connected {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+[data-theme="dark"] .livemap-ws-badge.connected .livemap-ws-dot {
+  background: var(--color-success);
+}
+
+[data-theme="dark"] .livemap-overlay-btn--danger.livemap-overlay-btn--active:hover {
+  background: var(--color-danger-hover);
+}
+
+/* Stop panel popup (Leaflet) — fundo e separadores */
+[data-theme="dark"] .stop-panel-popup .leaflet-popup-content-wrapper,
+[data-theme="dark"] .stop-panel-popup .leaflet-popup-tip {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+[data-theme="dark"] .stop-panel-popup .leaflet-popup-content-wrapper {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="dark"] .sp-header {
+  border-bottom-color: var(--color-border);
+}
+[data-theme="dark"] .sp-name { color: var(--color-text-heading); }
+[data-theme="dark"] .sp-code {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+[data-theme="dark"] .sp-board-header {
+  border-bottom-color: var(--color-border-light);
+}
+[data-theme="dark"] .sp-board-header span,
+[data-theme="dark"] .sp-empty,
+[data-theme="dark"] .sp-coords {
+  color: var(--color-text-light);
+}
+[data-theme="dark"] .sp-row-bus { color: var(--color-text-secondary); }
+[data-theme="dark"] .sp-row-time { color: var(--color-text); }
+[data-theme="dark"] .sp-row-soon { color: var(--color-success); }
+[data-theme="dark"] .sp-message {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  border-top-color: var(--color-border-light);
+}
+
+/* Bus popup (Leaflet) — usado dentro de markers */
+[data-theme="dark"] .bus-popup-header {
+  border-bottom-color: var(--color-border);
+}
+[data-theme="dark"] .bus-popup-header strong,
+[data-theme="dark"] .bus-popup-value { color: var(--color-text-heading); }
+[data-theme="dark"] .bus-popup-label { color: var(--color-text-light); }
+
+/* Leaflet popup default wrapper em dark — quando nao tem classe stop-panel */
+[data-theme="dark"] .leaflet-popup-content-wrapper,
+[data-theme="dark"] .leaflet-popup-tip {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="dark"] .leaflet-container a.leaflet-popup-close-button {
+  color: var(--color-text-light);
+}
+
+/* Leaflet controls (zoom +/-, attribution) */
+[data-theme="dark"] .leaflet-bar a,
+[data-theme="dark"] .leaflet-bar a:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+[data-theme="dark"] .leaflet-bar a:hover {
+  background: var(--color-bg-subtle);
+}
+[data-theme="dark"] .leaflet-control-attribution {
+  background: rgba(26, 34, 56, 0.85) !important;
+  color: var(--color-text-secondary) !important;
+}
+[data-theme="dark"] .leaflet-control-attribution a {
+  color: var(--color-primary) !important;
+}
+
+[data-theme="dark"] .livemap-msg-status.read {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--color-success);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+[data-theme="dark"] .livemap-msg-status.delivered {
+  color: var(--color-success);
+}
+[data-theme="dark"] .livemap-msg-badge-state.lida { color: var(--color-success); }
+[data-theme="dark"] .livemap-msg-status-retry:hover { color: var(--color-danger-hover); }

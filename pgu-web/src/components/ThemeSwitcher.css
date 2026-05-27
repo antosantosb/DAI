@@ -1,0 +1,33 @@
+/* Sprint 0 (F7): ThemeSwitcher — botao redondo com icone sol / lua. */
+
+.theme-switcher {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.4);
+  color: rgba(255, 255, 255, 0.55);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  font-family: inherit;
+  padding: 0;
+}
+
+.theme-switcher svg {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-switcher:hover {
+  color: rgba(255, 255, 255, 0.95);
+  transform: rotate(15deg);
+}
+
+.theme-switcher:focus-visible {
+  outline: 2px solid var(--color-primary, #6366f1);
+  outline-offset: 2px;
+}

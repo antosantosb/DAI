@@ -92,7 +92,7 @@ export default function Dashboard() {
           <div className="dash-panel-body">
             <div className="fleet-bars">
               <FleetBar label={t('pages.dashboard.fleetActives')} count={stats.active} total={stats.buses} color="var(--color-success)" />
-              <FleetBar label={t('pages.dashboard.fleetStopped')} count={stats.stopped} total={stats.buses} color="#94a3b8" />
+              <FleetBar label={t('pages.dashboard.fleetStopped')} count={stats.stopped} total={stats.buses} color="var(--color-text-secondary)" />
             </div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function Dashboard() {
               </div>
               <div className="alarmes-status-row">
                 <span>{t('pages.dashboard.criticalAlarms')}</span>
-                <span className="alarmes-count-badge" style={{ color: activeAlarms.filter(a => a.prioridade === 'CRITICA').length > 0 ? '#ef4444' : '#64748b' }}>
+                <span className="alarmes-count-badge" style={{ color: activeAlarms.filter(a => a.prioridade === 'CRITICA').length > 0 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
                   {activeAlarms.filter(a => a.prioridade === 'CRITICA').length}
                 </span>
               </div>
