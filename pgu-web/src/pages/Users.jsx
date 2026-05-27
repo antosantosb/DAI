@@ -8,15 +8,15 @@ import './Users.css';
 
 const EMPTY_FORM = {
   username: '', email: '', firstName: '', lastName: '',
-  password: '', role: 'operador', enabled: true,
+  password: '', role: 'funcionario', enabled: true,
   mechanographicNumber: '', phoneNumber: '',
 };
 
 export default function Users() {
   const { t } = useTranslation();
-  // Apenas operador — contas admin são geridas diretamente no Keycloak
+  // Apenas funcionario — contas admin são geridas diretamente no Keycloak
   const ROLE_OPTIONS = [
-    { value: 'operador', label: t('pages.users.roleOperator') },
+    { value: 'funcionario', label: t('pages.users.roleFuncionario') },
     { value: 'motorista', label: t('pages.users.roleDriver') },
   ];
   const { username: currentUser } = useAuth();
@@ -110,7 +110,7 @@ export default function Users() {
       firstName: user.firstName || '',
       lastName: user.lastName || '',
       password: '',
-      role: user.roles?.[0] || 'operador',
+      role: user.roles?.[0] || 'funcionario',
       enabled: user.enabled,
     });
     setEditing(user.id);
@@ -157,14 +157,14 @@ export default function Users() {
   const getRoleLabel = (roles) => {
     if (!roles?.length) return t('pages.users.roleNone');
     if (roles.includes('admin')) return t('pages.users.roleAdmin');
-    if (roles.includes('operador')) return t('pages.users.roleOperator');
+    if (roles.includes('funcionario')) return t('pages.users.roleFuncionario');
     if (roles.includes('motorista')) return t('pages.users.roleDriver');
     return roles[0];
   };
 
   const getRoleCls = (roles) => {
     if (roles?.includes('admin')) return 'user-role--admin';
-    if (roles?.includes('operador')) return 'user-role--func';
+    if (roles?.includes('funcionario')) return 'user-role--func';
     return 'user-role--none';
   };
 

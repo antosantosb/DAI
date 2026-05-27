@@ -39,7 +39,7 @@ export const routes = [
   {
     path: '/backoffice',
     layout: 'backoffice',
-    access: ['admin', 'operador'],
+    access: ['admin', 'funcionario'],
     children: [
       // ---- PRINCIPAL (cockpit do dia-a-dia) ----
       // Sprint 0 (F6): labelKey/sectionKey resolvidos via i18n no Layout.
@@ -120,11 +120,11 @@ export const routes = [
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.settings', iconKey: 'IconSettings' },
       },
       // ---- PESSOAL (self-service de conta) ----
-      // Visivel a admin + operador. Motoristas usam o modal no Painel de Bordo.
+      // Visivel a admin + funcionario. Motoristas usam o modal no Painel de Bordo.
       {
         path: 'conta',
         loader: () => import('./pages/MinhaConta'),
-        access: ['admin', 'operador'],
+        access: ['admin', 'funcionario'],
         nav: { sectionKey: 'sections.personal', labelKey: 'nav.account', iconKey: 'IconAccount' },
       },
     ],

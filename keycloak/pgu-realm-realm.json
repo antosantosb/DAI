@@ -58,7 +58,7 @@
   "roles": {
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },
-      { "name": "operador", "description": "Acesso ao backoffice - operações do dia-a-dia" },
+      { "name": "funcionario", "description": "Acesso ao backoffice - operações do dia-a-dia" },
       { "name": "motorista", "description": "Acesso ao painel de bordo do motorista" }
     ]
   },

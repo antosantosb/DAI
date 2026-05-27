@@ -134,7 +134,7 @@ export default function Layout() {
   );
 
   const isAdmin = roles.includes('admin');
-  const displayRole = isAdmin ? t('auth.roles.admin') : t('auth.roles.operador');
+  const displayRole = isAdmin ? t('auth.roles.admin') : t('auth.roles.funcionario');
   const fullName = meProfile
     ? [meProfile.firstName, meProfile.lastName].filter(Boolean).join(' ').trim()
     : '';

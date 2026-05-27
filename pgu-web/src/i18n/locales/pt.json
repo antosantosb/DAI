@@ -112,7 +112,7 @@
   "auth": {
     "roles": {
       "admin": "Administrador",
-      "operador": "Operador",
+      "funcionario": "Funcionário",
       "motorista": "Motorista"
     },
     "logoutTitle": "Terminar sessão",
@@ -446,7 +446,7 @@
       },
       "roleAdmin": "Admin",
       "roleAdminLong": "Administrador",
-      "roleOperator": "Operador",
+      "roleFuncionario": "Funcionário",
       "roleDriver": "Motorista",
       "roleNone": "Sem role",
       "stateActive": "Ativo",

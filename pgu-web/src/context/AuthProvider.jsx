@@ -79,7 +79,7 @@ export default function AuthProvider({ children }) {
 
   const roles =
     keycloak.tokenParsed?.realm_access?.roles?.filter(
-      (r) => r === 'admin' || r === 'operador' || r === 'motorista'
+      (r) => r === 'admin' || r === 'funcionario' || r === 'motorista'
     ) ?? [];
 
   const value = {

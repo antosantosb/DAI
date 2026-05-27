@@ -39,7 +39,7 @@ public class SecurityConfig
                 .requestMatchers("/ws-telemetry/**").permitAll()
                 // Painel de bordo — motorista autenticado com role 'motorista'
                 .requestMatchers(HttpMethod.GET, "/api/v1/drivers/me/**").hasRole("motorista")
-                .requestMatchers(HttpMethod.GET, "/api/v1/buses/code/**").hasAnyRole("motorista", "admin", "operador")
+                .requestMatchers(HttpMethod.GET, "/api/v1/buses/code/**").hasAnyRole("motorista", "admin", "funcionario")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/motorista").hasRole("motorista")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/motorista").hasRole("motorista")
                 // Actuator
@@ -47,9 +47,9 @@ public class SecurityConfig
                 // Swagger / SpringDoc
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Despacho Operacional — Mensagens CM
-                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("operador", "admin")
-                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operador", "admin")
-                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operador", "admin", "motorista")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens").hasAnyRole("funcionario", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("funcionario", "admin")
+                .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("funcionario", "admin", "motorista")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/ack").permitAll() // protegido pelo filtro de API key
                 // Sprint 0 (F4): DataSources — pulse e' machine-to-machine (API key),
                 // CRUD e' admin-only.
@@ -63,9 +63,9 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/assumir").hasAnyRole("maintenance", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/fechar").hasAnyRole("maintenance", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/acao-corretiva").hasAnyRole("maintenance", "admin")
-                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("maintenance", "operador", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("maintenance", "funcionario", "admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/anexos").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias").hasAnyRole("maintenance", "operador", "admin")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias").hasAnyRole("maintenance", "funcionario", "admin")
                 .requestMatchers("/api/v1/ocorrencias/**").authenticated()
                 // Exportações — qualquer utilizador autenticado pode submeter
                 .requestMatchers(HttpMethod.POST, "/api/v1/exports/**").authenticated()
@@ -80,7 +80,7 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasRole("admin")
 
                 .requestMatchers(HttpMethod.PUT, "/api/v1/buses/**").hasRole("admin")
-                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "operador")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/buses/**").hasAnyRole("admin", "funcionario")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/**").hasRole("admin")
                 .requestMatchers(HttpMethod.POST, "/api/v1/stops/**").hasRole("admin")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/stops/**").hasRole("admin")

@@ -309,7 +309,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
         <div className="export-history-header">
           <h2>{t('pages.exports.history')}</h2>
           <div className="export-history-actions">
-            {/* F9: Filtro Meus/Todos — só faz sentido para admin (operador é
+            {/* F9: Filtro Meus/Todos — só faz sentido para admin (funcionario é
                 automaticamente filtrado por backend). */}
             {isAdmin && (
               <div className="export-owner-filter" role="group" aria-label={t('pages.exports.filterOwnerAria')}>

@@ -9,7 +9,7 @@ export default function AccountTab() {
 
   const roleLabel = roles.includes('admin')
     ? t('auth.roles.admin')
-    : t('auth.roles.operador');
+    : t('auth.roles.funcionario');
 
   return (
     <div className="livemap-account">

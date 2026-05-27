@@ -633,7 +633,12 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 | Bloco | Conteúdo |
 |---|---|
 | **Self-service de conta** | `GET/PATCH /api/v1/me` + `POST /api/v1/me/password` em `MeController`. `KeycloakAdminService` ganhou `findUserByUsername`, `updateUserSelf`, `validateUserPassword` (OAuth2 password-grant ao client `pgu-backoffice`), `setUserPassword`. `AccountForm` reusável (Perfil + Password com validação 401 currentPassword), página `/backoffice/conta` (admin+operador), modal "Conta" no header do `PainelBordo` (funciona mesmo sem autocarro atribuído), botão "Minha Conta" no `AccountTab` do Livemap. |
-| **Foto de perfil (avatar)** | `POST /api/v1/me/avatar` (multipart) + `DELETE` em `MeController`. Bucket `avatars` no MinIO, key `users/<id>-<ts>.<ext>`. Validação 2MB + png/jpg/webp. `User.avatarKey` na DB local (V36). DTOs `UserDTO`/`DriverDTO`/`BusDTO` ganham `avatarUrl` (presigned 1h gerado on-the-fly). Componente `Avatar.jsx` reusável (size sm/md/lg/xl, fallback letter com gradient consistente por hash do nome) em Users, Drivers, Buses (driver assigned), Layout sidebar footer, PainelBordo header. |
+| **Foto de perfil (avatar)** | `POST /api/v1/me/avatar` (multipart) + `DELETE` em `MeController`. Bucket `avatars` no MinIO, key `users/<id>-<ts>.<ext>`. Validação 2MB + png/jpg/webp. `avatarKey` guardado como **Keycloak user attribute** (não DB local). DTOs `UserDTO`/`DriverDTO`/`BusDTO` ganham `avatarUrl` (presigned 1h gerado on-the-fly via `AvatarService.enrich`). Componente `Avatar.jsx` reusável (size sm/md/lg/xl, fallback letter com gradient consistente por hash do nome) em Users, Drivers, Buses (driver assigned), Layout sidebar footer, PainelBordo header, AccountTab livemap. |
+| **MinIO presigned URL fix** | Após detetar `SignatureDoesNotMatch` ao abrir exports/avatares: a canonical request inclui `Host` header, e o backend assinava com `minio:9000` mas o browser chamava `localhost:9000`. Solução: dois beans em `MinioConfig` — `minioClient` (`@Primary`, interno) para uploads/downloads/stat/remove, e `publicMinioClient` (`@Qualifier("public")`, endpoint `MINIO_PUBLIC_ENDPOINT`) só para gerar presigned URLs. `StorageService.presignedUrl` usa o público. URL assinada já com o host certo, browser autentica sem erro. |
+| **Keycloak unmanagedAttributePolicy** | Em Keycloak 24+, atributos não declarados são silenciosamente filtrados no User Profile. PUT a `avatarKey` retornava 204 mas o atributo nunca persistia → avatar desaparecia após refresh. Fix: `@PostConstruct ensureUnmanagedAttributesEnabled()` em `KeycloakAdminService` faz GET `/users/profile`, e se `unmanagedAttributePolicy != ENABLED`, faz PUT a meter `ENABLED`. Idempotent, best-effort (loga warning se Keycloak não disponível). |
+| **Admin username imutável** | Self-service de conta: se o user logado é admin, o input `username` em `AccountForm` fica `disabled+readOnly` com hint "O username de admin não pode ser alterado aqui" e `handleSaveProfile` não inclui `username` no payload PATCH. Evita partir referências históricas (audit_log, drivers, exports) e tokens JWT stale. |
+| **Drivers.css `.driver-name-cell`** | A coluna "Nome" tinha avatar e nome colados. Adicionada regra `display: flex; align-items: center; gap: 12px; min-width: 0`. Spans/strongs com ellipsis para nomes longos. |
+| **PainelBordo timeline percurso** | Linha vertical entre paragens estava desalinhada e descontinuada. Fixes em cascata: (1) `.pb-stop-dot` com `box-sizing: border-box` para o border de 2px contar dentro do width de 12px; (2) linha em `left: 17px` (= padding-left 12 + 6 metade − 1 metade da linha 2px); (3) linha vai de `top: 50%` ao `height: 100%` (centro do dot atual ao centro do próximo, sem gaps); (4) `.pb-stop--current .pb-stop-dot` mantém 12×12 e usa `box-shadow` halo para destaque sem partir alinhamento. |
 | **Batch de motoristas** | `POST /api/v1/users/drivers/batch?count=N` (1-50) cria N motoristas aleatórios via Keycloak Admin API com `requiredActions=[UPDATE_PASSWORD]`. `KeycloakAdminService.createUser` passa a aceitar requiredActions no payload. `Drivers.jsx` ganhou modal "Gerar Motoristas em Batch" igual ao de Buses. |
 | **Assign UX em Drivers** | Modal de atribuição de autocarro a motorista agora tem search box (filtra `busCode/routeCode/routeName`), grid 2-col, cards com pills coloridos por status, empty state melhorado. `min-width: 0` + `overflow: hidden` para evitar overflow horizontal. |
 | **Toast GTFS colapsável** | Após 10s sem hover, toast de progresso GTFS encolhe para círculo 44px com spinner; hover expande de volta. Resume após F5 via `GET /api/v1/gtfs/sync-status`. Mensagens traduzidas por `step` enum (não pelo texto PT). `toast.update` substituído por DOM API direta (`document.getElementById + classList.add`) porque o react-toastify resetava className. `pointer-events: none` no container para deixar clicar nos botões por baixo do toast colapsado. |
@@ -677,7 +682,7 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 
 ### Sprint 1 — Vertical 3.1 Completo (Transportes Públicos)
 
-**Duração:** 2 semanas (~42h).
+**Duração estimada:** 2 semanas (~41h).
 
 **Requisitos 3.x cobertos:** R.IVT.01–11 (100%).
 
@@ -686,29 +691,134 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 - R.AN.04 — exportação Excel (Apache POI).
 - R.BO.01 — export GeoJSON.
 
-**Entregáveis:**
-- **GTFS-RT Publisher** — `GET /api/v1/gtfs-rt/vehicle-positions.pb` e `GET /api/v1/gtfs-rt/trip-updates.pb` em protobuf, gerados a partir de `vehicle_telemetry` + GTFS. Lib `com.google.transit:gtfs-realtime-bindings`. 8h.
-- **NeTEx Exporter** — `GET /api/v1/netex/export.xml` que serializa rotas/paragens/horários em NeTEx 1.2 (cumpre R.IVT.02, R.IVT.11). Subset essencial (PublicationDelivery + Network + Lines + Stops + ServiceJourneys). 8h.
-- **Entidade `Operator`** + relação `Route.operator` (R.IVT.03). 2h.
-- **Calendário operacional** — `Calendar.jsx` no backoffice com vista semanal/diária (R.IVT.05). 6h.
-- **Indicadores cobertura/frequência** — endpoint `/api/v1/analytics/coverage` + secção AnalyticsDashboard (R.IVT.06):
-  - cobertura geográfica (% área Braga em 5 min walking)
-  - frequência média por linha/hora
-  - tempo de espera médio por paragem
-  - 6h.
-- **API Catálogo Nacional** — endpoint `/api/v1/catalog/datasets` em DCAT-AP (R.IVT.09). 3h.
-- **Export GeoJSON** de rotas e paragens (`/api/v1/routes/export.geojson`, `/api/v1/stops/export.geojson`). 2h.
-- **Cruzamento dados mobilidade real** — atrasos via telemetria + correlação com camada de eventos (R.IVT.10). 2h.
+#### Estrutura por fases (10 fases, 1 commit cada)
 
-**Adições da auditoria (§11 original):**
-- **Schedule adherence stoplight** (verde/amarelo/vermelho por linha) — extensão de `route-delays`. 2h.
+Sequência por dependências (F0 base, F9 wrap-up) e por importância dentro de cada nível. Ordem: features sem deps → features dependentes de F0 → integrações complexas → cross-cutting final.
 
-**Cross-cutting (Anexo F §F.2):**
-- Publish pulse em `DataSourceHealthService` para "GTFS sync" e "GTFS-RT publisher". 0.5h.
-- Métricas Micrometer: `Counter("gtfs.import.success/failed")`, `Timer("gtfs_rt.generation.duration")`. 1h.
+| # | Fase | Esforço | Depende de | R.cobertos |
+|---|---|---|---|---|
+| F0 | **Entidade `Operator` + relação `Route.operator`** | ~2h | nenhuma | R.IVT.03 |
+| F1 | **Export GeoJSON** de rotas e paragens | ~2h | nenhuma | R.BO.01 |
+| F2 | **Schedule adherence stoplight** no Livemap (verde/amarelo/vermelho por linha) | ~2h | telemetria existente | extensão R.IVT.06 |
+| F3 | **API Catálogo Nacional (DCAT-AP)** — `GET /api/v1/catalog/datasets` | ~3h | F0 | R.IVT.09, R.INT.10 |
+| F4 | **Calendário operacional** — `Calendar.jsx` semanal/diária | ~6h | F0 (operadores no header) | R.IVT.05 |
+| F5 | **Indicadores cobertura/frequência** — endpoint + secção `AnalyticsDashboard` | ~6h | GTFS interno | R.IVT.06 |
+| F6 | **Cruzamento dados mobilidade real** — atrasos + correlação com eventos | ~2h | telemetria + GTFS | R.IVT.10 |
+| F7 | **GTFS-RT Publisher** — protobuf `vehicle-positions.pb` + `trip-updates.pb` | ~8h | F0, GTFS interno, telemetria | R.IVT.01, R.IVT.04, R.IVT.07 |
+| F8 | **NeTEx Exporter** — `GET /api/v1/netex/export.xml` (subset essencial) | ~8h | F0, F4 | R.IVT.02, R.IVT.08, R.IVT.11 |
+| F9 | **Cross-cutting** — pulses DataSource + métricas Micrometer | ~2h | F7 | observabilidade |
 
-**Riscos:**
-- NeTEx é XML schema complexo. Subset essencial é viável; full NeTEx requer +10h.
+**Esforço total:** ~41h.
+
+#### Entregáveis por fase
+
+**F0: Entidade `Operator`**
+- Migração `V37__operator.sql` (id, code, name, taxId, country, contact_email).
+- `domain/Operator.java` + `repository/OperatorRepository.java`.
+- `Route.operator` (FK `route.operator_id`).
+- `OperatorController` (CRUD admin) + `OperatorDTO`.
+- Seed: 1 operador "TUB - Transportes Urbanos de Braga" no realm/import inicial.
+- Frontend `routes.js`: nova entry `/backoffice/operators` (admin), com Icon novo `IconOperator` (building/company).
+- Em todas as listagens de Routes (backoffice + livemap), passar a mostrar `operator.name` ao lado do código.
+
+**F1: Export GeoJSON**
+- `RouteController` → `GET /api/v1/routes/export.geojson` retorna `FeatureCollection` com `LineString` por rota (geometria via `route_segments`).
+- `BusStopController` → `GET /api/v1/stops/export.geojson` retorna `FeatureCollection` com `Point` por paragem.
+- Propriedades: `code`, `name`, `routeIds` (stops), `operatorCode` (routes).
+- Headers: `Content-Type: application/geo+json`, `Content-Disposition: attachment; filename=...`.
+- Sem autenticação extra — fica em `permitAll()` para integração com QGIS, dados.gov.pt.
+- Botões "Export GeoJSON" em Routes.jsx e Stops.jsx (admin).
+
+**F2: Schedule adherence stoplight**
+- Pequena extensão de `/api/v1/analytics/route-delays` (já existe) com agregação por linha + classificação:
+   - 🟢 verde: `avgDelayMin < 2`
+   - 🟡 amarelo: `2 ≤ avgDelayMin < 5`
+   - 🔴 vermelho: `avgDelayMin ≥ 5`
+- Frontend `Livemap.jsx` (sidebar Routes tab): pill colorido ao lado de cada rota com o avgDelay; click expande detalhes.
+- Toggle "Adherence layer" nos overlay-controls que pinta cada polyline da rota com a cor stoplight.
+
+**F3: API Catálogo Nacional (DCAT-AP)**
+- `CatalogController` → `GET /api/v1/catalog/datasets` retorna JSON-LD DCAT-AP v2.1 com:
+   - Dataset GTFS (gerado pelo GtfsService)
+   - Dataset GTFS-RT (apontando para F7 quando disponível)
+   - Dataset GeoJSON-rotas (F1)
+   - Dataset GeoJSON-paragens (F1)
+- Cada dataset: `dct:identifier`, `dcat:landingPage`, `dcat:distribution[]`, `dcat:contactPoint` (operador do F0).
+- Mete-se em `permitAll()` para o catálogo nacional indexar.
+- Validador online: <https://www.itb.ec.europa.eu/shacl/dcat-ap/upload>.
+
+**F4: Calendário operacional**
+- `pgu-web/src/pages/Calendar.jsx` + `.css`. Sidebar entry "Calendário" na section Operações.
+- Vista semanal (default) + vista diária. `<input type="week">` ou similar nativo.
+- Carrega `service_calendar` (já existe na BD via GTFS V20-V24): mostra que rotas estão ativas em cada dia (segunda-sexta, sábado, domingo, feriados).
+- Endpoint `GET /api/v1/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` retorna `[{date, routeIds[], routeNames[], totalTrips}]`.
+- Heatmap: dias com mais viagens em cor mais forte.
+- Click num dia → modal com lista das rotas e contagem de viagens.
+
+**F5: Indicadores cobertura/frequência**
+- `AnalyticsController` → `GET /api/v1/analytics/coverage` retorna 3 indicadores:
+   - `geographicCoveragePct`: percentagem da área de Braga a 5-min walking (~400m) de uma paragem. Query PostGIS com `ST_DWithin` + `ST_Union` num polygon de Braga.
+   - `averageFrequencyByRouteHour[]`: matriz rota × hora-do-dia com `avgHeadwayMinutes`.
+   - `averageWaitTimeByStop[]`: `wait = headway / 2` por paragem, ordenado.
+- Frontend: nova secção em `AnalyticsDashboard.jsx`:
+   - KPI card "Cobertura geográfica" (% + barra).
+   - Heatmap rota × hora (Recharts).
+   - Top 10 paragens com pior tempo de espera + top 10 melhor.
+
+**F6: Cruzamento dados mobilidade real**
+- Extensão de `route-delays` (já existe) para correlacionar com eventos no `ServiceAlert` (que vai ser criado em S7 — para já placeholder).
+- Endpoint `GET /api/v1/analytics/route-delays/correlations?routeId=...` retorna lista de eventos próximos no tempo + descrição.
+- No `Livemap.jsx` (Routes tab), quando user clica num atraso → modal mostra eventos correlacionados.
+
+**F7: GTFS-RT Publisher**
+- `pgu/pom.xml`: dependência `com.google.transit:gtfs-realtime-bindings:0.0.6`.
+- `controller/GtfsRtController.java`:
+   - `GET /api/v1/gtfs-rt/vehicle-positions.pb` — converte `vehicle_telemetry` recente (últimos 5 min, agregado por busId) em `FeedMessage` com `VehiclePosition[]`. `Content-Type: application/x-protobuf`.
+   - `GET /api/v1/gtfs-rt/trip-updates.pb` — junta GTFS schedule + telemetria → `TripUpdate[]` com `arrivalTime` previsto vs `scheduledTime`. Calcula `delay`.
+   - Cache 30s via `@Cacheable("gtfs-rt-vp")` / `("gtfs-rt-tu")`.
+- `permitAll()` para integração com Google Maps, Citymapper, transit apps.
+- Validador: <https://github.com/MobilityData/gtfs-realtime-validator>.
+
+**F8: NeTEx Exporter**
+- `pgu/pom.xml`: dependência `org.entur:netex-xsd` (XSD oficial) — ou geração manual com JAXB.
+- `controller/NeTExController.java`:
+   - `GET /api/v1/netex/export.xml` retorna NeTEx 1.2 PublicationDelivery.
+- `service/NeTExExportService.java` serializa subset essencial:
+   - `<ResourceFrame>` — Operadores (F0).
+   - `<SiteFrame>` — Paragens com coordenadas + Quays.
+   - `<ServiceFrame>` — Lines + Routes + StopPointInJourneyPattern.
+   - `<TimetableFrame>` — ServiceJourneys + DayTypeAssignments (depende F4 Calendar).
+- Validador: <https://enturas.atlassian.net/wiki/spaces/PUBLIC/pages/637370392/Validators>.
+
+**F9: Cross-cutting (pulses + métricas)**
+- `DataSourceHealthService` ganha 2 novos pulses:
+   - "GTFS-RT publisher" — pulse a cada `/gtfs-rt/*.pb` request bem-sucedido.
+   - "NeTEx exporter" — pulse a cada export bem-sucedido.
+- Micrometer:
+   - `Timer("gtfs_rt.generation.duration")` (com tag `feed=vehicle-positions|trip-updates`).
+   - `Counter("gtfs_rt.requests")` (tag feed).
+   - `Timer("netex.export.duration")`.
+   - `Counter("gtfs.import.success")` / `Counter("gtfs.import.failed")` (retroactivo no GtfsService).
+- Adicionar entry na página DataSources para que admin veja as novas fontes.
+
+#### Riscos
+
+- **NeTEx é XML schema complexo.** Subset essencial é viável em ~8h; full NeTEx requer +10h. Se houver pressão de tempo, F8 pode entregar apenas `<ResourceFrame>` + `<SiteFrame>` + `<ServiceFrame>` e adiar `<TimetableFrame>` para Sprint 8b.
+- **GTFS-RT cache 30s.** Em demo com pouca telemetria, cache pode dar a impressão de "feed parado". Mitigar com `Cache-Control: max-age=30, must-revalidate` explícito.
+- **Cobertura geográfica em F5** assume polygon de Braga. Se não existir, usar `ST_ConvexHull` de todas as paragens (aproximação).
+- **DCAT-AP** validação SHACL pode falhar em campos opcionais — testar cedo no validador oficial.
+
+#### Saída do Sprint 1
+
+- ✅ Conformidade FIWARE GTFS-RT (standard real-time de facto da indústria).
+- ✅ Conformidade NeTEx (compliance europeu para autoridades de transporte).
+- ✅ DCAT-AP exposto para indexação pelo catálogo nacional dados.gov.pt.
+- ✅ Operadores como entidade de primeira classe (preparação para futuras multi-operator scenarios).
+- ✅ Indicadores R.IVT.06 (cobertura geográfica, frequência por linha/hora, tempo de espera).
+- ✅ Calendário operacional para vista de planeamento semanal/diária.
+- ✅ Schedule adherence stoplight visualmente no Livemap.
+- ✅ GeoJSON exportável para QGIS, dados.gov.pt e outras ferramentas SIG.
+- ✅ Métricas e pulses para os novos publishers — observabilidade preparada para S8a.
 
 ---
 
