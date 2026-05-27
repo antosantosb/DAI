@@ -168,9 +168,59 @@
 }
 
 .assign-bus-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 13px;
   color: var(--color-text-secondary, #64748b);
+  margin-top: 4px;
 }
+.assign-bus-route-code {
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  background: var(--color-primary-light, rgba(99, 102, 241, 0.10));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  color: var(--color-primary-hover, #4f46e5);
+}
+.assign-bus-route-name {
+  color: var(--color-text, #1f2937);
+  font-weight: 500;
+}
+.assign-bus-no-route {
+  font-style: italic;
+  color: var(--color-text-light, #9ca3af);
+}
+.assign-bus-status {
+  margin-left: auto;
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  background: var(--color-bg-subtle, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  color: var(--color-text-light, #9ca3af);
+}
+
+.assign-bus-empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--color-text-secondary, #64748b);
+  line-height: 1.5;
+}
+.assign-bus-empty a {
+  color: var(--color-primary, #6366f1);
+  text-decoration: none;
+  font-weight: 600;
+}
+.assign-bus-empty a:hover { text-decoration: underline; }
 
 /* ─── Indicador de bus em andamento na coluna "Autocarro Atual" ─── */
 .bus-active-dot {

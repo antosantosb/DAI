@@ -22,23 +22,33 @@ public class GlobalConfigController {
 
     @GetMapping
     public ResponseEntity<GlobalConfig> getConfigs() {
-        return ResponseEntity.ok(configRepo.findById(1L).orElse(new GlobalConfig()));
+        // Sprint 0 (F4 follow-up): em vez de findById(1L), usar findAll().findFirst()
+        // porque o id da unica linha pode nao ser 1 (depende do sequence).
+        // Se nao existir, criar com defaults e devolver.
+        GlobalConfig config = configRepo.findAll().stream().findFirst()
+                .orElseGet(() -> {
+                    GlobalConfig fresh = new GlobalConfig();
+                    fresh.setUpdatedAt(Instant.now());
+                    return configRepo.save(fresh);
+                });
+        return ResponseEntity.ok(config);
     }
 
     @PutMapping
     @LogActivity(action = "Atualizar parâmetros globais")
-    public ResponseEntity<GlobalConfig> updateConfigs(@RequestBody GlobalConfig req, 
+    public ResponseEntity<GlobalConfig> updateConfigs(@RequestBody GlobalConfig req,
                                                       @AuthenticationPrincipal Jwt jwt) {
-        
-        GlobalConfig config = configRepo.findById(1L).orElse(null);
-        
-        if (config == null) {
-            return ResponseEntity.notFound().build();
-        }
+
+        // Sprint 0 (F4 follow-up): robusto a id != 1.
+        GlobalConfig config = configRepo.findAll().stream().findFirst()
+                .orElseGet(GlobalConfig::new);
 
         config.setDelayLimitMinutes(req.getDelayLimitMinutes());
         config.setSocTolerancePercent(req.getSocTolerancePercent());
         config.setIotIntegrationLimit(req.getIotIntegrationLimit());
+        // Sprint 0 (F4 follow-up): owner default das DataSources.
+        config.setDefaultOwnerName(req.getDefaultOwnerName());
+        config.setDefaultOwnerEmail(req.getDefaultOwnerEmail());
         config.setUpdatedAt(Instant.now());
 
         if (jwt != null) {

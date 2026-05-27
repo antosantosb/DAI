@@ -144,9 +144,13 @@ export default function Drivers() {
           onClose={() => setAssignModal({ open: false, driver: null })}
         >
           <div className="assign-bus-list">
-            {availableBuses.length === 0 ? (
-              <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>
-                Não há autocarros disponíveis (todos já têm motorista).
+            {allBuses.length === 0 ? (
+              <p className="assign-bus-empty">
+                Ainda não há autocarros registados. Cria em <Link to="/backoffice/buses" onClick={() => setAssignModal({ open: false, driver: null })}>Autocarros</Link>.
+              </p>
+            ) : availableBuses.length === 0 ? (
+              <p className="assign-bus-empty">
+                Todos os autocarros já têm motorista atribuído. Para reatribuir, primeiro remove o motorista actual.
               </p>
             ) : (
               availableBuses.map(bus => (
@@ -157,7 +161,15 @@ export default function Drivers() {
                 >
                   <span className="assign-bus-code">{bus.busCode}</span>
                   <span className="assign-bus-info">
-                    {bus.routeCode ? `${bus.routeCode} — ${bus.routeName}` : 'Sem rota'} · {bus.status}
+                    {bus.routeCode ? (
+                      <>
+                        <span className="assign-bus-route-code">{bus.routeCode}</span>
+                        <span className="assign-bus-route-name">{bus.routeName}</span>
+                      </>
+                    ) : (
+                      <span className="assign-bus-no-route">Sem rota</span>
+                    )}
+                    <span className="assign-bus-status">{bus.status}</span>
                   </span>
                 </button>
               ))

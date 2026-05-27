@@ -187,6 +187,8 @@ Substituir `<host>` por `localhost` (modo local) ou pelo domínio configurado em
 | Metabase | `http://<host>:3000` | Configurar no 1.º acesso |
 | OSRM API | `http://<host>:5000` | Público |
 | FIWARE Orion | `http://<host>:1026/v2/entities` | Público (rede interna) |
+| MinIO Console | `http://<host>:9001` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` (`.env`) |
+| Mailpit (dev) | `http://<host>:8025` | Sem autenticação. Captura local de todos os emails. |
 
 ### Utilizadores do realm `pgu-realm`
 
@@ -202,6 +204,29 @@ As contas de **operadores** e **motoristas** são criadas pelo admin a partir do
 - `/backoffice/drivers`: gestão de motoristas (atribui role `motorista` e o autocarro a que ficam associados).
 
 As roles `operador` e `motorista` continuam definidas no realm e prontas a ser atribuídas.
+
+### Email (SMTP)
+
+A plataforma envia emails em duas situações: alertas críticos (fonte de dados em estado `DOWN`, ocorrências) e reports de problema iniciados pelo utilizador a partir da página *Fontes*.
+
+| Ambiente | Servidor SMTP | Onde aparecem os emails |
+|---|---|---|
+| **Dev (local)** | **Mailpit** (`mailpit:1025`, dentro do `docker compose`) | `http://localhost:8025` (web UI do Mailpit, sem autenticação). Nenhum email sai para destinos reais. |
+| **Produção** | Servidor SMTP real (Gmail, SendGrid, AWS SES, …) | Caixa de entrada do destinatário. |
+
+O `pgu-setup.sh` em modo local já configura `SMTP_HOST=mailpit` no `.env`. Para passar a produção, basta editar o `.env` e substituir o bloco SMTP por uma das opções comentadas em `.env.example`:
+
+```env
+# Gmail (precisa de 2FA + App Password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=sistema@tub.pt
+SMTP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+SMTP_AUTH=true
+SMTP_STARTTLS=true
+```
+
+> **Nota:** o backend só consegue enviar emails se o `SMTP_HOST` resolver. Se ficar a apontar para `mailpit` em produção (sem o container), as chamadas falham com timeout. O log do backend mostra a falha; o utilizador vê um toast de erro.
 
 ---
 
@@ -333,7 +358,6 @@ DAI/
 ├── docker-compose.yml              # Orquestração de todos os serviços
 ├── .env / .env.example             # Variáveis de ambiente
 ├── pgu-setup.sh                    # Bootstrap one-shot (--nuke disponível)
-├── PLANO_ITERACAO.md               # Plano de iteração e decisões arquiteturais
 │
 ├── pgu/                            # Backend Spring Boot
 │   ├── pom.xml
@@ -379,9 +403,7 @@ DAI/
 ├── nifi-templates/                 # Process groups exportados
 ├── simulator/simulator.py          # Simulador MQTT (volume no NiFi)
 ├── osrm/Dockerfile                 # OSRM self-hosted (Portugal PBF)
-├── postgres-init/init-tools.sql    # Inicialização das BDs Keycloak e Metabase
-└── docs/
-    └── mockups/                    # Mockups HTML (UC07-backoffice-drivers, UC07-consola-bordo)
+└── postgres-init/init-tools.sql    # Inicialização das BDs Keycloak e Metabase
 ```
 
 ---

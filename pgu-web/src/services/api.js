@@ -39,14 +39,14 @@ api.interceptors.response.use(
     // Sprint -1 (FE-19): 403 = autenticado mas sem permissao
     // Toast em vez de redirect para o utilizador perceber o que falhou.
     else if (status === 403) {
-      toast.error('Sem permissao para esta operacao.', {
+      toast.error('Sem permissão para esta operação', {
         toastId: 'http-403',
         autoClose: 4000,
       });
     }
     // Timeout (FE-3): error.code === 'ECONNABORTED'
     else if (error.code === 'ECONNABORTED') {
-      toast.error('Pedido demorou demasiado a responder. Tenta de novo.', {
+      toast.error('Pedido demorou demasiado, tenta de novo', {
         toastId: 'http-timeout',
         autoClose: 5000,
       });

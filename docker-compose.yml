@@ -176,7 +176,18 @@ services:
     image: quay.io/keycloak/keycloak:26.2.4
     container_name: keycloak
     restart: unless-stopped
-    command: start-dev --import-realm
+    # Sprint 0 (F5): import com --override true antes do start-dev para
+    # forçar reimportação do realm mesmo quando ja existe na DB Postgres.
+    # Sem isto, mudancas ao pgu-realm-realm.json (otpPolicy, locales,
+    # requiredActions, etc.) NUNCA sao aplicadas se o realm ja existe.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        /opt/keycloak/bin/kc.sh import
+        --file /opt/keycloak/data/import/pgu-realm-realm.json
+        --override true
+        || true;
+        exec /opt/keycloak/bin/kc.sh start-dev
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://toolsbd:5432/${KEYCLOAK_DB_NAME}

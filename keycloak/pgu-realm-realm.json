@@ -6,7 +6,55 @@
   "registrationAllowed": false,
   "internationalizationEnabled": true,
   "defaultLocale": "pt",
-  "supportedLocales": ["pt", "en"],
+  "supportedLocales": ["pt"],
+
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": ["FreeOTP", "Google Authenticator", "Microsoft Authenticator"],
+
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Atualizar Palavra-passe",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configurar Autenticador",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 20,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Atualizar Perfil",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verificar Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
+    }
+  ],
+
   "roles": {
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },
@@ -46,7 +94,7 @@
           "temporary": true
         }
       ],
-      "requiredActions": ["UPDATE_PASSWORD"],
+      "requiredActions": ["UPDATE_PASSWORD", "CONFIGURE_TOTP"],
       "realmRoles": ["admin"]
     }
   ]

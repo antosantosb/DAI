@@ -105,7 +105,7 @@ export default function GtfsManager() {
       const formData = new FormData();
       formData.append('file', selectedFile);
       await api.post('/gtfs/upload', formData);
-      toast.success('Importação iniciada — acompanhe no histórico');
+      toast.success('Importação iniciada');
       setSelectedFile(null);
       setPreview(null);
       setActiveTab('history');
@@ -121,7 +121,7 @@ export default function GtfsManager() {
     setSyncing(true);
     try {
       await api.post('/gtfs/sync-tub');
-      toast.success('Sincronização TUB iniciada — acompanhe no histórico');
+      toast.success('Sincronização TUB iniciada');
       setActiveTab('history');
       setTimeout(fetchImports, 2000);
     } catch (err) {
@@ -143,7 +143,7 @@ export default function GtfsManager() {
         setModal({ open: false });
         try {
           await api.post(`/gtfs/imports/${imp.id}/revert`);
-          toast.success('Importação revertida com sucesso');
+          toast.success('Importação revertida');
           fetchImports();
         } catch (err) {
           toast.error(err.response?.data?.error || 'Erro ao reverter');

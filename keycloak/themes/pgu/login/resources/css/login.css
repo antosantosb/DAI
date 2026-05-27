@@ -489,3 +489,179 @@ body.kc-login {
   font-weight: 600;
   font-size: 13px;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Sprint 0 F5: TOTP setup screen (login-config-totp.ftl)
+   Layout compacto para caber sem scroll em viewports tipicas.
+   ────────────────────────────────────────────────────────────── */
+
+/* Lista numerada de passos */
+ol#kc-totp-settings,
+.login-pf-page ol {
+  padding-left: 18px;
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+ol#kc-totp-settings li,
+.login-pf-page ol > li {
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+ol#kc-totp-settings li::marker,
+.login-pf-page ol > li::marker {
+  color: #a5b4fc;
+  font-weight: 700;
+}
+
+/* Sub-lista de aplicacoes (FreeOTP, Google, Microsoft) — inline para poupar altura */
+ul#kc-totp-supported-apps,
+.login-pf-page ol ul {
+  padding-left: 14px;
+  margin: 2px 0 0;
+  list-style: disc;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+}
+
+ul#kc-totp-supported-apps li,
+.login-pf-page ol ul li {
+  margin-bottom: 1px;
+  line-height: 1.35;
+}
+
+/* QR code com fundo branco, mais pequeno */
+img#kc-totp-secret-qr-code {
+  display: block;
+  margin: 6px auto;
+  padding: 6px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 10px -3px rgba(0, 0, 0, 0.4);
+  width: 150px;
+  height: 150px;
+}
+
+/* "Unable to scan?" link */
+a#mode-manual,
+a#mode-barcode,
+.login-pf-page a[href*="mode"] {
+  display: inline-block;
+  color: #a5b4fc !important;
+  font-size: 11.5px;
+  text-decoration: none;
+  margin: 2px auto 8px;
+  text-align: center;
+  width: 100%;
+  transition: color 0.15s ease;
+}
+
+a#mode-manual:hover,
+a#mode-barcode:hover {
+  color: #c7d2fe !important;
+  text-decoration: underline;
+}
+
+/* Codigo manual (quando o user clica em "Unable to scan?") */
+#kc-totp-secret-key {
+  display: block;
+  margin: 12px auto;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #c7d2fe;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 1px;
+  word-break: break-all;
+  text-align: center;
+}
+
+/* Modo TOTP setup: compactar alert do topo, titulo, paddings do card */
+.login-pf-page:has(#kc-totp-secret-qr-code) .card-pf,
+body:has(#kc-totp-secret-qr-code) .login-pf-page .card-pf {
+  padding: 16px 18px !important;
+}
+
+/* Alert "You need to set up..." compactado */
+.login-pf-page:has(#kc-totp-secret-qr-code) .alert,
+.login-pf-page:has(#kc-totp-secret-qr-code) .pf-c-alert,
+.login-pf-page:has(#kc-totp-secret-qr-code) .pf-v5-c-alert {
+  padding: 8px 12px !important;
+  margin: 0 0 10px !important;
+  font-size: 12.5px !important;
+  line-height: 1.4 !important;
+}
+
+/* H1 titulo da pagina (kc-page-title) */
+.login-pf-page:has(#kc-totp-secret-qr-code) h1#kc-page-title {
+  font-size: 18px !important;
+  margin: 0 0 8px !important;
+}
+
+/* Form actions (botao Submit) */
+.login-pf-page:has(#kc-totp-secret-qr-code) #kc-form-buttons {
+  margin-top: 10px !important;
+}
+
+/* Inputs com altura menor */
+.login-pf-page:has(#kc-totp-secret-qr-code) input.pf-c-form-control,
+.login-pf-page:has(#kc-totp-secret-qr-code) input.pf-v5-c-form-control,
+.login-pf-page:has(#kc-totp-secret-qr-code) input[type="text"],
+.login-pf-page:has(#kc-totp-secret-qr-code) input[type="password"] {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+}
+
+/* Labels mais juntos do input */
+.login-pf-page:has(#kc-totp-secret-qr-code) label,
+.login-pf-page:has(#kc-totp-secret-qr-code) .pf-c-form__label,
+.login-pf-page:has(#kc-totp-secret-qr-code) .pf-v5-c-form__label {
+  margin-bottom: 4px !important;
+  font-size: 12px !important;
+}
+
+/* Lista de "Type / Algorithm / Digits / Interval / Counter" no modo manual */
+ul#kc-totp-settings {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+ul#kc-totp-settings li {
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+ul#kc-totp-settings li:last-child { border-bottom: 0; }
+
+ul#kc-totp-settings li span:first-child {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+ul#kc-totp-settings li span:last-child {
+  color: #c7d2fe;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+/* Inputs do form TOTP (one-time code, device name) */
+input#totp,
+input#userLabel {
+  letter-spacing: 1px;
+}

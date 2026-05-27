@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of("NOT_FOUND", "Recurso nao encontrado.", req.getRequestURI()));
+                .body(ErrorResponse.of("NOT_FOUND", "Recurso não encontrado.", req.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

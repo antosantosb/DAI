@@ -96,6 +96,16 @@ export const IconGtfs = () => (
   </svg>
 );
 
+// Sprint 0 (F4 follow-up): icone para Fontes (data sources). Database cylinder
+// para distinguir visualmente do IconGtfs (upload arrow) na sidebar.
+export const IconDataSource = () => (
+  <svg {...common} aria-hidden="true">
+    <ellipse cx="12" cy="5" rx="8" ry="3" />
+    <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+    <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+  </svg>
+);
+
 export const IconAlarm = () => (
   <svg {...common} aria-hidden="true">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />

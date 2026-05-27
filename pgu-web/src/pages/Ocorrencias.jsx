@@ -60,7 +60,7 @@ export default function Ocorrencias() {
       setActiveAlarms((res.data || []).filter(o => o.estado === 'ABERTA'));
     } catch (err) {
       console.error('Erro ao carregar lista de ocorrências:', err);
-      toast.error('Erro ao carregar lista de ocorrências.');
+      toast.error('Falha a carregar ocorrências');
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function Ocorrencias() {
           setActionNotes('');
         } catch (err) {
           console.error('Erro ao carregar detalhes da ocorrência:', err);
-          toast.error('Ocorrência não encontrada ou erro de permissão.');
+          toast.error('Ocorrência não encontrada ou sem permissão');
           navigate('/backoffice/ocorrencias');
         }
       };
@@ -120,7 +120,7 @@ export default function Ocorrencias() {
         setTelemetryHistory(mapped);
       } catch (err) {
         console.error('Erro ao carregar telemetria histórica:', err);
-        toast.error('Erro ao obter telemetria nas últimas 24h.');
+        toast.error('Falha a obter telemetria das últimas 24h');
       } finally {
         setLoadingTelemetry(false);
       }
@@ -133,11 +133,11 @@ export default function Ocorrencias() {
     try {
       const res = await assumirOcorrencia(selectedOcorrencia.id);
       setSelectedOcorrencia(res.data);
-      toast.success('Assumiu a responsabilidade por esta ocorrência.');
+      toast.success('Ocorrência assumida');
       loadData();
     } catch (err) {
       console.error(err);
-      toast.error('Erro ao assumir ocorrência.');
+      toast.error('Falha a assumir ocorrência');
     }
   };
 
@@ -145,7 +145,7 @@ export default function Ocorrencias() {
   const handleCloseResolved = async () => {
     if (!selectedOcorrencia) return;
     if (!correctiveAction.trim()) {
-      toast.warn('Por favor, indique a ação corretiva aplicada.');
+      toast.warn('Indica a ação corretiva aplicada');
       return;
     }
     try {
@@ -155,11 +155,11 @@ export default function Ocorrencias() {
       };
       const res = await fecharOcorrencia(selectedOcorrencia.id, body);
       setSelectedOcorrencia(res.data);
-      toast.success('Ocorrência resolvida e fechada com sucesso.');
+      toast.success('Ocorrência fechada');
       loadData();
     } catch (err) {
       console.error(err);
-      toast.error('Erro ao fechar ocorrência.');
+      toast.error('Falha a fechar ocorrência');
     }
   };
 
@@ -167,7 +167,7 @@ export default function Ocorrencias() {
   const handleMarkFalsePositive = async () => {
     if (!selectedOcorrencia) return;
     if (!actionNotes.trim()) {
-      toast.warn('Por favor, indique a justificação para marcar como falso positivo.');
+      toast.warn('Indica a justificação para falso positivo');
       return;
     }
     try {
@@ -177,11 +177,11 @@ export default function Ocorrencias() {
       };
       const res = await fecharOcorrencia(selectedOcorrencia.id, body);
       setSelectedOcorrencia(res.data);
-      toast.success('Ocorrência fechada como Falso Positivo.');
+      toast.success('Ocorrência fechada como falso positivo');
       loadData();
     } catch (err) {
       console.error(err);
-      toast.error('Erro ao registar falso positivo.');
+      toast.error('Falha a registar falso positivo');
     }
   };
 
@@ -192,27 +192,27 @@ export default function Ocorrencias() {
     // Validations: 20MB limit
     const limit = 20 * 1024 * 1024;
     if (file.size > limit) {
-      toast.error('O ficheiro excede o tamanho máximo permitido de 20 MB.');
+      toast.error('Ficheiro excede 20 MB');
       return;
     }
 
     // Allowed types
     const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Formato de ficheiro não suportado. Formatos permitidos: JPG, PNG, PDF.');
+      toast.error('Formato não suportado (apenas JPG, PNG, PDF)');
       return;
     }
 
     setUploading(true);
     try {
       await uploadAnexo(selectedOcorrencia.id, file);
-      toast.success('Anexo enviado com sucesso.');
+      toast.success('Anexo enviado');
       // Refresh attachments list
       const res = await getAnexos(selectedOcorrencia.id);
       setAttachments(res.data || []);
     } catch (err) {
       console.error(err);
-      toast.error('Erro ao enviar anexo.');
+      toast.error('Falha ao enviar anexo');
     } finally {
       setUploading(false);
     }

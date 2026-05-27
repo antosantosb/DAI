@@ -597,5 +597,50 @@ def main():
         time.sleep(INTERVAL)
 
 
+def _self_pulse_loop():
+    """Sprint 0 (F4 follow-up): self-pulse periódico para a DataSource
+    'Simulador de Telemetria'. Sem isto, o probe do backend não consegue
+    confirmar que o simulator está vivo (ele não expõe nem porta nem HTTP).
+    Loop:
+      1. Faz GET /data-sources para obter o id da fonte com tipo=SIMULATOR.
+      2. A cada 10s, POST /data-sources/{id}/pulse.
+    Resiliente: se o backend não responder, espera e tenta de novo.
+    """
+    import threading  # noqa: F401  (já importado em main, mas garante import top-level)
+    ds_id = None
+    while ds_id is None:
+        try:
+            req = urllib.request.Request(
+                f"{BACKEND_URL}/api/v1/data-sources",
+                headers={"X-API-Key": API_KEY},
+            )
+            with urllib.request.urlopen(req, timeout=5) as r:
+                for ds in json.loads(r.read().decode("utf-8")):
+                    if ds.get("tipo") == "SIMULATOR":
+                        ds_id = ds.get("id")
+                        break
+        except Exception as e:
+            print(f"[SIM] Self-pulse: backend não responde ({e}); a tentar de novo em 10s", flush=True)
+        if ds_id is None:
+            time.sleep(10)
+    print(f"[SIM] Self-pulse activo: DataSource id={ds_id}", flush=True)
+    while True:
+        try:
+            body = json.dumps({"detalhes": "simulator self-pulse"}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{BACKEND_URL}/api/v1/data-sources/{ds_id}/pulse",
+                data=body,
+                method="POST",
+                headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=5):
+                pass
+        except Exception as e:
+            print(f"[SIM] Self-pulse falhou: {e}", flush=True)
+        time.sleep(10)
+
+
 if __name__ == "__main__":
+    import threading
+    threading.Thread(target=_self_pulse_loop, daemon=True).start()
     main()

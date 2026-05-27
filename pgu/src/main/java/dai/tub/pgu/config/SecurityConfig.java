@@ -51,6 +51,12 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/mensagens/*/reenviar").hasAnyRole("operator", "admin")
                 .requestMatchers(HttpMethod.GET, "/api/v1/despacho/**").hasAnyRole("operator", "admin", "motorista")
                 .requestMatchers(HttpMethod.POST, "/api/v1/despacho/*/ack").permitAll() // protegido pelo filtro de API key
+                // Sprint 0 (F4): DataSources — pulse e' machine-to-machine (API key),
+                // CRUD e' admin-only.
+                .requestMatchers(HttpMethod.POST, "/api/v1/data-sources/*/pulse").permitAll() // protegido pelo filtro de API key
+                .requestMatchers(HttpMethod.POST, "/api/v1/data-sources/**").hasRole("admin")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/data-sources/**").hasRole("admin")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/data-sources/**").hasRole("admin")
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Ocorrências — Gestão e Escritas

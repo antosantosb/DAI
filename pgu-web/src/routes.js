@@ -41,15 +41,16 @@ export const routes = [
     layout: 'backoffice',
     access: ['admin', 'operador'],
     children: [
+      // ---- PRINCIPAL (cockpit do dia-a-dia) ----
       {
         index: true,
         loader: () => import('./pages/Dashboard'),
         nav: { section: 'Principal', label: 'Dashboard', iconKey: 'IconDashboard' },
       },
       {
-        path: 'analytics',
-        loader: () => import('./pages/AnalyticsDashboard'),
-        nav: { section: 'Principal', label: 'Analytics', iconKey: 'IconAnalytics' },
+        path: 'health',
+        loader: () => import('./pages/BusHealthDashboard'),
+        nav: { section: 'Principal', label: 'Saúde', iconKey: 'IconHealth' },
       },
       {
         path: 'buses',
@@ -57,41 +58,32 @@ export const routes = [
         nav: { section: 'Principal', label: 'Autocarros', iconKey: 'IconBus' },
       },
       {
-        path: 'health',
-        loader: () => import('./pages/BusHealthDashboard'),
-        nav: { section: 'Principal', label: 'Saúde da Rede', iconKey: 'IconHealth' },
-      },
-      {
         path: 'ocorrencias',
         loader: () => import('./pages/Ocorrencias'),
         nav: { section: 'Principal', label: 'Ocorrências', iconKey: 'IconAlarm', badge: 'alarms' },
       },
+      // ---- OPERAÇÕES (planeamento) ----
       {
-        path: 'stops',
-        loader: () => import('./pages/Stops'),
-        nav: { section: 'Gestão', label: 'Paragens', iconKey: 'IconStop' },
+        path: 'analytics',
+        loader: () => import('./pages/AnalyticsDashboard'),
+        nav: { section: 'Operações', label: 'Analytics', iconKey: 'IconAnalytics' },
       },
       {
         path: 'routes',
         loader: () => import('./pages/Routes'),
-        nav: { section: 'Gestão', label: 'Rotas', iconKey: 'IconRoute' },
+        nav: { section: 'Operações', label: 'Rotas', iconKey: 'IconRoute' },
+      },
+      {
+        path: 'stops',
+        loader: () => import('./pages/Stops'),
+        nav: { section: 'Operações', label: 'Paragens', iconKey: 'IconStop' },
       },
       {
         path: 'exports',
         loader: () => import('./pages/Exports'),
-        nav: { section: 'Gestão', label: 'Exportações', iconKey: 'IconExport' },
+        nav: { section: 'Operações', label: 'Exportações', iconKey: 'IconExport' },
       },
-      {
-        path: 'audit',
-        loader: () => import('./pages/AuditLogs'),
-        nav: { section: 'Gestão', label: 'Logs', iconKey: 'IconAudit' },
-      },
-      {
-        path: 'gtfs',
-        loader: () => import('./pages/GtfsManager'),
-        access: ['admin'],
-        nav: { section: 'Administração', label: 'Dados GTFS', iconKey: 'IconGtfs' },
-      },
+      // ---- ADMINISTRAÇÃO (pessoas + fontes + config) ----
       {
         path: 'users',
         loader: () => import('./pages/Users'),
@@ -103,6 +95,22 @@ export const routes = [
         loader: () => import('./pages/Drivers'),
         access: ['admin'],
         nav: { section: 'Administração', label: 'Motoristas', iconKey: 'IconUsers' },
+      },
+      {
+        path: 'data-sources',
+        loader: () => import('./pages/DataSources'),
+        nav: { section: 'Administração', label: 'Fontes', iconKey: 'IconDataSource' },
+      },
+      {
+        path: 'gtfs',
+        loader: () => import('./pages/GtfsManager'),
+        access: ['admin'],
+        nav: { section: 'Administração', label: 'GTFS', iconKey: 'IconGtfs' },
+      },
+      {
+        path: 'audit',
+        loader: () => import('./pages/AuditLogs'),
+        nav: { section: 'Administração', label: 'Logs', iconKey: 'IconAudit' },
       },
       {
         path: 'configuracoes',

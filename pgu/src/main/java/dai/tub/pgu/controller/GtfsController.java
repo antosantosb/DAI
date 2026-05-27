@@ -98,6 +98,16 @@ public class GtfsController
         }
     }
 
+    /** Sprint 0 (F4 follow-up): estado actual da sincronizacao GTFS para
+     *  o frontend reconstruir o toast apos refresh. 204 se nada em curso. */
+    @GetMapping("/sync-status")
+    public ResponseEntity<dai.tub.pgu.dto.GtfsProgressDTO> syncStatus()
+    {
+        dai.tub.pgu.dto.GtfsProgressDTO p = gtfsService.getLastProgress();
+        if (p == null) return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(p);
+    }
+
     /** Download on-demand dos TUB. */
     @PostMapping("/sync-tub")
     @LogActivity(action = "Sincronizar GTFS TUB")

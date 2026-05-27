@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import './Routes.css';
 
+const PAGE_SIZE = 50;
+
 export default function Routes() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole('admin');
@@ -130,6 +132,29 @@ export default function Routes() {
     const q = search.toLowerCase();
     return r.name?.toLowerCase().includes(q) || r.code?.toLowerCase().includes(q);
   });
+
+  // Sprint 0 (F4 follow-up): infinite scroll, igual ao Stops.jsx.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef(null);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, routes.length]);
+
+  useEffect(() => {
+    if (visibleCount >= filtered.length) return;
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
+      }
+    }, { rootMargin: '300px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filtered.length, visibleCount]);
+
+  const visible = filtered.slice(0, visibleCount);
 
   return (
     <div>
@@ -269,7 +294,7 @@ export default function Routes() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(route => (
+            {visible.map(route => (
               <tr key={route.id}>
                 <td><span className="count-badge">{route.id}</span></td>
                 <td><code style={{ fontSize: 13, fontWeight: 700, color: route.color || 'var(--color-primary)' }}>{route.code}</code></td>
@@ -293,6 +318,13 @@ export default function Routes() {
                 </td>
               </tr>
             ))}
+            {visibleCount < filtered.length && (
+              <tr ref={loaderRef}>
+                <td colSpan="6" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
+                  A carregar mais rotas… ({visibleCount} de {filtered.length})
+                </td>
+              </tr>
+            )}
             {filtered.length === 0 && (
               <tr><td colSpan="6" className="empty">
                 {search ? 'Nenhuma rota encontrada' : 'Nenhuma rota registada'}

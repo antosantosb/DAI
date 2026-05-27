@@ -176,7 +176,7 @@ export default function Buses() {
     showModal({
       type: 'danger',
       title: `Descomissionar ${bus.busCode}?`,
-      message: 'O autocarro sera permanentemente removido do sistema. Esta acao nao pode ser revertida.',
+      message: 'O autocarro será permanentemente removido do sistema. Esta ação não pode ser revertida.',
       confirmText: 'Descomissionar',
       onConfirm: () => {
         closeModal();

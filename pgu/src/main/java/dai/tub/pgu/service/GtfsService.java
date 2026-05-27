@@ -42,6 +42,10 @@ public class GtfsService
     /** Guarda para evitar sincronizações TUB concorrentes (cliques repetidos). */
     private final AtomicBoolean syncInProgress = new AtomicBoolean(false);
 
+    /** Sprint 0 (F4 follow-up): último estado da sincronização para o
+     *  endpoint GET /gtfs/sync-status (resume do toast após refresh do browser). */
+    private volatile GtfsProgressDTO lastProgress;
+
     private final GtfsImportRepository importRepository;
     private final GtfsImportEntityRepository importEntityRepository;
     private final GtfsConfigRepository configRepository;
@@ -54,6 +58,14 @@ public class GtfsService
     private final SimpMessagingTemplate ws;
     private final GeometryFactory geometryFactory;
     private final ObjectMapper objectMapper;
+    // Sprint 0 (F4 follow-up): self-reference via @Lazy para o proxy do Spring
+    // intercetar self-calls a metodos @Async. Sem isto, processTubDownload
+    // corre na thread do request HTTP e o user vê timeouts no frontend.
+    private final GtfsService self;
+    // Sprint 0 (F4 follow-up): invalidar cache "routes" (definida em F2 no
+    // RouteService) apos o import GTFS. Sem isto, o backoffice continua a ver
+    // as rotas antigas (cache TTL 10min).
+    private final org.springframework.cache.CacheManager cacheManager;
 
     public GtfsService(GtfsImportRepository importRepository,
                        GtfsImportEntityRepository importEntityRepository,
@@ -64,7 +76,9 @@ public class GtfsService
                        RouteSegmentRepository segmentRepository,
                        StopScheduleRepository scheduleRepository,
                        BusRepository busRepository,
-                       SimpMessagingTemplate ws)
+                       SimpMessagingTemplate ws,
+                       @org.springframework.context.annotation.Lazy GtfsService self,
+                       org.springframework.cache.CacheManager cacheManager)
     {
         this.importRepository = importRepository;
         this.importEntityRepository = importEntityRepository;
@@ -76,17 +90,55 @@ public class GtfsService
         this.scheduleRepository = scheduleRepository;
         this.busRepository = busRepository;
         this.ws = ws;
+        this.self = self;
+        this.cacheManager = cacheManager;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         this.objectMapper = new ObjectMapper();
+    }
+
+    /** Sprint 0 (F4 follow-up): invalida caches afetadas por um import GTFS. */
+    private void evictRouteAndStopCaches()
+    {
+        try
+        {
+            org.springframework.cache.Cache routes = cacheManager.getCache("routes");
+            if (routes != null) routes.clear();
+            org.springframework.cache.Cache stops = cacheManager.getCache("stops");
+            if (stops != null) stops.clear();
+            org.springframework.cache.Cache gtfs = cacheManager.getCache("gtfs");
+            if (gtfs != null) gtfs.clear();
+        }
+        catch (Exception e)
+        {
+            log.warn("[GTFS] Falha a invalidar caches: {}", e.getMessage());
+        }
+    }
+
+    /** Sprint 0 (F4 follow-up): endpoint para resume do toast após refresh.
+     *  Devolve null se nao ha sync activo nem progresso significativo. */
+    public GtfsProgressDTO getLastProgress()
+    {
+        GtfsProgressDTO p = this.lastProgress;
+        if (p == null) return null;
+        // Se ja' acabou (COMPLETED/FAILED/SKIPPED) e nao ha sync activo, deixar de devolver.
+        if (!syncInProgress.get() &&
+            ("COMPLETED".equals(p.getStep())
+             || "FAILED".equals(p.getStep())
+             || "SKIPPED".equals(p.getStep())))
+        {
+            return null;
+        }
+        return p;
     }
 
     /** Envia progresso GTFS via WebSocket. */
     private void broadcastProgress(Long importId, String step, String message, int progress)
     {
+        GtfsProgressDTO dto = new GtfsProgressDTO(importId, step, message, progress);
+        this.lastProgress = dto;
         try
         {
-            ws.convertAndSend("/topic/gtfs/progress",
-                    new GtfsProgressDTO(importId, step, message, progress));
+            ws.convertAndSend("/topic/gtfs/progress", dto);
         }
         catch (Exception e)
         {
@@ -155,12 +207,13 @@ public class GtfsService
     public void processUpload(byte[] zipBytes, String filename, String username)
     {
         GtfsImport imp = createImportRecord("UPLOAD", filename, username);
-        broadcastProgress(imp.getId(), "PROCESSING_STOPS", "A processar ficheiro " + filename + "…", 10);
+        broadcastProgress(imp.getId(), "PROCESSING_STOPS", "A processar ficheiro…", 10);
         try
         {
             Map<String, byte[]> files = extractZip(zipBytes);
             processGtfsFiles(imp, files);
-            broadcastProgress(imp.getId(), "COMPLETED", "Importação concluída com sucesso", 100);
+            evictRouteAndStopCaches();
+            broadcastProgress(imp.getId(), "COMPLETED", "Importação concluída", 100);
         }
         catch (Exception e)
         {
@@ -176,7 +229,7 @@ public class GtfsService
         if (!syncInProgress.compareAndSet(false, true))
         {
             log.warn("[GTFS] Sincronização TUB já em curso, a ignorar pedido duplicado");
-            broadcastProgress(null, "SKIPPED", "Já existe uma sincronização em curso", 0);
+            broadcastProgress(null, "SKIPPED", "Sincronização em curso", 0);
             return;
         }
         try
@@ -194,8 +247,7 @@ public class GtfsService
                     {
                         log.info("[GTFS] Dados GTFS ainda recentes (há {}h, intervalo={}h) — a saltar",
                                 hoursSinceLast, config.getIntervalHours());
-                        broadcastProgress(null, "SKIPPED",
-                                "Dados GTFS atualizados (última sync há " + hoursSinceLast + "h)", 0);
+                        broadcastProgress(null, "SKIPPED", "Dados já atualizados", 0);
                         return;
                     }
                 }
@@ -203,7 +255,7 @@ public class GtfsService
 
             // ── Download + processamento ────────────────────────
             GtfsImport imp = createImportRecord(source, "tub.zip", username);
-            broadcastProgress(imp.getId(), "DOWNLOADING", "A descarregar dados GTFS dos TUB…", 5);
+            broadcastProgress(imp.getId(), "DOWNLOADING", "A descarregar feed…", 5);
             try
             {
                 log.info("[GTFS] A descarregar de {} ...", config.getGtfsUrl());
@@ -213,7 +265,8 @@ public class GtfsService
                 broadcastProgress(imp.getId(), "PROCESSING_STOPS", "A processar paragens…", 20);
                 Map<String, byte[]> files = extractZip(zipBytes);
                 processGtfsFiles(imp, files);
-                broadcastProgress(imp.getId(), "COMPLETED", "Sincronização GTFS concluída", 100);
+                evictRouteAndStopCaches();
+                broadcastProgress(imp.getId(), "COMPLETED", "Sincronização concluída", 100);
             }
             catch (Exception e)
             {
@@ -326,6 +379,7 @@ public class GtfsService
 
         imp.setStatus("REVERTED");
         imp.setRevertedAt(Instant.now());
+        evictRouteAndStopCaches();
         importRepository.save(imp);
 
         log.info("[GTFS] Importação #{} revertida com sucesso", importId);
@@ -392,7 +446,7 @@ public class GtfsService
         if (wasInactive && dto.isScheduleActive())
         {
             log.info("[GTFS] Agendamento ativado — a iniciar sincronização imediata por {}", username);
-            processTubDownload("TUB_SCHEDULED", username);
+            self.processTubDownload("TUB_SCHEDULED", username);
         }
 
         return getConfig();
@@ -422,7 +476,7 @@ public class GtfsService
         }
 
         log.info("[GTFS] Agendamento ativado — a iniciar sincronização TUB");
-        processTubDownload("TUB_SCHEDULED", "system-scheduler");
+        self.processTubDownload("TUB_SCHEDULED", "system-scheduler");
     }
 
     // ================================================================
@@ -478,7 +532,7 @@ public class GtfsService
                         imp.getId(), stopsCreated, stopsUpdated);
             }
 
-            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A mapear viagens e horários…", 40);
+            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A mapear viagens…", 40);
 
             // 2. CONSTRUIR MAPA ROTA → PARAGENS + HORÁRIOS
             Map<String, List<String[]>> routeStopsMap = new HashMap<>(); // route_id → [(stop_id, sequence)]
@@ -613,7 +667,7 @@ public class GtfsService
                 log.info("[GTFS] #{}: {} shapes carregados", imp.getId(), shapesLoaded);
             }
 
-            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A importar rotas e horários…", 60);
+            broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A importar rotas…", 60);
 
             // 4. CARREGAR ROTAS
             if (files.containsKey("routes.txt"))
@@ -685,11 +739,14 @@ public class GtfsService
                     }
 
                     // Guardar horários (stop_schedule) para esta rota
+                    // Sprint 0 (F4 follow-up): batch de 100 com flush() entre chunks
+                    // para reduzir tempo da conexão aberta (HikariCP leak detection).
                     List<Map<String, String>> schedList = allSchedules.get(gtfsRouteId);
                     int schedulesCreated = 0;
                     if (schedList != null)
                     {
-                        List<StopSchedule> batch = new ArrayList<>();
+                        final int BATCH_SIZE = 100;
+                        List<StopSchedule> batch = new ArrayList<>(BATCH_SIZE);
                         for (Map<String, String> sc : schedList)
                         {
                             Long stopDbId = stopIdMap.get(sc.get("stop_id"));
@@ -712,11 +769,20 @@ public class GtfsService
                             ss.setServiceId(sc.getOrDefault("service_id", ""));
                             ss.setGtfsImport(imp);
                             batch.add(ss);
+                            if (batch.size() >= BATCH_SIZE)
+                            {
+                                scheduleRepository.saveAll(batch);
+                                scheduleRepository.flush();
+                                schedulesCreated += batch.size();
+                                batch.clear();
+                            }
                         }
                         if (!batch.isEmpty())
                         {
                             scheduleRepository.saveAll(batch);
-                            schedulesCreated = batch.size();
+                            scheduleRepository.flush();
+                            schedulesCreated += batch.size();
+                            batch.clear();
                         }
                     }
                     if (schedulesCreated == 0)

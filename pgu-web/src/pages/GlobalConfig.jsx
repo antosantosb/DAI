@@ -1,87 +1,161 @@
-import React, { useState, useEffect } from 'react';
+// Backoffice > Parâmetros — vars globais do sistema.
+// Sprint 0 (F4 follow-up): adicionado owner default das DataSources.
+
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import api from '../services/api';
-import StatIcon from '../components/StatIcon';
+import './GlobalConfig.css';
+
+const DEFAULTS = {
+  delayLimitMinutes: 5,
+  socTolerancePercent: 20,
+  iotIntegrationLimit: 1000,
+  defaultOwnerName: '',
+  defaultOwnerEmail: '',
+};
 
 export default function GlobalConfig() {
-    const [configs, setConfigs] = useState({
-        delayLimitMinutes: 5,
-        socTolerancePercent: 20,
-        iotIntegrationLimit: 1000
-    });
-    const [loading, setLoading] = useState(true);
+  const [configs, setConfigs] = useState(DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-    // Carregar as configurações atuais quando a página abre
-    useEffect(() => {
-        api.get('/api/v1/config')
-            .then(response => {
-                setConfigs(response.data);
-                setLoading(false);
-            })
-            .catch(error => {
-                console.error("Erro ao carregar configurações globais:", error);
-                setLoading(false);
-            });
-    }, []);
+  useEffect(() => {
+    api.get('/config')
+      .then((r) => setConfigs({ ...DEFAULTS, ...(r.data || {}) }))
+      .catch((err) => {
+        console.error('Erro ao carregar configurações globais:', err);
+        toast.error('Falha a carregar parâmetros');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-    // Guardar as novas configurações
-    const handleSave = async (e) => {
-        e.preventDefault();
-        try {
-            await api.put('/api/v1/config', configs);
-            alert('Parâmetros atualizados com sucesso!');
-        } catch (error) {
-            console.error("Erro ao guardar:", error);
-            alert('Erro ao atualizar. Garante que tens permissões de Administrador.');
-        }
-    };
+  const handleChange = (field) => (e) => {
+    const value = e.target.type === 'number' ? Number(e.target.value) : e.target.value;
+    setConfigs((prev) => ({ ...prev, [field]: value }));
+  };
 
-    if (loading) return <div className="p-6">A carregar configurações...</div>;
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const r = await api.put('/config', configs);
+      setConfigs({ ...DEFAULTS, ...(r.data || {}) });
+      toast.success('Parâmetros atualizados');
+    } catch (err) {
+      console.error('Erro ao guardar:', err);
+      toast.error('Falha ao atualizar, sem permissões de admin');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-6">
-                <StatIcon type="speed" />
-                <h1 className="text-2xl font-bold text-gray-800">Parâmetros Globais do Sistema</h1>
+  if (loading) {
+    return <div className="config-page"><div className="config-loading">A carregar parâmetros…</div></div>;
+  }
+
+  return (
+    <div className="config-page">
+      <header className="config-header">
+        <h1 className="config-title">Parâmetros Globais</h1>
+      </header>
+
+      <form className="config-form" onSubmit={handleSave}>
+        <section className="config-section">
+          <h2 className="config-section-title">Alertas</h2>
+          <div className="config-grid">
+            <div className="config-field">
+              <label htmlFor="cfg-delay">Atraso tolerável</label>
+              <div className="config-input-suffix">
+                <input
+                  id="cfg-delay"
+                  type="number"
+                  min="0"
+                  value={configs.delayLimitMinutes ?? ''}
+                  onChange={handleChange('delayLimitMinutes')}
+                  required
+                />
+                <span className="config-unit">min</span>
+              </div>
+              <p className="config-hint">Acima disto, gera alerta.</p>
             </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <form onSubmit={handleSave} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Limite de Atraso Tolerável (Minutos)
-                        </label>
-                        <p className="text-xs text-gray-500 mb-2">Atrasos superiores a este valor geram alertas automáticos.</p>
-                        <input 
-                            type="number" 
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            value={configs.delayLimitMinutes} 
-                            onChange={e => setConfigs({...configs, delayLimitMinutes: parseInt(e.target.value)})} 
-                            required
-                        />
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Tolerância de Bateria Crítica - SoC (%)
-                        </label>
-                        <p className="text-xs text-gray-500 mb-2">Para a frota elétrica, emite aviso se a bateria descer abaixo deste valor.</p>
-                        <input 
-                            type="number" 
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            value={configs.socTolerancePercent} 
-                            onChange={e => setConfigs({...configs, socTolerancePercent: parseInt(e.target.value)})} 
-                            required
-                        />
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200"
-                    >
-                        Guardar Alterações
-                    </button>
-                </form>
+            <div className="config-field">
+              <label htmlFor="cfg-soc">Bateria mínima</label>
+              <div className="config-input-suffix">
+                <input
+                  id="cfg-soc"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={configs.socTolerancePercent ?? ''}
+                  onChange={handleChange('socTolerancePercent')}
+                  required
+                />
+                <span className="config-unit">%</span>
+              </div>
+              <p className="config-hint">Abaixo disto, alerta crítico.</p>
             </div>
-        </div>
-    );
+
+            <div className="config-field">
+              <label htmlFor="cfg-iot">Mensagens IoT</label>
+              <div className="config-input-suffix">
+                <input
+                  id="cfg-iot"
+                  type="number"
+                  min="0"
+                  value={configs.iotIntegrationLimit ?? ''}
+                  onChange={handleChange('iotIntegrationLimit')}
+                />
+                <span className="config-unit">/min</span>
+              </div>
+              <p className="config-hint">Limite de ingestão MQTT.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="config-section">
+          <h2 className="config-section-title">Owner das Fontes</h2>
+          <div className="config-grid">
+            <div className="config-field">
+              <label htmlFor="cfg-owner-name">Nome</label>
+              <input
+                id="cfg-owner-name"
+                type="text"
+                maxLength="64"
+                placeholder="Operações TUB"
+                value={configs.defaultOwnerName ?? ''}
+                onChange={handleChange('defaultOwnerName')}
+              />
+              <p className="config-hint">Para fontes sem owner próprio.</p>
+            </div>
+
+            <div className="config-field">
+              <label htmlFor="cfg-owner-email">Email</label>
+              <input
+                id="cfg-owner-email"
+                type="email"
+                maxLength="128"
+                placeholder="operacoes@tub.pt"
+                value={configs.defaultOwnerEmail ?? ''}
+                onChange={handleChange('defaultOwnerEmail')}
+              />
+              <p className="config-hint">Recebe alertas DOWN.</p>
+            </div>
+          </div>
+        </section>
+
+        <footer className="config-actions">
+          {configs.updatedAt && (
+            <p className="config-meta">
+              Última alteração {new Date(configs.updatedAt).toLocaleString('pt-PT')}
+              {configs.updatedBy && <> por <strong>{configs.updatedBy}</strong></>}.
+            </p>
+          )}
+          <button type="submit" className="config-btn-primary" disabled={saving}>
+            {saving ? 'A guardar…' : 'Guardar alterações'}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
 }

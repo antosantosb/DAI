@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthProvider';
 import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
-  IconSettings,
+  IconSettings, IconDataSource,
 } from './NavIcon';
 import { getOcorrencias } from '../services/ocorrenciasApi';
 import { routes, hasAccess } from '../routes';
@@ -30,10 +30,11 @@ const ICON_COMPONENTS = {
   IconGtfs,
   IconAlarm,
   IconSettings,
+  IconDataSource,
 };
 
 // Ordem fixa das sections (para o sidebar nao reordenar conforme o user).
-const SECTION_ORDER = ['Principal', 'Gestão', 'Administração'];
+const SECTION_ORDER = ['Principal', 'Operações', 'Administração'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.

@@ -14,6 +14,14 @@ public class GlobalConfig {
     private Integer iotIntegrationLimit;
     private Instant updatedAt;
     private String updatedBy;
+
+    // Sprint 0 (F4 follow-up): owner default das DataSources que nao tem
+    // owner proprio. Editavel via /backoffice/configuracoes.
+    @Column(name = "default_owner_name", length = 64)
+    private String defaultOwnerName;
+
+    @Column(name = "default_owner_email", length = 128)
+    private String defaultOwnerEmail;
     
     public GlobalConfig() {}
 
@@ -63,5 +71,21 @@ public class GlobalConfig {
 
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
+    }
+
+    public String getDefaultOwnerName() {
+        return defaultOwnerName;
+    }
+
+    public void setDefaultOwnerName(String defaultOwnerName) {
+        this.defaultOwnerName = defaultOwnerName;
+    }
+
+    public String getDefaultOwnerEmail() {
+        return defaultOwnerEmail;
+    }
+
+    public void setDefaultOwnerEmail(String defaultOwnerEmail) {
+        this.defaultOwnerEmail = defaultOwnerEmail;
     }
 }

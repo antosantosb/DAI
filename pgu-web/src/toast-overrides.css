@@ -3,6 +3,7 @@
    design system do backoffice (tokens em index.css).
    ────────────────────────────────────────────────────────────── */
 
+
 .Toastify__toast-container {
   padding: 8px;
   width: 360px;
@@ -143,4 +144,105 @@
   box-shadow:
     0 14px 30px -6px rgba(15, 23, 42, 0.16),
     0 6px 10px -4px rgba(15, 23, 42, 0.10) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Sprint 0 (F4 follow-up): GTFS sync toast colapsável.
+   Após ~10s o JS adiciona `.is-collapsed` ao toast; passa de card
+   completo a um circulo pequeno com spinner. Hover expande de volta.
+
+   Estrategia: o toast contrai para 44x44 com overflow:hidden + position:
+   relative. O icon (spinner) e' posicionado absoluto no centro. Tudo
+   o resto fica clipado pelo overflow do parent. No hover, o toast
+   expande de volta a 344px e o icon volta a flex normal.
+   ────────────────────────────────────────────────────────────── */
+
+.Toastify__toast.pgu-gtfs-collapsible {
+  position: relative;
+}
+
+/* Sem transition de tamanho — width e height de uma forma circular nao
+   animam suavemente em conjunto e criam ovais durante a interpolacao.
+   Snap instantaneo evita o problema. So o conteudo (opacity) anima. */
+
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed {
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border-left: 1px solid var(--color-border) !important;
+  cursor: pointer;
+  overflow: hidden !important;
+  margin-left: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* Spinner centrado dentro do circulo via absolute positioning */
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed .Toastify__toast-icon {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  z-index: 2;
+}
+
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed .Toastify__toast-icon svg,
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed .Toastify__toast-icon > div {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Conteudo (body, progress bar) fica clipado pelo overflow do toast.
+   Fade-out rapido e instantaneo ao colapsar para evitar conteudo
+   visivel dentro do circulo. */
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed > *:not(.Toastify__toast-icon) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity 60ms ease, visibility 0s linear 60ms !important;
+  pointer-events: none !important;
+}
+
+/* HOVER: toast expande, conteudo aparece com delay */
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed:hover {
+  width: 344px !important;
+  min-width: 344px !important;
+  max-width: 344px !important;
+  height: auto !important;
+  min-height: 60px !important;
+  max-height: none !important;
+  padding: 14px 16px !important;
+  border-radius: 12px !important;
+  border-left: 4px solid var(--color-primary) !important;
+  cursor: default;
+  overflow: visible !important;
+  margin-left: auto !important;
+}
+
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed:hover .Toastify__toast-icon {
+  position: static !important;
+  transform: none !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin-right: 12px !important;
+}
+
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed:hover .Toastify__toast-icon svg,
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed:hover .Toastify__toast-icon > div {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.Toastify__toast.pgu-gtfs-collapsible.is-collapsed:hover > *:not(.Toastify__toast-icon) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transition: opacity 180ms ease 50ms, visibility 0s linear 0s !important;
 }

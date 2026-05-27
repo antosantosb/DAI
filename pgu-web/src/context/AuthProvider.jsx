@@ -50,7 +50,12 @@ export default function AuthProvider({ children }) {
     );
   }
 
-  const login = () => keycloak.login({ redirectUri: window.location.origin });
+  // Sprint 0 (F5): forcar locale PT no redirect para o Keycloak. Sem isto,
+  // o Keycloak respeita o Accept-Language do browser e pode mostrar EN.
+  const login = () => keycloak.login({
+    redirectUri: window.location.origin,
+    locale: 'pt',
+  });
 
   const logout = () => {
     const params = new URLSearchParams({

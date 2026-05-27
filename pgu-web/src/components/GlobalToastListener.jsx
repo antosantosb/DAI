@@ -1,13 +1,81 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { createStompClient } from '../services/stompClient';
+import api from '../services/api';
+import { useAuth } from '../context/AuthProvider';
+
+// Sprint 0 (F4 follow-up): após 10s, o toast colapsa para um círculo pequeno
+// com spinner; hover expande de volta. Evita ocupar espaço durante syncs longos.
+const GTFS_TOAST_ID = 'gtfs-progress';
+const COLLAPSE_DELAY_MS = 10000;
+// O `className` no toast.loading SUBSTITUI o `toastClassName` default
+// do <ToastContainer>, por isso temos de incluir 'pgu-toast' aqui.
+const GTFS_BASE_CLASS = 'pgu-toast pgu-gtfs-collapsible';
+
+// Helper: cria o conteúdo do toast de progresso GTFS a partir de um payload
+// { step, message, progress }. Partilhado entre o resume on-mount e o WS handler.
+function gtfsProgressContent(p) {
+  return (
+    <div>
+      <div className="pgu-toast-title">Sincronização GTFS</div>
+      <div className="pgu-toast-sub">{p.message}</div>
+      <div className="pgu-progress-track">
+        <div className="pgu-progress-fill" style={{ width: `${p.progress}%` }} />
+      </div>
+    </div>
+  );
+}
 
 /**
  * Subscreve tópicos STOMP globais e emite toasts.
  * Invisível — montar uma única vez no Layout.
  */
 export default function GlobalToastListener() {
+  const collapseTimerRef = useRef(null);
+  const { authenticated } = useAuth();
+
+  const armCollapseTimer = () => {
+    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = setTimeout(() => {
+      // DOM directa: o react-toastify aplica id={toastId} ao toast div,
+      // por isso podemos adicionar a class sem passar pelo toast.update
+      // (que reseta render e pode descartar className).
+      const el = document.getElementById(GTFS_TOAST_ID);
+      if (el) el.classList.add('is-collapsed');
+      collapseTimerRef.current = null;
+    }, COLLAPSE_DELAY_MS);
+  };
+
+  const clearCollapseTimer = () => {
+    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = null;
+  };
+
+  // Sprint 0 (F4 follow-up): se houver sync GTFS em curso quando a app carrega
+  // (ex.: user fez F5 a meio), reconstruir o toast a partir do backend.
+  // Sprint 0 (F5 follow-up): só faz a request quando autenticado — senão
+  // o api.js intercepta 401 e força login do Keycloak, redirecionando a
+  // Landing automaticamente.
   useEffect(() => {
+    if (!authenticated) return;
+    api.get('/gtfs/sync-status').then((r) => {
+      if (r.status === 200 && r.data) {
+        toast.loading(gtfsProgressContent(r.data), {
+          toastId: GTFS_TOAST_ID,
+          autoClose: false,
+          closeOnClick: false,
+          closeButton: false,
+          className: GTFS_BASE_CLASS,
+        });
+        armCollapseTimer();
+      }
+    }).catch(() => { /* 204 ou erro: nada a mostrar */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]);
+
+  useEffect(() => {
+    // Sprint 0 (F5 follow-up): so' conecta STOMP quando autenticado.
+    if (!authenticated) return;
     // Sprint -1 (SEC-4): client autenticado via JWT no CONNECT.
     const stompClient = createStompClient({
       onConnect: () => {
@@ -18,7 +86,7 @@ export default function GlobalToastListener() {
           try {
             const p = JSON.parse(message.body);
             if (p.status === 'emergency') {
-              toast.error(`Emergência — Autocarro ${p.busId}`, {
+              toast.error(`Emergência: autocarro ${p.busId}`, {
                 autoClose: 10000,
                 toastId: `emergency-${p.busId}`,
               });
@@ -79,27 +147,34 @@ export default function GlobalToastListener() {
           if (!message.body) return;
           try {
             const p = JSON.parse(message.body);
-            const id = 'gtfs-progress';
+            const id = GTFS_TOAST_ID;
 
             if (p.step === 'COMPLETED') {
+              clearCollapseTimer();
               toast.dismiss(id);
               toast.success('Sincronização GTFS concluída', { autoClose: 5000, toastId: 'gtfs-done' });
             } else if (p.step === 'FAILED') {
+              clearCollapseTimer();
               toast.dismiss(id);
               toast.error('Sincronização GTFS falhou', { autoClose: 8000, toastId: 'gtfs-fail' });
             } else if (p.step === 'SKIPPED') {
+              clearCollapseTimer();
+              toast.dismiss(id);
               toast.info('Dados GTFS já atualizados', { autoClose: 3000, toastId: 'gtfs-skip' });
             } else {
-              toast.loading(
-                <div>
-                  <div className="pgu-toast-title">Sincronização GTFS</div>
-                  <div className="pgu-toast-sub" style={{ fontFamily: 'inherit' }}>{p.message}</div>
-                  <div className="pgu-progress-track">
-                    <div className="pgu-progress-fill" style={{ width: `${p.progress}%` }}/>
-                  </div>
-                </div>,
-                { toastId: id, autoClose: false, closeOnClick: false, closeButton: false }
-              );
+              // Sprint 0 (F4 follow-up): conteudo atualizado em vivo. Primeira vez
+              // chama toast.loading(); subsequentes usam toast.update() para
+              // refrescar message + progress no mesmo toast.
+              const content = gtfsProgressContent(p);
+              if (toast.isActive(id)) {
+                toast.update(id, { render: content });
+              } else {
+                toast.loading(content, {
+                  toastId: id, autoClose: false, closeOnClick: false, closeButton: false,
+                  className: GTFS_BASE_CLASS,
+                });
+                armCollapseTimer();
+              }
             }
           } catch (e) { /* ignore */ }
         });
@@ -118,8 +193,12 @@ export default function GlobalToastListener() {
     });
 
     stompClient.activate();
-    return () => stompClient.deactivate();
-  }, []);
+    return () => {
+      stompClient.deactivate();
+      clearCollapseTimer();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]);
 
   return null;
 }

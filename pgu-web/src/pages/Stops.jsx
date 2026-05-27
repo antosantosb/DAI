@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
+
+const PAGE_SIZE = 50;
 
 export default function Stops() {
   const { hasRole } = useAuth();
@@ -13,6 +15,11 @@ export default function Stops() {
   const [search, setSearch] = useState('');
   // Sprint -1 (FE-14): substitui window.confirm por Modal a11y-friendly.
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
+
+  // Sprint 0 (F4 follow-up): infinite scroll para evitar render de 1999 rows
+  // de uma vez (era a causa do lag e do toast "Pedido demorou demasiado").
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef(null);
 
   const load = () => {
     api.get('/stops').then(r => setStops(r.data || [])).catch(() => setStops([]));
@@ -83,6 +90,28 @@ export default function Stops() {
     const q = search.toLowerCase();
     return s.name?.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q);
   });
+
+  // Sprint 0 (F4 follow-up): reset infinite scroll quando search/dataset muda.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, stops.length]);
+
+  // Sprint 0 (F4 follow-up): IntersectionObserver no loader row carrega +50
+  // automaticamente quando entra na viewport.
+  useEffect(() => {
+    if (visibleCount >= filtered.length) return;
+    const el = loaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
+      }
+    }, { rootMargin: '300px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filtered.length, visibleCount]);
+
+  const visible = filtered.slice(0, visibleCount);
 
   return (
     <div>
@@ -162,7 +191,7 @@ export default function Stops() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(stop => (
+            {visible.map(stop => (
               <tr key={stop.id}>
                 <td><span className="count-badge">{stop.id}</span></td>
                 <td><strong>{stop.name}</strong></td>
@@ -181,6 +210,13 @@ export default function Stops() {
                 </td>
               </tr>
             ))}
+            {visibleCount < filtered.length && (
+              <tr ref={loaderRef}>
+                <td colSpan="8" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
+                  A carregar mais paragens… ({visibleCount} de {filtered.length})
+                </td>
+              </tr>
+            )}
             {filtered.length === 0 && (
               <tr><td colSpan="8" className="empty">
                 {search ? 'Nenhuma paragem encontrada' : 'Nenhuma paragem registada'}

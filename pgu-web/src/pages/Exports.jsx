@@ -146,7 +146,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
       toast.info('Pedido submetido');
     } catch (err) {
       console.error(err);
-      toast.error('Falhou a submissão do pedido de exportação');
+      toast.error('Falha ao submeter pedido');
     } finally { setSubmitting(false); }
   };
 
@@ -165,7 +165,7 @@ function ExportPanel({ dataType, endpoint, listParam, isAdmin, username, showMod
           toast.success('Relatório eliminado');
         } catch (err) {
           const msg = err?.response?.status === 404
-            ? 'O relatório já não existia no servidor.'
+            ? 'Relatório já não existia no servidor'
             : (err?.response?.data?.message || err?.message || 'Erro desconhecido');
           toast.error(`Falhou a remoção: ${msg}`);
         }

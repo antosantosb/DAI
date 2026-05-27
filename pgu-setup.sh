@@ -300,6 +300,15 @@ MINIO_ROOT_USER=pgu_minio_admin
 MINIO_ROOT_PASSWORD=$DEV_MINIO_PASS
 MINIO_EXPORTS_BUCKET=exports
 MINIO_ATTACHMENTS_BUCKET=attachments
+
+# Sprint 0 (F0): SMTP em dev usa Mailpit (captura local em http://localhost:8025).
+# Em producao, trocar para um SMTP real (Gmail App Password, SendGrid, etc.) — ver .env.example.
+SMTP_HOST=mailpit
+SMTP_PORT=1025
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_AUTH=false
+SMTP_STARTTLS=false
 ENVEOF
         step_ok ".env de desenvolvimento criado com passwords aleatorias"
         echo ""
@@ -488,7 +497,11 @@ nifi_setup() {
         fi
     fi
 
-    # Iniciar todos os process groups
+    # Sprint 0 (F4 follow-up): configurar credenciais dos processors antes do Start.
+    # Sem isto, o ConsumeMQTT fica em warning ("Username and Password is invalid")
+    # e nada flui. Iterar todos os PGs (e sub-PGs) e patch das propriedades.
+    sleep 2  # dar tempo ao NiFi para registar processors do template
+
     local updated_pg
     updated_pg=$(curl -sk -H "Authorization: Bearer $token" \
         "$NIFI_URL/nifi-api/flow/process-groups/root" 2>/dev/null)
@@ -499,6 +512,16 @@ nifi_setup() {
         (d.processGroupFlow?.flow?.processGroups||[]).forEach(p=>console.log(p.id));
     " 2>/dev/null || true)
 
+    local configured=0
+    for pgid in $child_ids; do
+        configured=$((configured + $(nifi_configure_processors "$token" "$pgid")))
+    done
+
+    if [ $configured -gt 0 ]; then
+        step_ok "NiFi: $configured processor(s) com credenciais aplicadas"
+    fi
+
+    # Iniciar todos os process groups
     local started=0
     for pgid in $child_ids; do
         curl -sk -X PUT "$NIFI_URL/nifi-api/flow/process-groups/$pgid" \
@@ -511,6 +534,68 @@ nifi_setup() {
     if [ $started -gt 0 ]; then
         step_ok "NiFi: $started process group(s) a correr"
     fi
+}
+
+# Sprint 0 (F4 follow-up): configurar properties de ConsumeMQTT e InvokeHTTP
+# dentro de um Process Group. Lê env vars MQTT_NIFI_PASSWORD e PGU_INTERNAL_API_KEY.
+# Imprime numero de processors configurados (para somar no contador).
+nifi_configure_processors() {
+    local token="$1"
+    local pg_id="$2"
+    local count=0
+
+    local pg_flow
+    pg_flow=$(curl -sk -H "Authorization: Bearer $token" \
+        "$NIFI_URL/nifi-api/flow/process-groups/$pg_id" 2>/dev/null)
+
+    # IDs dos processors por tipo (string match em component.type)
+    local mqtt_ids http_ids
+    mqtt_ids=$(echo "$pg_flow" | "$NODE_BIN" -e "
+        const d=JSON.parse(require('fs').readFileSync(0,'utf8'));
+        (d.processGroupFlow?.flow?.processors||[])
+          .filter(p => (p.component.type||'').endsWith('ConsumeMQTT'))
+          .forEach(p => console.log(p.id));
+    " 2>/dev/null || true)
+    http_ids=$(echo "$pg_flow" | "$NODE_BIN" -e "
+        const d=JSON.parse(require('fs').readFileSync(0,'utf8'));
+        (d.processGroupFlow?.flow?.processors||[])
+          .filter(p => (p.component.type||'').endsWith('InvokeHTTP'))
+          .forEach(p => console.log(p.id));
+    " 2>/dev/null || true)
+
+    for pid in $mqtt_ids; do
+        nifi_patch_processor "$token" "$pid" \
+            "\"Broker URI\":\"tcp://mosquitto:1883\",\"Username\":\"nifi\",\"Password\":\"${MQTT_NIFI_PASSWORD}\",\"Topic Filter\":\"tub/telemetry\"" \
+            && count=$((count + 1))
+    done
+
+    for pid in $http_ids; do
+        nifi_patch_processor "$token" "$pid" \
+            "\"HTTP URL\":\"http://spring-boot-backend:8081/api/v1/telemetry/ingest\",\"HTTP Method\":\"POST\",\"X-Internal-API-Key\":\"${PGU_INTERNAL_API_KEY}\"" \
+            && count=$((count + 1))
+    done
+
+    echo "$count"
+}
+
+# Helper: PUT a um processor com properties novas, lidando com optimistic locking.
+nifi_patch_processor() {
+    local token="$1"
+    local proc_id="$2"
+    local props_inner="$3"
+
+    local proc_json version
+    proc_json=$(curl -sk -H "Authorization: Bearer $token" \
+        "$NIFI_URL/nifi-api/processors/$proc_id" 2>/dev/null)
+    version=$(echo "$proc_json" | "$NODE_BIN" -e "
+        const d=JSON.parse(require('fs').readFileSync(0,'utf8'));
+        console.log(d.revision?.version ?? 0);
+    " 2>/dev/null) || return 1
+
+    curl -sk -o /dev/null -X PUT "$NIFI_URL/nifi-api/processors/$proc_id" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d "{\"revision\":{\"version\":$version},\"component\":{\"id\":\"$proc_id\",\"config\":{\"properties\":{$props_inner}}}}"
 }
 
 nifi_setup || true
@@ -551,7 +636,7 @@ if [ "$ENV_MODE" = "local" ]; then
     echo -e "  Keycloak console   ${BOLD}admin${NC} / ${IAM_ADMIN_PASSWORD:-<ver .env: IAM_ADMIN_PASSWORD>}"
     echo -e "  NiFi               ${BOLD}admin${NC} / ${NIFI_PASSWORD:-<ver .env: NIFI_PASSWORD>}"
     echo -e "  MinIO console      ${BOLD}${MINIO_ROOT_USER:-pgu_minio_admin}${NC} / ${MINIO_ROOT_PASSWORD:-<ver .env: MINIO_ROOT_PASSWORD>}"
-    echo -e "  Mailpit web UI     ${DIM}(sem autenticacao em dev)${NC}"
+    echo -e "  Mailpit web UI     ${CYAN}http://localhost:8025${NC} ${DIM}(emails capturados localmente)${NC}"
     echo ""
     divider
     echo -e "  ${BOLD}Proximo passo${NC}"
