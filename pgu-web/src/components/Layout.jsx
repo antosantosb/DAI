@@ -12,6 +12,7 @@ import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
   IconSettings, IconDataSource, IconDriver, IconAccount,
+  IconChatbot, IconAiMonitoring,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -38,6 +39,8 @@ const ICON_COMPONENTS = {
   IconDataSource,
   IconDriver,
   IconAccount,
+  IconChatbot,
+  IconAiMonitoring,
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
@@ -80,11 +83,27 @@ function buildNavSections(authState) {
 }
 
 /**
- * Constroi o `to` correto de um child (index -> /backoffice, resto -> /backoffice/path).
+ * Constroi o `to` correto de um child:
+ *  - index    -> /backoffice
+ *  - sidebarOnly com nav.to -> path absoluto (ex: /chatbot)
+ *  - normal   -> /backoffice/path
  */
 function buildLink(child) {
+  if (child.nav?.to) return child.nav.to;
   if (child.index) return '/backoffice';
   return `/backoffice/${child.path}`;
+}
+
+// Key para persistir o estado collapsed das sections em localStorage.
+const COLLAPSED_KEY = 'pgu:sidebar-sections-collapsed';
+
+function loadCollapsedSections() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 export default function Layout() {
@@ -94,6 +113,15 @@ export default function Layout() {
   const { t } = useTranslation();
   const [alarmsCount, setAlarmsCount] = useState(0);
   const [meProfile, setMeProfile] = useState(null);
+  const [collapsedSections, setCollapsedSections] = useState(loadCollapsedSections);
+
+  const toggleSection = (sectionKey) => {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [sectionKey]: !prev[sectionKey] };
+      try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next)); } catch { /* ignora */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchAlarmsCount = async () => {
@@ -152,31 +180,67 @@ export default function Layout() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          {navSections.map(({ sectionKey, items }) => (
-            <div key={sectionKey}>
-              <span className="sidebar-section-label">{t(sectionKey)}</span>
-              {items.map((item) => {
-                const Icon = ICON_COMPONENTS[item.nav.iconKey];
-                const to = buildLink(item);
-                const showBadge = item.nav.badge === 'alarms' && alarmsCount > 0;
-                const label = t(item.nav.labelKey);
-                return (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={!!item.index}
-                    aria-label={label}
+          {navSections.map(({ sectionKey, items }) => {
+            const isCollapsed = !!collapsedSections[sectionKey];
+            const safeId = `section-${sectionKey.replace(/\./g, '-')}`;
+            return (
+              <div
+                key={sectionKey}
+                className={`sidebar-section${isCollapsed ? ' collapsed' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="sidebar-section-label"
+                  onClick={() => toggleSection(sectionKey)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={safeId}
+                >
+                  <span>{t(sectionKey)}</span>
+                  <svg
+                    className="sidebar-section-chevron"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    <span className="nav-icon" aria-hidden="true">
-                      {Icon ? <Icon /> : null}
-                    </span>
-                    {label}
-                    {showBadge && <span className="nav-badge">{alarmsCount}</span>}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div
+                  id={safeId}
+                  className="sidebar-section-items"
+                  role="region"
+                >
+                  {items.map((item) => {
+                    const Icon = ICON_COMPONENTS[item.nav.iconKey];
+                    const to = buildLink(item);
+                    const showBadge = item.nav.badge === 'alarms' && alarmsCount > 0;
+                    const label = t(item.nav.labelKey);
+                    return (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={!!item.index}
+                        aria-label={label}
+                        tabIndex={isCollapsed ? -1 : 0}
+                      >
+                        <span className="nav-icon" aria-hidden="true">
+                          {Icon ? <Icon /> : null}
+                        </span>
+                        {label}
+                        {showBadge && <span className="nav-badge">{alarmsCount}</span>}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">

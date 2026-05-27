@@ -335,6 +335,13 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_healthy
+      # Sprint 7 (chatbot IA): Ollama e' opcional (profile `ai`). Quando o
+      # profile esta ativo, esperar pelo healthcheck evita 503 inicial nas
+      # chamadas a /api/v1/ai/*. Quando inativo, o Compose ignora este
+      # depends_on (o servico nao existe no projecto).
+      ollama:
+        condition: service_healthy
+        required: false
     networks:
       - dw_net
       - etl_net

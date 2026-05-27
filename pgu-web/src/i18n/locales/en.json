@@ -81,7 +81,9 @@
     "gtfs": "GTFS",
     "audit": "Logs",
     "settings": "Settings",
-    "account": "My Account"
+    "account": "My Account",
+    "chatbot": "AI Chatbot",
+    "aiMonitoring": "AI Monitoring"
   },
   "sections": {
     "main": "Main",

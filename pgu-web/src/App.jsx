@@ -116,14 +116,18 @@ export default function App() {
             if (route.children) {
               return (
                 <Route key={route.path} path={route.path} element={buildLayoutElement(route)}>
-                  {route.children.map((child) => (
-                    <Route
-                      key={child.path ?? 'index'}
-                      index={child.index || undefined}
-                      path={child.path}
-                      element={buildChildElement(child)}
-                    />
-                  ))}
+                  {route.children
+                    // Sprint 7: ghost entries (sidebarOnly) populam apenas o
+                    // sidebar via Layout.jsx. Nao criam Route.
+                    .filter((child) => !child.sidebarOnly)
+                    .map((child) => (
+                      <Route
+                        key={child.path ?? 'index'}
+                        index={child.index || undefined}
+                        path={child.path}
+                        element={buildChildElement(child)}
+                      />
+                    ))}
                 </Route>
               );
             }

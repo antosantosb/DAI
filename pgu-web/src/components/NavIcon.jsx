@@ -135,6 +135,25 @@ export const IconAlarm = () => (
   </svg>
 );
 
+// Sprint 7 (chatbot IA, integrado via cherry-pick): icones para Chatbot
+// e AI Monitoring. Chatbot = chat bubble com estrelinha (sparkle = IA);
+// AiMonitoring = gauge com seta de progresso.
+export const IconChatbot = () => (
+  <svg {...common} aria-hidden="true">
+    <path d="M21 12a9 9 0 0 1-9 9 9.74 9.74 0 0 1-4-.85L3 21l.85-5A8.99 8.99 0 0 1 3 12a9 9 0 1 1 18 0z" />
+    <path d="M12 8.5l.9 1.8 1.8.9-1.8.9L12 14l-.9-1.8L9.3 11.2l1.8-.9z" />
+  </svg>
+);
+
+export const IconAiMonitoring = () => (
+  <svg {...common} aria-hidden="true">
+    <path d="M3 12a9 9 0 1 1 18 0" />
+    <path d="M12 12l4-4" />
+    <circle cx="12" cy="12" r="1.5" />
+    <path d="M6 16.5h12" />
+  </svg>
+);
+
 // Sprint 0 (F1): icone para Parametros, substitui o emoji ⚙️ que estava
 // no Layout original (em conflito com a regra no-emoji-icons).
 export const IconSettings = () => (

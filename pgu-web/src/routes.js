@@ -30,6 +30,15 @@ export const routes = [
     access: ['motorista'],
     layout: 'none',
   },
+  // Sprint 7 (chatbot IA): rota standalone, sem sidebar. UX de chat ocupa
+  // o ecra inteiro. A entrada no sidebar e' uma "ghost entry" em
+  // /backoffice children com sidebarOnly+to, que aponta aqui.
+  {
+    path: '/chatbot',
+    loader: () => import('./pages/Chatbot'),
+    access: ['admin', 'funcionario'],
+    layout: 'none',
+  },
   {
     path: '/403',
     loader: () => import('./pages/Forbidden'),
@@ -113,11 +122,14 @@ export const routes = [
         loader: () => import('./pages/AuditLogs'),
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.audit', iconKey: 'IconAudit' },
       },
-      // Chatbot IA (Rúben): assistente conversacional + dashboard de monitorizacao
+      // Chatbot IA (Rúben): assistente conversacional + dashboard de monitorizacao.
+      // Sprint 7: o chatbot e' uma rota standalone (/chatbot) para ter chat
+      // em ecra inteiro sem sidebar. Esta entrada serve apenas para popular o
+      // sidebar. `sidebarOnly: true` faz App.jsx pular a criacao de Route, e
+      // `nav.to` redireciona o NavLink para a rota standalone.
       {
-        path: 'chatbot',
-        loader: () => import('./pages/Chatbot'),
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.chatbot', iconKey: 'IconChatbot' },
+        sidebarOnly: true,
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.chatbot', iconKey: 'IconChatbot', to: '/chatbot' },
       },
       {
         path: 'ai-monitoring',

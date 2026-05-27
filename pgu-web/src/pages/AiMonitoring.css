@@ -1,0 +1,174 @@
+/* Sprint 7 (chatbot IA): dashboard de monitorizacao. KPIs + tabelas.
+ * Tokens var(--color-*) para suporte automatico de dark theme.
+ */
+
+.ai-monitoring {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.ai-monitoring h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  letter-spacing: -0.02em;
+}
+
+.ai-monitoring h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+/* ---- KPI grid ---- */
+.ai-monitoring .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.ai-monitoring .kpi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.ai-monitoring .kpi:hover {
+  border-color: var(--color-border-medium);
+  box-shadow: var(--shadow-sm);
+}
+.ai-monitoring .kpi span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.ai-monitoring .kpi strong {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Tables ---- */
+.ai-monitoring-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-xs);
+}
+
+.ai-monitoring table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ai-monitoring thead th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+}
+.ai-monitoring tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+.ai-monitoring tbody tr:last-child td {
+  border-bottom: none;
+}
+.ai-monitoring tbody tr:hover {
+  background: var(--color-bg-subtle);
+}
+
+/* tabular numbers em latencia */
+.ai-monitoring td:nth-last-child(2) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Status badges ---- */
+.ai-monitoring .status-success,
+.ai-monitoring .status-ok {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-success-light);
+  color: var(--color-success-hover);
+}
+[data-theme="dark"] .ai-monitoring .status-success,
+[data-theme="dark"] .ai-monitoring .status-ok {
+  color: var(--color-success);
+}
+
+.ai-monitoring .status-error,
+.ai-monitoring .status-failure,
+.ai-monitoring .status-rejected {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-danger-light);
+  color: var(--color-danger-hover);
+}
+[data-theme="dark"] .ai-monitoring .status-error,
+[data-theme="dark"] .ai-monitoring .status-failure,
+[data-theme="dark"] .ai-monitoring .status-rejected {
+  color: var(--color-danger);
+}
+
+.ai-monitoring .status-pending,
+.ai-monitoring .status-timeout {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-warning-light);
+  color: var(--color-warning-hover);
+}
+[data-theme="dark"] .ai-monitoring .status-pending,
+[data-theme="dark"] .ai-monitoring .status-timeout {
+  color: var(--color-warning);
+}
+
+/* ---- Loading state ---- */
+.ai-monitoring-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 720px) {
+  .ai-monitoring { padding: 16px; }
+  .ai-monitoring .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ai-monitoring-section {
+    overflow-x: auto;
+  }
+}

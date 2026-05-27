@@ -37,6 +37,26 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+			<!-- Sprint 7 (chatbot IA): Spring Boot 4 BOM traz swagger-annotations
+			     2.2.x antigo, mas o springdoc 2.8.13 (declarado abaixo) usa o metodo
+			     Parameter.validationGroups() introduzido em 2.2.20. Sem este override
+			     o backend arranca e estoira com NoSuchMethodError no primeiro hit
+			     a um @Operation. Forcamos 2.2.30 (alinhado com springdoc 2.8.x). -->
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations</artifactId>
+				<version>2.2.30</version>
+			</dependency>
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations-jakarta</artifactId>
+				<version>2.2.30</version>
+			</dependency>
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-models-jakarta</artifactId>
+				<version>2.2.30</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -140,11 +160,8 @@
 			<artifactId>org.eclipse.paho.client.mqttv3</artifactId>
 			<version>1.2.5</version>
 		</dependency>
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.5.0</version>
-		</dependency>
+		<!-- springdoc-openapi: ver declaracao 2.8.13 mais abaixo (Sprint -1
+		     override para compatibilidade com Spring Boot 4 / Spring 7). -->
 
 		<!-- Devtools and Tests -->
 		<dependency>

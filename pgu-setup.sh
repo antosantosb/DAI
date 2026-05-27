@@ -7,7 +7,8 @@
 #    PROD:   DOMAIN no .env    → SSL, nginx proxy, passwords seguras
 #
 #  Uso:
-#    bash pgu-setup.sh              Setup completo
+#    bash pgu-setup.sh              Setup completo (com chatbot IA)
+#    bash pgu-setup.sh --no-ai      Setup sem Ollama (poupa ~5GB RAM)
 #    bash pgu-setup.sh rebuild      Rebuild sem cache
 #    bash pgu-setup.sh restart      Reiniciar containers
 #    bash pgu-setup.sh down         Parar tudo
@@ -42,8 +43,31 @@ divider()   { echo -e "  ${DIM}$(printf '%.0s─' $(seq 1 54))${NC}"; }
 
 cd "$(dirname "$0")"
 PROJECT_DIR="$(pwd)"
-CMD="${1:-setup}"
+# Aceitar flags como primeiro argumento (ex: `bash pgu-setup.sh --no-ai`)
+# sem que sejam interpretadas como sub-comandos desconhecidos.
+if [[ "${1:-}" =~ ^-- ]]; then
+    CMD="setup"
+else
+    CMD="${1:-setup}"
+fi
 SECONDS=0
+
+# Sprint 7 (chatbot IA): activar o profile `ai` por defeito para arrancar
+# Ollama (LLM local) + ollama-init (pull do modelo). Para desativar, exportar
+# DISABLE_AI=true ou passar `--no-ai`. Sem isto, o chatbot devolve erro
+# (`Recurso nao encontrado`) porque o container Ollama nem sequer existe.
+ENABLE_AI=true
+for arg in "$@"; do
+    if [ "$arg" = "--no-ai" ]; then
+        ENABLE_AI=false
+    fi
+done
+if [ "${DISABLE_AI:-}" = "true" ]; then
+    ENABLE_AI=false
+fi
+if [ "$ENABLE_AI" = "true" ]; then
+    export COMPOSE_PROFILES="${COMPOSE_PROFILES:-ai}"
+fi
 
 # ─── Detecção de Ambiente ────────────────────────────────────────────
 detect_env() {
@@ -115,6 +139,23 @@ case "$CMD" in
         echo ""
         exit 0
         ;;
+    ai-pull)
+        # Sprint 7 (chatbot IA): puxar modelo manualmente se o auto-pull
+        # do setup falhou (rede, espaco em disco) ou se queres trocar de modelo.
+        OLLAMA_MODEL_NAME="${OLLAMA_MODEL:-${2:-gemma2:2b-instruct-q4_K_M}}"
+        echo ""
+        header "Pull manual do modelo Ollama"
+        if ! docker ps --format '{{.Names}}' | grep -q '^ollama$'; then
+            step_fail "Container ollama nao esta a correr"
+            step_info "Corre primeiro: bash pgu-setup.sh setup"
+            exit 1
+        fi
+        step_info "A puxar ${OLLAMA_MODEL_NAME} (pode demorar uns minutos)..."
+        docker exec -it ollama ollama pull "$OLLAMA_MODEL_NAME"
+        step_ok "Pull concluido"
+        echo ""
+        exit 0
+        ;;
     nuke)
         echo ""
         echo -e "  ${RED}${BOLD}ATENCAO${NC}  Isto apaga TODOS os volumes (BD, Keycloak, NiFi, etc.)!"
@@ -138,12 +179,14 @@ case "$CMD" in
         echo "  Uso: bash pgu-setup.sh [comando]"
         echo ""
         echo "  Comandos:"
-        echo "    setup     Setup completo (default)"
+        echo "    setup     Setup completo (default, com chatbot IA)"
+        echo "    --no-ai   Setup sem Ollama (passar como flag ao setup)"
         echo "    rebuild   Rebuild sem cache"
         echo "    restart   Reiniciar containers"
         echo "    down      Parar tudo"
         echo "    logs      Ver logs (ex: logs keycloak)"
         echo "    status    Estado dos containers"
+        echo "    ai-pull   Puxar modelo Ollama (ex: ai-pull gemma2:2b)"
         echo "    nuke      Reset total (apaga dados!)"
         echo ""
         exit 1
@@ -421,6 +464,46 @@ else
     NIFI_URL="https://nifi:8443"
 fi
 
+# Sprint 7 (chatbot IA): aguardar Ollama + verificar que o modelo Gemma esta
+# pulled. Sem o modelo, qualquer chamada ao /api/v1/ai/chat falha com timeout
+# ou erro generico. Ollama nao expoe porta ao host (seguranca), por isso
+# usamos docker exec para detectar prontidao.
+if [ "$ENABLE_AI" = "true" ]; then
+    OLLAMA_MODEL_DEFAULT="gemma2:2b-instruct-q4_K_M"
+    OLLAMA_MODEL_NAME="${OLLAMA_MODEL:-$OLLAMA_MODEL_DEFAULT}"
+
+    printf "  ${DIM}⏳${NC}  %-20s " "Ollama"
+    elapsed=0
+    max_wait=120
+    while ! docker exec ollama ollama list > /dev/null 2>&1; do
+        sleep 3
+        elapsed=$((elapsed + 3))
+        printf "${DIM}.${NC}"
+        if [ $elapsed -ge $max_wait ]; then
+            echo ""
+            step_warn "Ollama nao respondeu em ${max_wait}s — chatbot ficara indisponivel"
+            break
+        fi
+    done
+    if [ $elapsed -lt $max_wait ]; then
+        printf "\r  ${TICK}  %-20s ${DIM}pronto (${elapsed}s)${NC}\n" "Ollama"
+
+        # Verificar se o modelo ja existe no volume; se nao, fazer pull.
+        if docker exec ollama ollama list 2>/dev/null | grep -q "${OLLAMA_MODEL_NAME%%:*}"; then
+            step_ok "Ollama: modelo ${OLLAMA_MODEL_NAME} ja presente"
+        else
+            step_info "Ollama: a fazer pull de ${OLLAMA_MODEL_NAME} (~1.5GB, pode demorar)..."
+            if docker exec ollama ollama pull "$OLLAMA_MODEL_NAME" > /dev/null 2>&1; then
+                step_ok "Ollama: modelo ${OLLAMA_MODEL_NAME} pulled"
+            else
+                step_warn "Ollama: falha no pull — corre 'docker exec ollama ollama pull ${OLLAMA_MODEL_NAME}' manualmente"
+            fi
+        fi
+    fi
+else
+    step_skip "Ollama (chatbot IA) desativado — usa 'bash pgu-setup.sh setup' sem --no-ai para o iniciar"
+fi
+
 # ──────────────────────────────────────────────────────────────────────
 # STEP 6 — Auto-configuração NiFi
 # ──────────────────────────────────────────────────────────────────────
@@ -621,6 +704,11 @@ if [ "$ENV_MODE" = "local" ]; then
     echo -e "  ${CYAN}Keycloak${NC}           http://localhost:8080/auth/"
     echo -e "  ${CYAN}NiFi${NC}               https://localhost:8443/nifi/"
     echo -e "  ${CYAN}Metabase${NC}           http://localhost:3000"
+    if [ "$ENABLE_AI" = "true" ]; then
+        echo -e "  ${CYAN}Chatbot (IA)${NC}       http://localhost:5173/chatbot ${DIM}(Ollama interno)${NC}"
+    else
+        echo -e "  ${DIM}Chatbot (IA)${NC}       ${DIM}desativado (--no-ai)${NC}"
+    fi
     echo ""
     divider
     echo -e "  ${BOLD}Credenciais — Backoffice (realm pgu-realm)${NC}"

@@ -45,7 +45,7 @@ public class AiChatController {
     }
 
     @PostMapping("/chat")
-    @PreAuthorize("hasAnyRole('admin', 'operador')")
+    @PreAuthorize("hasAnyRole('admin', 'funcionario')")
     @LogActivity(action = "Interagir com IA")
     public ResponseEntity<ChatResponse> chat(
             @Valid @RequestBody ChatRequest request,
@@ -72,7 +72,7 @@ public class AiChatController {
     }
 
     @GetMapping("/status")
-    @PreAuthorize("hasAnyRole('admin', 'operador')")
+    @PreAuthorize("hasAnyRole('admin', 'funcionario')")
     public ResponseEntity<StatusResponse> status() {
         return ResponseEntity.ok(new StatusResponse(aiEnabled, modelName, "on-premises"));
     }
