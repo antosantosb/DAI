@@ -41,7 +41,8 @@ export default function GtfsManager() {
     REVERTED: { label: t('pages.gtfs.stReverted'), cls: 'gtfs-badge--reverted', icon: UndoIcon },
   };
   const { hasRole } = useAuth();
-  const isAdmin = hasRole('admin');
+  // Sprint 1 follow-up: dev tem os mesmos privilégios de gestão que admin.
+  const isAdmin = hasRole('admin') || hasRole('developer');
   const [activeTab, setActiveTab] = useState('upload');
   const [imports, setImports] = useState([]);
   const [config, setConfig] = useState(null);

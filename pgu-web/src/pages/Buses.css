@@ -311,3 +311,6 @@
   background: var(--color-bg);
   flex-wrap: wrap;
 }
+
+/* Sprint 1 follow-up: bulk-bar styles foram movidos para App.css
+ * (componente partilhado entre Buses, Users e outras paginas). */

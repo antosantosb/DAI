@@ -553,3 +553,113 @@
   border-color: var(--color-primary-hover);
   color: #fff;
 }
+
+/* ========== BULK ACTION BAR ========== */
+/* Sprint 1 follow-up: barra de accoes em lote partilhada por Buses/Users.
+ * Aparece quando ha pelo menos um item seleccionado. */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  flex-wrap: wrap;
+}
+.bulk-bar--visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.bulk-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* Contador como "pill" primary, mais polido e claro */
+.bulk-bar-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  letter-spacing: 0.01em;
+}
+.bulk-bar-link {
+  background: transparent !important;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  transition: color var(--transition);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+.bulk-bar-link:hover:not(:disabled) {
+  color: var(--color-primary);
+  text-decoration-color: var(--color-primary);
+}
+.bulk-bar-link:focus-visible {
+  color: var(--color-primary);
+  text-decoration-color: var(--color-primary);
+}
+.bulk-bar-link:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.bulk-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Botoes dentro da bulk-bar: mais finos e proporcionais. */
+.bulk-bar .btn-sm {
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* ========== INLINE LINK ==========
+ * Sprint 1 follow-up: pequeno link inline com chevron animado no hover.
+ * Substitui "Texto →" (underline + arrow unicode) por algo polido. */
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.inline-link svg {
+  transition: transform var(--transition);
+}
+.inline-link:hover {
+  color: var(--color-primary-hover);
+}
+.inline-link:hover svg {
+  transform: translateX(3px);
+}
+.inline-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}

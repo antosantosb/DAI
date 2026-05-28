@@ -185,6 +185,10 @@ export default function GlobalToastListener() {
         });
 
         // ─── Ocorrências ───
+        // Sprint 1 follow-up: autoClose 20s. Antes era `false` -> toast
+        // ficava na tela ate o user fechar manualmente. 20s da tempo para
+        // ler + clicar "ver", mas nao ocupa o ecra indefinidamente. O badge
+        // de alarmes na sidebar continua a contar ABERTAS persistente.
         stompClient.subscribe('/topic/alertas', (message) => {
           if (!message.body) return;
           try {
@@ -198,7 +202,12 @@ export default function GlobalToastListener() {
                     {t('toasts.alertViewLink')}
                   </a>
                 </div>,
-                { autoClose: false, closeOnClick: false, toastId: `alerta-${o.id}` }
+                {
+                  autoClose: 20000,
+                  closeOnClick: false,
+                  closeButton: true,
+                  toastId: `alerta-${o.id}`,
+                }
               );
             }
           } catch (e) { /* ignore */ }
@@ -242,11 +251,16 @@ export default function GlobalToastListener() {
         });
 
         // ─── Escalada ───
+        // Sprint 1 follow-up: autoClose 15s (era `false` -> ficava
+        // indefinidamente na tela). Critico merece tempo de leitura maior
+        // que o default (5s) mas nao eterno. Close button continua visivel
+        // para fechar mais cedo.
         stompClient.subscribe('/topic/alertas-escalada', (message) => {
           if (!message.body) return;
           try {
             toast.warn(t('toasts.escalation'), {
-              autoClose: false,
+              autoClose: 15000,
+              closeButton: true,
               toastId: `esc-${Date.now()}`,
             });
           } catch (e) { /* ignore */ }

@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dai.tub.pgu.domain.Bus;
+import dai.tub.pgu.domain.Driver;
 import dai.tub.pgu.domain.Route;
 import dai.tub.pgu.dto.BusDTO;
 import dai.tub.pgu.repository.BusRepository;
 import dai.tub.pgu.repository.DriverBusAssignmentRepository;
+import dai.tub.pgu.repository.DriverRepository;
 import dai.tub.pgu.repository.RouteRepository;
 
 @Service
@@ -19,13 +22,16 @@ public class BusService
     private final BusRepository busRepository;
     private final RouteRepository routeRepository;
     private final DriverBusAssignmentRepository assignmentRepository;
+    private final DriverRepository driverRepository;
 
     public BusService(BusRepository busRepository, RouteRepository routeRepository,
-                      DriverBusAssignmentRepository assignmentRepository)
+                      DriverBusAssignmentRepository assignmentRepository,
+                      DriverRepository driverRepository)
     {
         this.busRepository = busRepository;
         this.routeRepository = routeRepository;
         this.assignmentRepository = assignmentRepository;
+        this.driverRepository = driverRepository;
     }
 
     public List<BusDTO> getAll()
@@ -137,8 +143,29 @@ public class BusService
              + "-" + letters.charAt(rng.nextInt(26)) + letters.charAt(rng.nextInt(26));
     }
 
+    /**
+     * Apaga um autocarro. Antes do delete, desativa qualquer assignment
+     * activa para evitar deixar o motorista "agarrado" a um bus fantasma.
+     *
+     * <p>Sprint 1 follow-up: sem isto, ao descomissionar um autocarro que
+     * tinha motorista assigned, o driver continuava com status ON_DUTY e a
+     * tabela `driver_assignments` ficava com uma linha activa que apontava
+     * para um bus.id inexistente (a UI mostrava "M-008 / On duty" sem o
+     * autocarro existir).
+     */
+    @Transactional
     public void delete(Long id)
     {
+        assignmentRepository.findByBusIdAndActiveTrue(id)
+            .ifPresent(assignment -> {
+                Driver driver = assignment.getDriver();
+                if (driver != null) {
+                    driver.setStatus("AVAILABLE");
+                    driverRepository.save(driver);
+                }
+                assignment.deactivate();
+                assignmentRepository.save(assignment);
+            });
         busRepository.deleteById(id);
     }
 

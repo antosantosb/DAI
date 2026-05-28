@@ -45,7 +45,7 @@ public class AiChatController {
     }
 
     @PostMapping("/chat")
-    @PreAuthorize("hasAnyRole('admin', 'funcionario')")
+    @PreAuthorize("hasAnyRole('admin', 'funcionario', 'developer')")
     @LogActivity(action = "Interagir com IA")
     public ResponseEntity<ChatResponse> chat(
             @Valid @RequestBody ChatRequest request,
@@ -72,13 +72,13 @@ public class AiChatController {
     }
 
     @GetMapping("/status")
-    @PreAuthorize("hasAnyRole('admin', 'funcionario')")
+    @PreAuthorize("hasAnyRole('admin', 'funcionario', 'developer')")
     public ResponseEntity<StatusResponse> status() {
         return ResponseEntity.ok(new StatusResponse(aiEnabled, modelName, "on-premises"));
     }
 
     @GetMapping("/monitoring/stats")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin', 'developer')")
     public ResponseEntity<MonitoringStats> stats() {
         long interactionsLast24h = chatService.countInteractionsLast24h();
         double avgLatencyLast24h = chatService.averageLatencyLast24h();
@@ -88,7 +88,7 @@ public class AiChatController {
     }
 
     @GetMapping("/monitoring/logs")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin', 'developer')")
     public Page<AiInteractionLog> logs(Pageable pageable) {
         return logRepo.findAll(pageable);
     }

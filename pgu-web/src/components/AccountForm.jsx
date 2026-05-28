@@ -34,6 +34,10 @@ export default function AccountForm({
   // referencias historicas (audit_log, drivers, exports, etc.) e o token JWT
   // emitido pelo Keycloak continua a apontar ao username antigo ate refresh.
   const isAdmin = hasRole('admin');
+  // Sprint 1 follow-up: dev tambem nao pode editar perfil (nome/username/email).
+  // Conta de sistema — so' password e' editavel.
+  const isDeveloper = hasRole('developer');
+  const isProtected = isAdmin || isDeveloper;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
@@ -152,7 +156,7 @@ export default function AccountForm({
         email: email.trim(),
       };
       // Admin nao pode mudar o proprio username; nao incluir no payload.
-      if (!isAdmin) patch.username = username.trim();
+      if (!isProtected) patch.username = username.trim();
       await onSaveProfile(patch);
     } finally {
       setSavingProfile(false);
@@ -244,6 +248,9 @@ export default function AccountForm({
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               autoComplete="given-name"
+              disabled={isProtected}
+              readOnly={isProtected}
+              title={isProtected ? t('pages.minhaConta.profileLocked') : undefined}
             />
           </label>
           <label className="account-field">
@@ -253,6 +260,9 @@ export default function AccountForm({
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               autoComplete="family-name"
+              disabled={isProtected}
+              readOnly={isProtected}
+              title={isProtected ? t('pages.minhaConta.profileLocked') : undefined}
             />
           </label>
           <label className="account-field">
@@ -262,15 +272,10 @@ export default function AccountForm({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
-              disabled={isAdmin}
-              readOnly={isAdmin}
-              title={isAdmin ? t('pages.minhaConta.usernameAdminLocked') : undefined}
+              disabled={isProtected}
+              readOnly={isProtected}
+              title={isProtected ? t('pages.minhaConta.profileLocked') : undefined}
             />
-            {isAdmin && (
-              <small className="account-field-hint">
-                {t('pages.minhaConta.usernameAdminLocked')}
-              </small>
-            )}
           </label>
           <label className="account-field">
             <span>{t('pages.minhaConta.email')}</span>
@@ -279,19 +284,35 @@ export default function AccountForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              disabled={isProtected}
+              readOnly={isProtected}
+              title={isProtected ? t('pages.minhaConta.profileLocked') : undefined}
             />
           </label>
         </div>
 
-        <div className="account-actions">
-          <button
-            type="submit"
-            className="account-btn account-btn--primary"
-            disabled={savingProfile}
-          >
-            {savingProfile ? t('common.loading') : t('pages.minhaConta.saveProfile')}
-          </button>
-        </div>
+        {isProtected && (
+          <div className="account-locked-banner" role="note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>{t('pages.minhaConta.profileLocked')}</span>
+          </div>
+        )}
+
+        {!isProtected && (
+          <div className="account-actions">
+            <button
+              type="submit"
+              className="account-btn account-btn--primary"
+              disabled={savingProfile}
+            >
+              {savingProfile ? t('common.loading') : t('pages.minhaConta.saveProfile')}
+            </button>
+          </div>
+        )}
       </form>
 
       <form className="account-section" onSubmit={handleChangePassword}>

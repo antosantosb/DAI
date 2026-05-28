@@ -59,7 +59,8 @@
     "realm": [
       { "name": "admin", "description": "Full access to backoffice" },
       { "name": "funcionario", "description": "Acesso ao backoffice - operações do dia-a-dia" },
-      { "name": "motorista", "description": "Acesso ao painel de bordo do motorista" }
+      { "name": "motorista", "description": "Acesso ao painel de bordo do motorista" },
+      { "name": "developer", "description": "Acesso a ferramentas de simulação / demo" }
     ]
   },
   "clients": [
@@ -96,6 +97,21 @@
       ],
       "requiredActions": ["UPDATE_PASSWORD", "CONFIGURE_TOTP"],
       "realmRoles": ["admin"]
+    },
+    {
+      "username": "dev",
+      "enabled": true,
+      "email": "dev@tub.local",
+      "firstName": "Dev",
+      "lastName": "Account",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["developer"]
     }
   ]
 }

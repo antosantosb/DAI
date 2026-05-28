@@ -9,7 +9,8 @@ const PAGE_SIZE = 50;
 export default function Stops() {
   const { t } = useTranslation();
   const { hasRole } = useAuth();
-  const isAdmin = hasRole('admin');
+  // Sprint 1 follow-up: dev tem os mesmos privilégios de gestão que admin.
+  const isAdmin = hasRole('admin') || hasRole('developer');
   const [stops, setStops] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', code: '', maxBusesDisplay: 3, panelMessage: '', latitude: '', longitude: '' });

@@ -83,9 +83,11 @@
     "settings": "Parâmetros",
     "account": "Minha Conta",
     "chatbot": "Chatbot IA",
-    "aiMonitoring": "Monitorização IA"
+    "aiMonitoring": "Monitorização IA",
+    "devTools": "Ferramentas Dev"
   },
   "sections": {
+    "dev": "Developer",
     "main": "Principal",
     "operations": "Operações",
     "administration": "Administração",
@@ -115,7 +117,8 @@
     "roles": {
       "admin": "Administrador",
       "funcionario": "Funcionário",
-      "motorista": "Motorista"
+      "motorista": "Motorista",
+      "developer": "Developer"
     },
     "logoutTitle": "Terminar sessão",
     "homeTitle": "Voltar ao início"
@@ -141,7 +144,7 @@
       "criticalBadge": "Crítico",
       "openOcorrencias": "Ocorrências Abertas",
       "criticalAlarms": "Alarmes Críticos",
-      "goToOcorrencias": "Ir para Gestão de Ocorrências →",
+      "goToOcorrencias": "Ir para Gestão de Ocorrências",
       "recentTelemetry": "Telemetria Recente",
       "noTelemetry": "Sem dados de telemetria",
       "trip": "Viagem",
@@ -227,9 +230,29 @@
       "stopConfirmTitle": "Parar {{code}}?",
       "stopConfirmMessage": "O autocarro vai completar a rota atual e parar no extremo. Podes cancelar a paragem a qualquer momento.",
       "stopConfirmAction": "Parar Autocarro",
+      "driverMissing": "Sem motorista atribuído.",
+      "assignInDrivers": "Atribuir em Motoristas",
       "decommissionConfirmTitle": "Descomissionar {{code}}?",
       "decommissionConfirmMessage": "O autocarro será permanentemente removido do sistema. Esta ação não pode ser revertida.",
       "decommissionConfirmAction": "Descomissionar",
+      "bulkEnter": "Selecionar",
+      "bulkExit": "Sair da selecção",
+      "bulkSelected": "{{count}} selecionado(s)",
+      "bulkSelectVisible": "Selecionar todos ({{count}})",
+      "bulkClear": "Limpar selecção",
+      "bulkStart": "Iniciar",
+      "bulkStop": "Parar",
+      "bulkDecommission": "Descomissionar",
+      "bulkNoEligibleTitle": "Sem autocarros elegíveis",
+      "bulkStartNoEligible": "Nenhum dos autocarros selecionados pode ser iniciado (já estão em serviço).",
+      "bulkStopNoEligible": "Nenhum dos autocarros selecionados está em serviço.",
+      "bulkDecommissionBlocked": "{{count}} autocarro(s) selecionados estão em serviço. Pare todos antes de descomissionar.",
+      "bulkDecommissionTitle": "Descomissionar {{count}} autocarros?",
+      "bulkDecommissionMessage": "{{count}} autocarros serão permanentemente removidos do sistema. Esta ação não pode ser revertida.",
+      "bulkStartSuccess": "{{count}} autocarro(s) colocados em serviço.",
+      "bulkStopSuccess": "{{count}} autocarro(s) marcados como a parar.",
+      "bulkDecommissionSuccess": "{{count}} autocarro(s) descomissionados.",
+      "bulkPartial": "{{ok}} concluído(s), {{ko}} falhou(aram). Verifica a consola.",
       "liveStatusStopped": "Parado",
       "liveStatusStoppingAtStop": "A Parar — Em Paragem",
       "liveStatusStopping": "A Parar",
@@ -338,7 +361,7 @@
       "noBusesAtAll": "Sem autocarros registados",
       "notFound": "Nenhum motorista encontrado",
       "noDriversRegistered": "Sem motoristas registados.",
-      "createInUsersLink": "Criar em Utilizadores →",
+      "createInUsersLink": "Criar em Utilizadores",
       "loadingDrivers": "A carregar motoristas...",
       "statusOnDuty": "Em serviço",
       "statusAvailable": "Disponível",
@@ -355,7 +378,9 @@
       "unassignFailed": "Desatribuição falhou",
       "batchGenerate": "Gerar Motoristas em Batch",
       "batchTitle": "Gerar Motoristas em Batch",
-      "batchDescription": "Cria N motoristas com dados aleatórios. Cada um terá de mudar a password no primeiro login.",
+      "batchDescription": "Cria N motoristas com nomes portugueses aleatórios. Conta pronta a usar logo após criação.",
+      "batchPasswordHintTitle": "Password (modo demo):",
+      "batchPasswordHintBody": "todos os motoristas gerados têm a password \"motorista123\". Em produção esta funcionalidade fica restrita à conta developer.",
       "batchQuantity": "Quantidade (1-50)",
       "batchCreating": "A criar...",
       "batchCreateLabel": "Criar {{count}} Motoristas",
@@ -442,6 +467,7 @@
         "user": "Utilizador",
         "email": "Email",
         "role": "Role",
+        "assignment": "Atribuição",
         "state": "Estado",
         "created": "Criado",
         "actions": "Ações"
@@ -451,6 +477,32 @@
       "roleFuncionario": "Funcionário",
       "roleDriver": "Motorista",
       "roleNone": "Sem role",
+      "roleFilterAll": "Qualquer",
+      "filterStateLabel": "Estado:",
+      "filterRoleLabel": "Role:",
+      "protectedAccount": "Conta protegida",
+      "ariaFilterByRole": "Filtrar por role",
+      "ariaSelectAll": "Selecionar todos",
+      "ariaSelectRow": "Selecionar {{username}}",
+      "dutyOn": "Em serviço",
+      "dutyAvailable": "Disponível",
+      "dutyOffline": "Offline",
+      "bulkSelected": "{{count}} selecionado(s)",
+      "bulkClear": "Limpar selecção",
+      "bulkEnable": "Ativar",
+      "bulkDisable": "Desativar",
+      "bulkDelete": "Eliminar",
+      "bulkDeleteTitle": "Eliminar {{count}} utilizadores?",
+      "bulkDeleteMessage": "Vão ser eliminados {{count}} utilizadores. Esta ação não pode ser revertida.",
+      "bulkDeleteConfirm": "Eliminar",
+      "bulkNoEligibleTitle": "Sem utilizadores elegíveis",
+      "bulkEnableNoEligible": "Nenhum dos utilizadores selecionados está desativado.",
+      "bulkDisableNoEligible": "Nenhum dos utilizadores selecionados está ativo.",
+      "bulkDeleteNoEligible": "Nenhum dos utilizadores selecionados pode ser eliminado.",
+      "bulkEnableSuccess": "{{count}} utilizador(es) ativado(s).",
+      "bulkDisableSuccess": "{{count}} utilizador(es) desativado(s).",
+      "bulkDeleteSuccess": "{{count}} utilizador(es) eliminado(s).",
+      "bulkPartial": "{{ok}} concluído(s), {{ko}} falhou(aram). Verifica a consola.",
       "stateActive": "Ativo",
       "stateInactive": "Inativo",
       "btnEdit": "Editar",
@@ -504,7 +556,116 @@
       "state": "Estado",
       "openedAt": "Aberta em",
       "noOcorrencias": "Sem ocorrências",
-      "notFound": "Nenhuma ocorrência encontrada"
+      "notFound": "Nenhuma ocorrência encontrada",
+      "pageTitle": "Gestão de Ocorrências",
+      "pageSubtitle": "Monitore anomalias de sensores e atue em tempo real",
+      "loading": "A carregar ocorrências...",
+      "unassigned": "Não atribuído",
+      "recurrent": "Reincidente",
+      "emptyTable": "Nenhuma ocorrência encontrada para os filtros indicados.",
+      "toasts": {
+        "loadFailed": "Falha a carregar ocorrências",
+        "detailLoadFailed": "Ocorrência não encontrada ou sem permissão",
+        "telemetryFailed": "Falha a obter telemetria das últimas 24h",
+        "assumed": "Ocorrência assumida",
+        "assumedFailed": "Falha a assumir ocorrência",
+        "actionRequired": "Indica a ação corretiva aplicada",
+        "closed": "Ocorrência fechada",
+        "closedFailed": "Falha a fechar ocorrência",
+        "falsePositiveJustifRequired": "Indica a justificação para falso positivo",
+        "falsePositiveClosed": "Ocorrência fechada como falso positivo",
+        "falsePositiveFailed": "Falha a registar falso positivo",
+        "attachTooBig": "Ficheiro excede 20 MB",
+        "attachBadType": "Formato não suportado (apenas JPG, PNG, PDF)",
+        "attachOk": "Anexo enviado",
+        "attachFailed": "Falha ao enviar anexo"
+      },
+      "activeAlarms": {
+        "title": "Alarmes Ativos ({{count}})",
+        "empty": "Sem alarmes ativos em aberto de momento.",
+        "assetPrefix": "Ativo",
+        "openSince": "Aberto há",
+        "openDetail": "Abrir Detalhe"
+      },
+      "filters": {
+        "byState": "Filtro por Estado",
+        "byAsset": "Filtro por Ativo",
+        "all": "Todos",
+        "clear": "Limpar Filtros"
+      },
+      "states": {
+        "aberta": "Aberta",
+        "emCurso": "Em Curso",
+        "resolvida": "Resolvida",
+        "falsoPositivo": "Falso Positivo"
+      },
+      "search": {
+        "busPlaceholder": "Ex: BUS_01"
+      },
+      "headers": {
+        "id": "ID",
+        "asset": "Ativo",
+        "anomalyType": "Tipo Anomalia",
+        "priority": "Prioridade",
+        "state": "Estado",
+        "openedAt": "Timestamp Abertura",
+        "responsible": "Responsável",
+        "notes": "Notas"
+      },
+      "pagination": {
+        "showing": "A mostrar {{shown}} de {{total}} ocorrências",
+        "previous": "Anterior",
+        "next": "Seguinte",
+        "pageOf": "Página {{current}} de {{total}}"
+      },
+      "detail": {
+        "headerPrefix": "Ocorrência",
+        "assetLabel": "Ativo",
+        "anomalyTypeLabel": "Tipo Anomalia",
+        "priorityLabel": "Prioridade",
+        "stateLabel": "Estado",
+        "descriptionLabel": "Descrição",
+        "snapshotLabel": "Snapshot de Telemetria",
+        "correctiveAction": "Ação Corretiva",
+        "falsePositiveReason": "Justificação",
+        "noInfo": "Sem informação",
+        "descriptionPlaceholder": "Descreva a ação de intervenção aplicada ou a justificação em caso de falso positivo..."
+      },
+      "telemetry": {
+        "show": "🔍 Ver Telemetria (Últimas 24h)",
+        "hide": "Esconder Telemetria Histórica",
+        "historyTitle": "Histórico de Sensores (Últimas 24h)",
+        "fetching": "A obter dados...",
+        "empty": "Sem dados de telemetria nas últimas 24h."
+      },
+      "chart": {
+        "temp": "Temp (°C)",
+        "speed": "Vel (km/h)",
+        "battery": "Bateria (%)"
+      },
+      "timeline": {
+        "title": "Linha Temporal de Eventos",
+        "created": "Ocorrência Criada",
+        "createdAutoBy": "Criada automaticamente pelo {{actor}}",
+        "assumed": "Assumida pelo Técnico",
+        "responsibleLabel": "Responsável",
+        "closed": "Ocorrência Fechada ({{state}})"
+      },
+      "actions": {
+        "availableTitle": "Ações Disponíveis",
+        "assumeButton": "🤝 Assumir Ocorrência",
+        "resolutionTitle": "Registo de Resolução",
+        "correctiveLabel": "Ação Corretiva Aplicada / Notas",
+        "closeResolved": "✓ Fechar como Resolvida",
+        "falsePositive": "✗ Falso Positivo"
+      },
+      "attach": {
+        "sectionLabel": "Anexos de Suporte (Máx 20MB - JPG/PNG/PDF)",
+        "uploading": "A enviar anexo...",
+        "dropHint": "Arraste um ficheiro ou clique para selecionar",
+        "noAttachments": "Sem anexos associados.",
+        "view": "Ver"
+      }
     },
     "analytics": {
       "title": "Analytics",
@@ -884,7 +1045,9 @@
       "thAction": "Ação",
       "thResource": "Recurso",
       "thState": "Estado",
-      "thError": "Erro",
+      "thDetails": "Detalhes",
+      "viewDetail": "Ver",
+      "detailTitle": "Detalhes do registo de auditoria",
       "stateOk": "OK",
       "stateErr": "Erro",
       "actionMap": {
@@ -943,6 +1106,7 @@
       "passwordsDontMatch": "As passwords não coincidem.",
       "currentPasswordWrong": "Password atual incorreta.",
       "usernameAdminLocked": "O username de admin não pode ser alterado aqui.",
+      "profileLocked": "Conta de sistema. Apenas a password pode ser alterada.",
       "photoSection": "Foto de perfil",
       "photoSectionHint": "Gere a tua foto pessoal",
       "changePhoto": "Alterar foto",
@@ -956,6 +1120,49 @@
     "bordo": {
       "accountButton": "Conta",
       "accountModalTitle": "Minha Conta"
+    },
+    "painelBordo": {
+      "unknownError": "Erro desconhecido",
+      "busNotFound": "Autocarro não encontrado: {{busCode}}",
+      "redirectingLogin": "A redirecionar para login...",
+      "restrictedTitle": "Acesso restrito",
+      "restrictedAccountPrefix": "A conta ",
+      "restrictedAccountSuffix": " não tem permissão de motorista.",
+      "contactAdmin": "Contacte o administrador para atribuir um autocarro.",
+      "logout": "Sair",
+      "loadingPanel": "A carregar painel de bordo...",
+      "noRouteAssigned": "Sem rota atribuída",
+      "route": {
+        "title": "Percurso",
+        "noStops": "Sem paragens definidas"
+      },
+      "tele": {
+        "passengers": "Passageiros",
+        "nextStop": "Prox. Paragem"
+      },
+      "chat": {
+        "title": "Mensagens",
+        "empty": "Sem mensagens",
+        "placeholder": "Escrever mensagem ao despacho...",
+        "send": "Enviar",
+        "dispatchSender": "Despacho"
+      },
+      "incident": {
+        "title": "Alertas",
+        "reportBreakdown": "Reportar Avaria",
+        "reportAccident": "Reportar Acidente",
+        "reportingFemale": "A reportar...",
+        "reportingMale": "A reportar...",
+        "reportedFemale": "Reportada",
+        "reportedMale": "Reportado"
+      },
+      "status": {
+        "active": "Em serviço",
+        "atStop": "Na paragem",
+        "stopping": "A parar",
+        "delayed": "Atrasado",
+        "stopped": "Parado"
+      }
     },
     "globalConfig": {
       "title": "Parâmetros",
@@ -996,12 +1203,58 @@
       "lastChangeBy": " por ",
       "savingShort": "A guardar…",
       "saveChanges": "Guardar alterações"
+    },
+    "devTools": {
+      "title": "Ferramentas Dev",
+      "subtitle": "Simulações e geração de dados para demos. Os endpoints de simulação registam o pedido nos logs mas não alteram o estado real do sistema.",
+      "batchSection": "Geração em batch",
+      "simulateSection": "Simulações em tempo real",
+      "stubBadge": "Stub",
+      "bus": "Autocarro",
+      "selectBus": "Seleciona um autocarro",
+      "simulateDelayCard": {
+        "title": "Simular atraso",
+        "description": "Atraso virtual aplicado ao próximo ciclo de telemetria do autocarro.",
+        "delaySeconds": "Atraso (segundos)",
+        "submit": "Simular atraso",
+        "success": "Atraso simulado submetido.",
+        "error": "Falha ao simular atraso."
+      },
+      "addPaxCard": {
+        "title": "Adicionar passageiros",
+        "description": "Incrementa o número simulado de passageiros para testar a deteção de fraude.",
+        "count": "Quantidade",
+        "submit": "Adicionar passageiros",
+        "success": "Passageiros adicionados (simulação).",
+        "error": "Falha ao adicionar passageiros."
+      },
+      "busBatchCard": {
+        "title": "Gerar autocarros em batch",
+        "description": "Cria N autocarros com matrículas, capacidades e rotas aleatórias. Todos começam parados.",
+        "count": "Quantidade (1-50)",
+        "submit": "Gerar autocarros",
+        "submitting": "A criar...",
+        "success": "{{count}} autocarros criados.",
+        "error": "Falha ao criar autocarros em batch."
+      },
+      "driverBatchCard": {
+        "title": "Gerar motoristas em batch",
+        "description": "Cria N motoristas com nomes portugueses aleatórios.",
+        "count": "Quantidade (1-50)",
+        "submit": "Gerar motoristas",
+        "submitting": "A criar...",
+        "success": "{{count}} motoristas criados.",
+        "error": "Falha ao criar motoristas em batch."
+      }
     }
   },
   "livemap": {
     "title": "TUB Livemap",
     "live": "Live",
     "offline": "Offline",
+    "layersHeader": "Camadas",
+    "layersExpand": "Expandir camadas",
+    "layersCollapse": "Recolher camadas",
     "heatmap": "Heatmap",
     "heatmapOn": "Heatmap de passageiros",
     "heatmapOff": "Desativar heatmap",

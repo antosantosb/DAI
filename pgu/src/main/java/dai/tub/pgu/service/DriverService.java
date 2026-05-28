@@ -87,11 +87,16 @@ public class DriverService {
     @Transactional
     public void deleteByKeycloakUserId(String keycloakUserId) {
         driverRepository.findByKeycloakUserId(keycloakUserId).ifPresent(d -> {
-            // Desativar qualquer assignment ativo antes de eliminar
-            assignmentRepository.findByDriverIdAndActiveTrue(d.getId()).ifPresent(a -> {
-                a.deactivate();
-                assignmentRepository.save(a);
-            });
+            // Sprint 1 follow-up: apagar TODO o historico de assignments antes
+            // de apagar o driver. O FK `fk_assignment_driver` nao tem CASCADE,
+            // pelo que basta uma linha antiga (active=false) para o DELETE do
+            // driver violar a constraint e devolver "Conflito com dados
+            // existentes (ex: duplicado, FK)" no UI.
+            List<DriverBusAssignment> history =
+                    assignmentRepository.findByDriverIdOrderByAssignedAtDesc(d.getId());
+            if (!history.isEmpty()) {
+                assignmentRepository.deleteAll(history);
+            }
             driverRepository.delete(d);
         });
     }

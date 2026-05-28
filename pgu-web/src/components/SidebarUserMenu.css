@@ -1,0 +1,148 @@
+/* Sprint 1 follow-up: widget partilhado, theme-aware via tokens CSS.
+ * Funciona em qualquer sidebar (light ou dark theme do design system).
+ * O Layout do backoffice tem sidebar com gradient hardcoded dark — override
+ * dedicado em Layout.css (selector .sidebar .sb-*).
+ */
+
+.sb-user {
+  position: relative;
+  width: 100%;
+}
+
+.sb-user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--transition);
+}
+.sb-user-trigger:hover {
+  background: var(--color-bg-subtle);
+}
+.sb-user-trigger--open {
+  background: var(--color-bg-subtle);
+}
+.sb-user-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.sb-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.sb-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.sb-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-user-role {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-user-caret {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--color-text-light);
+  transition: transform var(--transition);
+}
+.sb-user-trigger--open .sb-user-caret {
+  transform: rotate(180deg);
+}
+
+/* Popover */
+.sb-user-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 200;
+  animation: sb-user-menu-in 140ms ease-out;
+}
+@keyframes sb-user-menu-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sb-user-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background var(--transition), color var(--transition);
+}
+.sb-user-item svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+  transition: opacity var(--transition);
+}
+.sb-user-item:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.sb-user-item:hover svg {
+  opacity: 1;
+}
+.sb-user-item--danger {
+  color: var(--color-danger);
+}
+.sb-user-item--danger:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger-hover);
+}
+[data-theme="dark"] .sb-user-item--danger:hover {
+  color: var(--color-danger);
+}
+.sb-user-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 8px;
+}

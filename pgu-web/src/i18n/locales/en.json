@@ -83,9 +83,11 @@
     "settings": "Settings",
     "account": "My Account",
     "chatbot": "AI Chatbot",
-    "aiMonitoring": "AI Monitoring"
+    "aiMonitoring": "AI Monitoring",
+    "devTools": "Dev Tools"
   },
   "sections": {
+    "dev": "Developer",
     "main": "Main",
     "operations": "Operations",
     "administration": "Administration",
@@ -115,7 +117,8 @@
     "roles": {
       "admin": "Administrator",
       "funcionario": "Employee",
-      "motorista": "Driver"
+      "motorista": "Driver",
+      "developer": "Developer"
     },
     "logoutTitle": "Sign out",
     "homeTitle": "Back to home"
@@ -141,7 +144,7 @@
       "criticalBadge": "Critical",
       "openOcorrencias": "Open Incidents",
       "criticalAlarms": "Critical Alarms",
-      "goToOcorrencias": "Go to Incident Management →",
+      "goToOcorrencias": "Go to Incident Management",
       "recentTelemetry": "Recent Telemetry",
       "noTelemetry": "No telemetry data",
       "trip": "Trip",
@@ -227,9 +230,29 @@
       "stopConfirmTitle": "Stop {{code}}?",
       "stopConfirmMessage": "The bus will complete the current route and stop at the end. You can cancel the stop at any time.",
       "stopConfirmAction": "Stop Bus",
+      "driverMissing": "No driver assigned.",
+      "assignInDrivers": "Assign in Drivers",
       "decommissionConfirmTitle": "Decommission {{code}}?",
       "decommissionConfirmMessage": "The bus will be permanently removed from the system. This action cannot be reverted.",
       "decommissionConfirmAction": "Decommission",
+      "bulkEnter": "Select",
+      "bulkExit": "Exit selection",
+      "bulkSelected": "{{count}} selected",
+      "bulkSelectVisible": "Select all ({{count}})",
+      "bulkClear": "Clear selection",
+      "bulkStart": "Start",
+      "bulkStop": "Stop",
+      "bulkDecommission": "Decommission",
+      "bulkNoEligibleTitle": "No eligible buses",
+      "bulkStartNoEligible": "None of the selected buses can be started (already in service).",
+      "bulkStopNoEligible": "None of the selected buses are in service.",
+      "bulkDecommissionBlocked": "{{count}} selected bus(es) are still in service. Stop them all before decommissioning.",
+      "bulkDecommissionTitle": "Decommission {{count}} buses?",
+      "bulkDecommissionMessage": "{{count}} buses will be permanently removed from the system. This action cannot be undone.",
+      "bulkStartSuccess": "{{count}} bus(es) put in service.",
+      "bulkStopSuccess": "{{count}} bus(es) marked as stopping.",
+      "bulkDecommissionSuccess": "{{count}} bus(es) decommissioned.",
+      "bulkPartial": "{{ok}} succeeded, {{ko}} failed. Check the console.",
       "liveStatusStopped": "Stopped",
       "liveStatusStoppingAtStop": "Stopping — At Stop",
       "liveStatusStopping": "Stopping",
@@ -338,7 +361,7 @@
       "noBusesAtAll": "No buses registered",
       "notFound": "No drivers found",
       "noDriversRegistered": "No drivers registered.",
-      "createInUsersLink": "Create in Users →",
+      "createInUsersLink": "Create in Users",
       "loadingDrivers": "Loading drivers...",
       "statusOnDuty": "On duty",
       "statusAvailable": "Available",
@@ -355,7 +378,9 @@
       "unassignFailed": "Unassignment failed",
       "batchGenerate": "Generate Drivers in Batch",
       "batchTitle": "Generate Drivers in Batch",
-      "batchDescription": "Creates N drivers with random data. Each must change the password on first login.",
+      "batchDescription": "Creates N drivers with random Portuguese names. Accounts ready to use immediately after creation.",
+      "batchPasswordHintTitle": "Password (demo mode):",
+      "batchPasswordHintBody": "all generated drivers have the password \"motorista123\". In production, this feature is restricted to the developer account.",
       "batchQuantity": "Quantity (1-50)",
       "batchCreating": "Creating...",
       "batchCreateLabel": "Create {{count}} Drivers",
@@ -442,12 +467,39 @@
         "user": "User",
         "email": "Email",
         "role": "Role",
+        "assignment": "Assignment",
         "state": "State",
         "created": "Created",
         "actions": "Actions"
       },
       "roleAdmin": "Admin",
       "roleAdminLong": "Administrator",
+      "roleFilterAll": "Any",
+      "filterStateLabel": "State:",
+      "filterRoleLabel": "Role:",
+      "protectedAccount": "Protected account",
+      "ariaFilterByRole": "Filter by role",
+      "ariaSelectAll": "Select all",
+      "ariaSelectRow": "Select {{username}}",
+      "dutyOn": "On duty",
+      "dutyAvailable": "Available",
+      "dutyOffline": "Offline",
+      "bulkSelected": "{{count}} selected",
+      "bulkClear": "Clear selection",
+      "bulkEnable": "Enable",
+      "bulkDisable": "Disable",
+      "bulkDelete": "Delete",
+      "bulkDeleteTitle": "Delete {{count}} users?",
+      "bulkDeleteMessage": "{{count}} users will be deleted. This action cannot be undone.",
+      "bulkDeleteConfirm": "Delete",
+      "bulkNoEligibleTitle": "No eligible users",
+      "bulkEnableNoEligible": "None of the selected users are disabled.",
+      "bulkDisableNoEligible": "None of the selected users are active.",
+      "bulkDeleteNoEligible": "None of the selected users can be deleted.",
+      "bulkEnableSuccess": "{{count}} user(s) enabled.",
+      "bulkDisableSuccess": "{{count}} user(s) disabled.",
+      "bulkDeleteSuccess": "{{count}} user(s) deleted.",
+      "bulkPartial": "{{ok}} succeeded, {{ko}} failed. Check the console.",
       "roleFuncionario": "Employee",
       "roleDriver": "Driver",
       "roleNone": "No role",
@@ -504,7 +556,116 @@
       "state": "State",
       "openedAt": "Opened at",
       "noOcorrencias": "No incidents",
-      "notFound": "No incidents found"
+      "notFound": "No incidents found",
+      "pageTitle": "Incident Management",
+      "pageSubtitle": "Monitor sensor anomalies and act in real time",
+      "loading": "Loading incidents...",
+      "unassigned": "Unassigned",
+      "recurrent": "Recurrent",
+      "emptyTable": "No incidents found for the selected filters.",
+      "toasts": {
+        "loadFailed": "Failed to load incidents",
+        "detailLoadFailed": "Incident not found or access denied",
+        "telemetryFailed": "Failed to fetch last 24h telemetry",
+        "assumed": "Incident taken",
+        "assumedFailed": "Failed to take incident",
+        "actionRequired": "Please describe the corrective action applied",
+        "closed": "Incident closed",
+        "closedFailed": "Failed to close incident",
+        "falsePositiveJustifRequired": "Please provide the false positive justification",
+        "falsePositiveClosed": "Incident closed as false positive",
+        "falsePositiveFailed": "Failed to register false positive",
+        "attachTooBig": "File exceeds 20 MB",
+        "attachBadType": "Unsupported format (JPG, PNG, PDF only)",
+        "attachOk": "Attachment uploaded",
+        "attachFailed": "Failed to upload attachment"
+      },
+      "activeAlarms": {
+        "title": "Active Alarms ({{count}})",
+        "empty": "No active alarms open at the moment.",
+        "assetPrefix": "Asset",
+        "openSince": "Open for",
+        "openDetail": "Open Detail"
+      },
+      "filters": {
+        "byState": "Filter by State",
+        "byAsset": "Filter by Asset",
+        "all": "All",
+        "clear": "Clear Filters"
+      },
+      "states": {
+        "aberta": "Open",
+        "emCurso": "In Progress",
+        "resolvida": "Resolved",
+        "falsoPositivo": "False Positive"
+      },
+      "search": {
+        "busPlaceholder": "e.g. BUS_01"
+      },
+      "headers": {
+        "id": "ID",
+        "asset": "Asset",
+        "anomalyType": "Anomaly Type",
+        "priority": "Priority",
+        "state": "State",
+        "openedAt": "Opened At",
+        "responsible": "Responsible",
+        "notes": "Notes"
+      },
+      "pagination": {
+        "showing": "Showing {{shown}} of {{total}} incidents",
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {{current}} of {{total}}"
+      },
+      "detail": {
+        "headerPrefix": "Incident",
+        "assetLabel": "Asset",
+        "anomalyTypeLabel": "Anomaly Type",
+        "priorityLabel": "Priority",
+        "stateLabel": "State",
+        "descriptionLabel": "Description",
+        "snapshotLabel": "Telemetry Snapshot",
+        "correctiveAction": "Corrective Action",
+        "falsePositiveReason": "Justification",
+        "noInfo": "No information",
+        "descriptionPlaceholder": "Describe the corrective action applied or the justification in case of false positive..."
+      },
+      "telemetry": {
+        "show": "🔍 View Telemetry (Last 24h)",
+        "hide": "Hide Historical Telemetry",
+        "historyTitle": "Sensor History (Last 24h)",
+        "fetching": "Fetching data...",
+        "empty": "No telemetry data in the last 24h."
+      },
+      "chart": {
+        "temp": "Temp (°C)",
+        "speed": "Speed (km/h)",
+        "battery": "Battery (%)"
+      },
+      "timeline": {
+        "title": "Event Timeline",
+        "created": "Incident Created",
+        "createdAutoBy": "Automatically created by {{actor}}",
+        "assumed": "Taken by Technician",
+        "responsibleLabel": "Responsible",
+        "closed": "Incident Closed ({{state}})"
+      },
+      "actions": {
+        "availableTitle": "Available Actions",
+        "assumeButton": "🤝 Take Incident",
+        "resolutionTitle": "Resolution Record",
+        "correctiveLabel": "Corrective Action Applied / Notes",
+        "closeResolved": "✓ Close as Resolved",
+        "falsePositive": "✗ False Positive"
+      },
+      "attach": {
+        "sectionLabel": "Supporting Attachments (Max 20MB - JPG/PNG/PDF)",
+        "uploading": "Uploading attachment...",
+        "dropHint": "Drag a file or click to select",
+        "noAttachments": "No attachments.",
+        "view": "View"
+      }
     },
     "analytics": {
       "title": "Analytics",
@@ -884,7 +1045,9 @@
       "thAction": "Action",
       "thResource": "Resource",
       "thState": "Status",
-      "thError": "Error",
+      "thDetails": "Details",
+      "viewDetail": "View",
+      "detailTitle": "Audit log entry details",
       "stateOk": "OK",
       "stateErr": "Error",
       "actionMap": {
@@ -943,6 +1106,7 @@
       "passwordsDontMatch": "Passwords do not match.",
       "currentPasswordWrong": "Current password incorrect.",
       "usernameAdminLocked": "Admin username cannot be changed here.",
+      "profileLocked": "System account. Only the password can be changed.",
       "photoSection": "Profile photo",
       "photoSectionHint": "Manage your personal photo",
       "changePhoto": "Change photo",
@@ -956,6 +1120,49 @@
     "bordo": {
       "accountButton": "Account",
       "accountModalTitle": "My Account"
+    },
+    "painelBordo": {
+      "unknownError": "Unknown error",
+      "busNotFound": "Bus not found: {{busCode}}",
+      "redirectingLogin": "Redirecting to login...",
+      "restrictedTitle": "Restricted access",
+      "restrictedAccountPrefix": "The account ",
+      "restrictedAccountSuffix": " does not have driver permission.",
+      "contactAdmin": "Contact the administrator to assign a bus.",
+      "logout": "Log out",
+      "loadingPanel": "Loading driver dashboard...",
+      "noRouteAssigned": "No route assigned",
+      "route": {
+        "title": "Route",
+        "noStops": "No stops defined"
+      },
+      "tele": {
+        "passengers": "Passengers",
+        "nextStop": "Next stop"
+      },
+      "chat": {
+        "title": "Messages",
+        "empty": "No messages",
+        "placeholder": "Write a message to dispatch...",
+        "send": "Send",
+        "dispatchSender": "Dispatch"
+      },
+      "incident": {
+        "title": "Alerts",
+        "reportBreakdown": "Report Breakdown",
+        "reportAccident": "Report Accident",
+        "reportingFemale": "Reporting...",
+        "reportingMale": "Reporting...",
+        "reportedFemale": "Reported",
+        "reportedMale": "Reported"
+      },
+      "status": {
+        "active": "On duty",
+        "atStop": "At stop",
+        "stopping": "Stopping",
+        "delayed": "Delayed",
+        "stopped": "Stopped"
+      }
     },
     "globalConfig": {
       "title": "Settings",
@@ -996,12 +1203,58 @@
       "lastChangeBy": " by ",
       "savingShort": "Saving…",
       "saveChanges": "Save changes"
+    },
+    "devTools": {
+      "title": "Dev Tools",
+      "subtitle": "Simulations and data generation for demos. Simulation endpoints log the request but do not affect real system state.",
+      "batchSection": "Batch generation",
+      "simulateSection": "Real-time simulations",
+      "stubBadge": "Stub",
+      "bus": "Bus",
+      "selectBus": "Select a bus",
+      "simulateDelayCard": {
+        "title": "Simulate delay",
+        "description": "Virtual delay applied to the bus next telemetry cycle.",
+        "delaySeconds": "Delay (seconds)",
+        "submit": "Simulate delay",
+        "success": "Delay simulation submitted.",
+        "error": "Failed to simulate delay."
+      },
+      "addPaxCard": {
+        "title": "Add passengers",
+        "description": "Increment the simulated passenger count to test fraud detection.",
+        "count": "Count",
+        "submit": "Add passengers",
+        "success": "Passengers added (simulation).",
+        "error": "Failed to add passengers."
+      },
+      "busBatchCard": {
+        "title": "Generate buses in batch",
+        "description": "Creates N buses with random license plates, capacities and routes. All start stopped.",
+        "count": "Quantity (1-50)",
+        "submit": "Generate buses",
+        "submitting": "Creating...",
+        "success": "{{count}} buses created.",
+        "error": "Failed to create buses in batch."
+      },
+      "driverBatchCard": {
+        "title": "Generate drivers in batch",
+        "description": "Creates N drivers with random Portuguese names.",
+        "count": "Quantity (1-50)",
+        "submit": "Generate drivers",
+        "submitting": "Creating...",
+        "success": "{{count}} drivers created.",
+        "error": "Failed to create drivers in batch."
+      }
     }
   },
   "livemap": {
     "title": "TUB Livemap",
     "live": "Live",
     "offline": "Offline",
+    "layersHeader": "Layers",
+    "layersExpand": "Expand layers",
+    "layersCollapse": "Collapse layers",
     "heatmap": "Heatmap",
     "heatmapOn": "Passenger heatmap",
     "heatmapOff": "Disable heatmap",

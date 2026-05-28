@@ -1,0 +1,194 @@
+/* Sprint 1 follow-up: Ferramentas Dev / Demo — UI dedicada, agrupada em
+ * secções (geração em batch / simulações em tempo real). */
+
+.dt-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.dt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dt-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+.dt-section-header svg {
+  flex-shrink: 0;
+  color: var(--color-primary);
+  opacity: 0.85;
+}
+.dt-section-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+/* Badge "stub" no header da seccao de simulacoes */
+.dt-section-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-light);
+  color: var(--color-warning-hover);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+[data-theme="dark"] .dt-section-badge { color: var(--color-warning); }
+
+.dt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 18px;
+}
+
+/* ─── Card ─── */
+.dt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.dt-card:hover {
+  border-color: var(--color-border-medium);
+  box-shadow: var(--shadow);
+}
+
+.dt-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.dt-card-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.dt-card-icon--warn {
+  background: var(--color-warning-light);
+  color: var(--color-warning-hover);
+}
+[data-theme="dark"] .dt-card-icon--warn { color: var(--color-warning); }
+.dt-card-icon--danger {
+  background: var(--color-danger-light);
+  color: var(--color-danger-hover);
+}
+[data-theme="dark"] .dt-card-icon--danger { color: var(--color-danger); }
+
+.dt-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.dt-card-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+/* ─── Form ─── */
+.dt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dt-field label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.dt-field input,
+.dt-field select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.dt-field input:focus,
+.dt-field select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Hint pill (password demo, etc.) */
+.dt-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-warning-light);
+  color: var(--color-warning-hover);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.dt-hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+[data-theme="dark"] .dt-hint { color: var(--color-warning); }
+
+/* Botão submit ocupa toda a largura do card */
+.dt-card .btn-primary {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 16px;
+  font-weight: 600;
+}
+
+/* Feedback */
+.dt-msg {
+  margin: 0;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.dt-msg--ok {
+  color: var(--color-success-hover);
+  background: var(--color-success-light);
+}
+[data-theme="dark"] .dt-msg--ok { color: var(--color-success); }
+.dt-msg--err {
+  color: var(--color-danger-hover);
+  background: var(--color-danger-light);
+}
+[data-theme="dark"] .dt-msg--err { color: var(--color-danger); }

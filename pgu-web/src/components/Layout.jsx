@@ -4,7 +4,7 @@
 // Antes: cada NavLink era hardcoded e a filtragem admin-only era um `if`
 // isolado. Agora basta editar `routes.js` para adicionar/remover items.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
@@ -12,7 +12,7 @@ import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
   IconSettings, IconDataSource, IconDriver, IconAccount,
-  IconChatbot, IconAiMonitoring,
+  IconChatbot, IconAiMonitoring, IconDevTools,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -41,10 +41,14 @@ const ICON_COMPONENTS = {
   IconAccount,
   IconChatbot,
   IconAiMonitoring,
+  IconDevTools,
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
-const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.administration', 'sections.personal'];
+// Sprint 1 follow-up: 'sections.dev' fica em primeiro lugar (so' visivel
+// para role developer, com items access:['developer']). Destaca as
+// ferramentas internas de demo sem as misturar com Administracao.
+const SECTION_ORDER = ['sections.dev', 'sections.main', 'sections.operations', 'sections.administration', 'sections.personal'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.
@@ -114,6 +118,26 @@ export default function Layout() {
   const [alarmsCount, setAlarmsCount] = useState(0);
   const [meProfile, setMeProfile] = useState(null);
   const [collapsedSections, setCollapsedSections] = useState(loadCollapsedSections);
+  // Sprint 1 follow-up: dropdown menu do utilizador (substitui botoes inline
+  // de home/logout). Cliclar no card abre — click-outside ou Escape fecham.
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onClick = (e) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setAccountMenuOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountMenuOpen]);
 
   const toggleSection = (sectionKey) => {
     setCollapsedSections((prev) => {
@@ -162,7 +186,12 @@ export default function Layout() {
   );
 
   const isAdmin = roles.includes('admin');
-  const displayRole = isAdmin ? t('auth.roles.admin') : t('auth.roles.funcionario');
+  const isDeveloper = roles.includes('developer');
+  const displayRole = isAdmin
+    ? t('auth.roles.admin')
+    : isDeveloper
+      ? t('auth.roles.developer')
+      : t('auth.roles.funcionario');
   const fullName = meProfile
     ? [meProfile.firstName, meProfile.lastName].filter(Boolean).join(' ').trim()
     : '';
@@ -186,7 +215,7 @@ export default function Layout() {
             return (
               <div
                 key={sectionKey}
-                className={`sidebar-section${isCollapsed ? ' collapsed' : ''}`}
+                className={`sidebar-section${isCollapsed ? ' collapsed' : ''}${sectionKey === 'sections.dev' ? ' sidebar-section--dev' : ''}`}
               >
                 <button
                   type="button"
@@ -243,8 +272,14 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-user">
+        <div className="sidebar-footer" ref={accountMenuRef}>
+          <button
+            type="button"
+            className={`sidebar-footer-user${accountMenuOpen ? ' sidebar-footer-user--open' : ''}`}
+            onClick={() => setAccountMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={accountMenuOpen}
+          >
             <Avatar
               url={meProfile?.avatarUrl}
               name={fullName || username || '?'}
@@ -255,32 +290,62 @@ export default function Layout() {
               <span className="sidebar-footer-name">{username}</span>
               <span className="sidebar-footer-role">{displayRole}</span>
             </div>
-          </div>
-          <div className="sidebar-footer-actions">
-            <button
-              className="sidebar-home"
-              onClick={() => navigate('/')}
-              title={t('auth.homeTitle')}
-              aria-label={t('auth.homeTitle')}
+            <svg
+              className="sidebar-footer-caret"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
-                <path d="M3 10L10 3L17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 8.5V16C5 16.55 5.45 17 6 17H8.5V12.5H11.5V17H14C14.55 17 15 16.55 15 16V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <button
-              className="sidebar-logout"
-              onClick={logout}
-              title={t('auth.logoutTitle')}
-              aria-label={t('auth.logoutTitle')}
-            >
-              <svg viewBox="0 0 20 20" fill="none" width="18" height="18" aria-hidden="true">
-                <path d="M7 17H4C3.45 17 3 16.55 3 16V4C3 3.45 3.45 3 4 3H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <path d="M13 14L17 10L13 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="17" y1="10" x2="7" y2="10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {accountMenuOpen && (
+            <div className="sidebar-account-menu" role="menu">
+              <button
+                role="menuitem"
+                className="sidebar-account-item"
+                onClick={() => { setAccountMenuOpen(false); navigate('/backoffice/conta'); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+                </svg>
+                {t('nav.account')}
+              </button>
+              <button
+                role="menuitem"
+                className="sidebar-account-item"
+                onClick={() => { setAccountMenuOpen(false); navigate('/'); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-5h-2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+                {t('auth.homeTitle')}
+              </button>
+              <div className="sidebar-account-divider" role="separator" />
+              <button
+                role="menuitem"
+                className="sidebar-account-item sidebar-account-item--danger"
+                onClick={() => { setAccountMenuOpen(false); logout(); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                {t('auth.logoutTitle')}
+              </button>
+            </div>
+          )}
+          {/* Sprint 1 follow-up: botoes inline de home/logout substituidos
+              pelo dropdown aberto a partir do user card acima. */}
         </div>
       </aside>
       <main className="main-content">

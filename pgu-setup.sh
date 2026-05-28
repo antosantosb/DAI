@@ -450,7 +450,7 @@ wait_for() {
 }
 
 if [ "$ENV_MODE" = "local" ]; then
-    wait_for "Spring Boot"    "http://localhost:8081/v3/api-docs"   120           || true
+    wait_for "Spring Boot"    "http://localhost:8081/v3/api-docs"   240           || true
     wait_for "Keycloak"       "http://localhost:8080/auth/"         120           || true
     wait_for "NiFi"           "https://localhost:8443/nifi/"        120 insecure  || true
     wait_for "Metabase"       "http://localhost:3000/api/health"     90           || true

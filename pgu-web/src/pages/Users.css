@@ -200,6 +200,17 @@
   border: 1px solid rgba(239, 68, 68, 0.15);
 }
 
+/* Sprint 1 follow-up: developer com tom warning (amarelo) — coerente com
+ * a pilula "DEV" na section dedicada do sidebar. Indica "conta interna". */
+.user-role-badge.user-role--dev {
+  background: rgba(245, 158, 11, 0.10);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.20);
+}
+[data-theme="dark"] .user-role-badge.user-role--dev {
+  color: #fbbf24;
+}
+
 .user-role-badge.user-role--func {
   background: rgba(99, 102, 241, 0.08);
   color: #6366f1;
@@ -588,3 +599,143 @@
     display: none;
   }
 }
+
+/* ─── Sprint 1 follow-up: filtros compactos com labels prefixados ─── */
+.user-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.user-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  margin-right: 4px;
+}
+/* Botoes mais compactos dentro destes grupos */
+.btn-filter--sm {
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  border-radius: var(--radius-pill) !important;
+}
+
+/* ─── Sprint 1 follow-up: bulk select estilo Exports ─── */
+.user-row--selected {
+  background: rgba(99, 102, 241, 0.04) !important;
+}
+[data-theme="dark"] .user-row--selected {
+  background: rgba(129, 140, 248, 0.08) !important;
+}
+
+.user-checkbox-cell {
+  width: 44px;
+  padding: 12px 8px 12px 16px !important;
+}
+.user-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+.user-checkbox-label input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.user-checkbox-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border-medium);
+  border-radius: 4px;
+  background: var(--color-surface);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-checkbox-box::after {
+  content: '';
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.15s ease;
+  clip-path: polygon(20% 55%, 40% 75%, 80% 30%, 85% 35%, 40% 85%, 15% 60%);
+}
+.user-checkbox-label input:checked + .user-checkbox-box {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.user-checkbox-label input:checked + .user-checkbox-box::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.user-checkbox-label input:indeterminate + .user-checkbox-box {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.user-checkbox-label input:indeterminate + .user-checkbox-box::after {
+  opacity: 1;
+  transform: scale(1);
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  clip-path: none;
+}
+.user-checkbox-label input:focus-visible + .user-checkbox-box {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.user-checkbox-placeholder {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── Sprint 1 follow-up: coluna Atribuição (motoristas) ─── */
+.user-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.user-assignment-mec {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+.user-duty {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.user-duty--on {
+  background: var(--color-success-light);
+  color: var(--color-success-hover);
+}
+.user-duty--avail {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.user-duty--off {
+  background: var(--color-border-light);
+  color: var(--color-text-secondary);
+}
+[data-theme="dark"] .user-duty--on { color: var(--color-success); }

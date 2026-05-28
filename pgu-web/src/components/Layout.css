@@ -203,20 +203,135 @@
 
 /* ─── Footer ─── */
 .sidebar-footer {
-  padding: 16px 20px;
+  padding: 12px 12px;
   border-top: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
 }
 
+/* Sprint 1 follow-up: footer e' agora um unico botao com menu popover.
+ * O caret no fim indica que ha menu; click toggle. */
 .sidebar-footer-user {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--transition);
 }
+.sidebar-footer-user:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.sidebar-footer-user--open {
+  background: rgba(255, 255, 255, 0.08);
+}
+.sidebar-footer-user:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.sidebar-footer-caret {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: transform var(--transition);
+}
+.sidebar-footer-user--open .sidebar-footer-caret {
+  transform: rotate(180deg);
+}
+
+/* Account menu popover */
+.sidebar-account-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  right: 12px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 200;
+  animation: sidebar-account-menu-in 140ms ease-out;
+}
+@keyframes sidebar-account-menu-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sidebar-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #cbd5e1;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: background var(--transition), color var(--transition);
+}
+.sidebar-account-item svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+  transition: opacity var(--transition);
+}
+.sidebar-account-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #fff;
+}
+.sidebar-account-item:hover svg {
+  opacity: 1;
+}
+.sidebar-account-item--danger {
+  color: #f87171;
+}
+.sidebar-account-item--danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+.sidebar-account-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 8px;
+}
+/* Footer parent precisa de posicao para o popover absoluto */
+.sidebar-footer {
+  position: relative;
+}
+
+/* Sprint 1 follow-up: override do widget partilhado SidebarUserMenu quando
+ * vive na sidebar dark hardcoded do backoffice. Os tokens light que ele usa
+ * por defeito ficariam invisiveis aqui. */
+.sidebar .sb-user-trigger:hover,
+.sidebar .sb-user-trigger--open {
+  background: rgba(255, 255, 255, 0.06);
+}
+.sidebar .sb-user-name { color: #e2e8f0; }
+.sidebar .sb-user-role { color: #64748b; }
+.sidebar .sb-user-caret { color: #94a3b8; }
+.sidebar .sb-user-menu {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+}
+.sidebar .sb-user-item { color: #cbd5e1; }
+.sidebar .sb-user-item:hover { background: rgba(99, 102, 241, 0.15); color: #fff; }
+.sidebar .sb-user-item--danger { color: #f87171; }
+.sidebar .sb-user-item--danger:hover { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.sidebar .sb-user-divider { background: rgba(255, 255, 255, 0.08); }
 
 .sidebar-avatar {
   width: 32px;
@@ -310,5 +425,29 @@
 .sidebar-nav a.active .nav-badge {
   background-color: #ffffff;
   color: #ef4444;
+}
+
+/* ─── Sprint 1 follow-up: section DEV ─────────────────────────────────────
+ * Apenas role developer. Discreta — sem fundo nem border, so' uma micro
+ * pilula primary ao lado do label, e o NavLink activo do Dev Tools usa
+ * o tom warning como accent (igual ao IconDevTools). */
+.sidebar-section--dev .sidebar-section-label::after {
+  content: 'DEV';
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+.sidebar-section--dev .sidebar-section-label {
+  display: flex;
+  align-items: center;
+}
+/* Empurrar o chevron para o fim, depois da pilula */
+.sidebar-section--dev .sidebar-section-label .sidebar-section-chevron {
+  margin-left: auto;
 }
 

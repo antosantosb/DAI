@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import Modal from '../components/Modal';
 import './AuditLogs.css';
 
 // Sprint 0 (F6 follow-up): mapeia as strings de @LogActivity (PT, vindas do
@@ -55,6 +56,7 @@ export default function AuditLogs() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [detailLog, setDetailLog] = useState(null); // Sprint 1 follow-up: detalhe expandido
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -95,23 +97,28 @@ export default function AuditLogs() {
       return [l.username, l.action, l.method, l.className].some(f => (f || '').toLowerCase().includes(s));
     });
 
-  /** Extrai a parte legível do erro, removendo SQL e stacktrace */
+  /**
+   * Sprint 1 follow-up: summary curto e human-readable.
+   *  - apanha padrao Hibernate "[ERROR: ... Detail: ...]" e devolve so' a parte util
+   *  - corta SQL/stacktrace
+   *  - max 80 chars; alem disso usa ellipsis e o modal mostra o resto
+   */
   const summarizeError = (msg) => {
-    if (!msg) return '—';
-    // Extrair "ERROR: ..." até ao primeiro "]" ou "Detail:"
-    const errMatch = msg.match(/\[ERROR:\s*(.+?)(?:\]|$)/);
-    const detailMatch = msg.match(/Detail:\s*(.+?)(?:\]|\[|$)/);
+    if (!msg) return null;
+    let s = msg;
+    // Padrao Postgres: [ERROR: chave ... viola constraint ... Detail: ...]
+    const errMatch = s.match(/\[ERROR:\s*([^\]]+?)(?:\s+Detail:\s*([^\]]+?))?\]/i);
     if (errMatch) {
-      let summary = errMatch[1].trim();
-      if (detailMatch) summary += ' — ' + detailMatch[1].trim();
-      return summary;
+      s = errMatch[1].trim();
+      if (errMatch[2]) s += ' · ' + errMatch[2].trim();
+    } else {
+      // Cortar SQL/stacktrace
+      const cut = s.search(/;\s*SQL\s*\[|;\s*nested|\bat\s+\S+\(|\n\s*at\s/i);
+      if (cut > 0) s = s.slice(0, cut);
     }
-    // Cortar antes de "; SQL [" ou "; nested"
-    const cutIdx = msg.search(/;\s*SQL\s*\[|;\s*nested|;\s*\[insert|;\s*\[select|;\s*\[update|;\s*\[delete/i);
-    if (cutIdx > 0) return msg.slice(0, cutIdx);
-    // Se ainda for muito longo, cortar a 120 chars
-    if (msg.length > 120) return msg.slice(0, 120) + '…';
-    return msg;
+    s = s.replace(/\s+/g, ' ').trim();
+    if (s.length > 80) s = s.slice(0, 80) + '…';
+    return s;
   };
 
   const formatDate = (dt) => {
@@ -250,7 +257,7 @@ export default function AuditLogs() {
                   <th style={{ width: '18%' }}>{t('pages.auditLogs.thAction')}</th>
                   <th style={{ width: '22%' }}>{t('pages.auditLogs.thResource')}</th>
                   <th style={{ width: '8%' }}>{t('pages.auditLogs.thState')}</th>
-                  <th>{t('pages.auditLogs.thError')}</th>
+                  <th>{t('pages.auditLogs.thDetails')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,8 +276,22 @@ export default function AuditLogs() {
                         {log.success ? t('pages.auditLogs.stateOk') : t('pages.auditLogs.stateErr')}
                       </span>
                     </td>
-                    <td className="audit-cell-error" title={log.errorMsg || ''}>
-                      {summarizeError(log.errorMsg)}
+                    <td className="audit-cell-error">
+                      {log.errorMsg ? (
+                        <div className="audit-error-cell">
+                          <span className="audit-error-summary">{summarizeError(log.errorMsg)}</span>
+                          <button
+                            type="button"
+                            className="audit-error-more"
+                            onClick={() => setDetailLog(log)}
+                            aria-label={t('pages.auditLogs.viewDetail')}
+                          >
+                            {t('pages.auditLogs.viewDetail')}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="audit-error-empty">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -279,6 +300,32 @@ export default function AuditLogs() {
           </div>
         </>
       )}
+
+      {/* Sprint 1 follow-up: modal de detalhe do erro */}
+      <Modal
+        open={!!detailLog}
+        onClose={() => setDetailLog(null)}
+        title={t('pages.auditLogs.detailTitle')}
+        type="info"
+      >
+        {detailLog && (
+          <div className="audit-detail">
+            <dl className="audit-detail-meta">
+              <div><dt>{t('pages.auditLogs.thDate')}</dt><dd>{formatDate(detailLog.createdAt)}</dd></div>
+              <div><dt>{t('pages.auditLogs.thUser')}</dt><dd>{detailLog.username || '—'}</dd></div>
+              <div><dt>{t('pages.auditLogs.thAction')}</dt><dd>{translateAction(detailLog.action)}</dd></div>
+              <div>
+                <dt>{t('pages.auditLogs.thResource')}</dt>
+                <dd className="audit-detail-mono">{detailLog.className || '—'}.{detailLog.method || '—'}()</dd>
+              </div>
+            </dl>
+            <div className="audit-detail-section">
+              <span className="audit-detail-label">{t('pages.auditLogs.thDetails')}</span>
+              <pre className="audit-detail-pre">{detailLog.errorMsg || '—'}</pre>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

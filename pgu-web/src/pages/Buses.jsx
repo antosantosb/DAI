@@ -10,7 +10,12 @@ import './Buses.css';
 export default function Buses() {
   const { t } = useTranslation();
   const { hasRole } = useAuth();
+  // Sprint 1 follow-up: developer faz tudo que admin faz na pagina Buses
+  // (incl. bulk select, criar bus, descomissionar). Usamos `canManage` em
+  // vez de `isAdmin` para os controlos de gestao.
   const isAdmin = hasRole('admin');
+  const isDeveloper = hasRole('developer');
+  const canManage = isAdmin || isDeveloper;
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [telemetry, setTelemetry] = useState({});
@@ -26,6 +31,19 @@ export default function Buses() {
   const [showBatch, setShowBatch] = useState(false);
   const [batchCount, setBatchCount] = useState('5');
   const [batchLoading, setBatchLoading] = useState(false);
+  // Sprint 1 follow-up: modo selecao + bulk actions
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Toggle do modo selecao. Sair sempre limpa selecao.
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) setSelectedIds(new Set());
+      return next;
+    });
+  };
 
   const showModal = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
@@ -187,6 +205,86 @@ export default function Buses() {
     });
   };
 
+  // ─── Bulk select helpers ────────────────────────────────────────────────
+  const toggleSelection = (busId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(busId)) next.delete(busId); else next.add(busId);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const selectVisible = (visibleBuses) => {
+    setSelectedIds(new Set(visibleBuses.map((b) => b.id)));
+  };
+
+  // Acoes bulk: Promise.allSettled para nao bloquear se uma falha.
+  const runBulk = async (ids, fn, successKey, errorKey) => {
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(fn));
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const ko = results.length - ok;
+    await load();
+    clearSelection();
+    setSelectionMode(false);
+    setBulkLoading(false);
+    if (ko === 0) {
+      showModal({ type: 'success', title: t('toasts.successGeneric'),
+        message: t(successKey, { count: ok }) });
+    } else {
+      showModal({ type: 'warning', title: t('toasts.errorGeneric'),
+        message: t(errorKey, { ok, ko }) });
+    }
+  };
+
+  const handleBulkStart = () => {
+    const ids = Array.from(selectedIds);
+    const candidates = buses.filter((b) => ids.includes(b.id) && b.status !== 'ACTIVE');
+    if (candidates.length === 0) {
+      showModal({ type: 'info', title: t('pages.buses.bulkNoEligibleTitle'),
+        message: t('pages.buses.bulkStartNoEligible') });
+      return;
+    }
+    runBulk(candidates.map((b) => b.id),
+      (id) => api.patch(`/buses/${id}`, { status: 'ACTIVE' }),
+      'pages.buses.bulkStartSuccess', 'pages.buses.bulkPartial');
+  };
+
+  const handleBulkStop = () => {
+    const ids = Array.from(selectedIds);
+    const candidates = buses.filter((b) => ids.includes(b.id) && b.status === 'ACTIVE');
+    if (candidates.length === 0) {
+      showModal({ type: 'info', title: t('pages.buses.bulkNoEligibleTitle'),
+        message: t('pages.buses.bulkStopNoEligible') });
+      return;
+    }
+    runBulk(candidates.map((b) => b.id),
+      (id) => api.patch(`/buses/${id}`, { status: 'STOPPING' }),
+      'pages.buses.bulkStopSuccess', 'pages.buses.bulkPartial');
+  };
+
+  const handleBulkDecommission = () => {
+    const ids = Array.from(selectedIds);
+    const blocked = buses.filter((b) => ids.includes(b.id) && b.status !== 'STOPPED');
+    if (blocked.length > 0) {
+      showModal({ type: 'warning', title: t('pages.buses.actionUnavailable'),
+        message: t('pages.buses.bulkDecommissionBlocked', { count: blocked.length }) });
+      return;
+    }
+    showModal({
+      type: 'danger',
+      title: t('pages.buses.bulkDecommissionTitle', { count: ids.length }),
+      message: t('pages.buses.bulkDecommissionMessage', { count: ids.length }),
+      confirmText: t('pages.buses.decommissionConfirmAction'),
+      onConfirm: () => {
+        closeModal();
+        runBulk(ids,
+          (id) => api.delete(`/buses/${id}`),
+          'pages.buses.bulkDecommissionSuccess', 'pages.buses.bulkPartial');
+      },
+    });
+  };
+
   // Roteador de ações vindas do BusDetailPanel
   const handlePanelAction = (action, bus) => {
     if (action === 'stop')         handleStop(bus);
@@ -249,12 +347,18 @@ export default function Buses() {
           <h1>{t('pages.buses.title')}</h1>
           <p className="page-subtitle">{t('pages.buses.subtitle', { count: buses.length })}</p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => setShowBatch(true)}>
-              {t('pages.buses.batchGenerate')}
+            <button
+              className={`btn ${selectionMode ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={toggleSelectionMode}
+            >
+              {selectionMode ? t('pages.buses.bulkExit') : t('pages.buses.bulkEnter')}
             </button>
-            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            {/* Sprint 1 follow-up: batch generation foi movido para a conta
+                `developer` (Ferramentas Dev). Botao removido aqui — admin
+                ja nao consegue gerar batches diretamente. */}
+            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }} disabled={selectionMode}>
               {t('pages.buses.newButton')}
             </button>
           </div>
@@ -365,6 +469,47 @@ export default function Buses() {
         </div>
       )}
 
+      {/* Sprint 1 follow-up: action bar so visivel em modo selecao */}
+      {canManage && selectionMode && (
+        <div className="bulk-bar bulk-bar--visible">
+          <div className="bulk-bar-left">
+            <span className="bulk-bar-count">
+              {t('pages.buses.bulkSelected', { count: selectedIds.size })}
+            </span>
+            <button
+              type="button"
+              className="bulk-bar-link"
+              onClick={() => selectVisible(filtered)}
+              disabled={bulkLoading}
+            >
+              {t('pages.buses.bulkSelectVisible', { count: filtered.length })}
+            </button>
+            <button
+              type="button"
+              className="bulk-bar-link"
+              onClick={clearSelection}
+              disabled={bulkLoading || selectedIds.size === 0}
+            >
+              {t('pages.buses.bulkClear')}
+            </button>
+          </div>
+          <div className="bulk-bar-actions">
+            <button className="btn btn-sm btn-success" onClick={handleBulkStart} disabled={bulkLoading || selectedIds.size === 0}>
+              {t('pages.buses.bulkStart')}
+            </button>
+            <button className="btn btn-sm btn-warning" onClick={handleBulkStop} disabled={bulkLoading || selectedIds.size === 0}>
+              {t('pages.buses.bulkStop')}
+            </button>
+            <button className="btn btn-sm btn-danger" onClick={handleBulkDecommission} disabled={bulkLoading || selectedIds.size === 0}>
+              {t('pages.buses.bulkDecommission')}
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={toggleSelectionMode} disabled={bulkLoading}>
+              {t('pages.buses.bulkExit')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bus-grid">
         {filtered.map((bus, idx) => (
           <BusCard
@@ -374,6 +519,9 @@ export default function Buses() {
             unreadCount={unreadCounts[bus.busCode] || 0}
             onClick={() => setSelectedBus(bus)}
             animationDelay={idx * 0.04}
+            selectionMode={selectionMode}
+            selected={selectedIds.has(bus.id)}
+            onToggleSelect={toggleSelection}
           />
         ))}
         {filtered.length === 0 && (
@@ -392,7 +540,7 @@ export default function Buses() {
           bus={buses.find(b => b.id === selectedBus.id) || selectedBus}
           driver={driverByBusId[selectedBus.id]}
           telemetry={telemetry[selectedBus.busCode]}
-          isAdmin={isAdmin}
+          isAdmin={canManage}
           onClose={() => { setSelectedBus(null); loadUnreadCounts(); }}
           onAction={handlePanelAction}
         />

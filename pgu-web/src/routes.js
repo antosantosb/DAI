@@ -36,7 +36,7 @@ export const routes = [
   {
     path: '/chatbot',
     loader: () => import('./pages/Chatbot'),
-    access: ['admin', 'funcionario'],
+    access: ['admin', 'funcionario', 'developer'],
     layout: 'none',
   },
   {
@@ -48,7 +48,7 @@ export const routes = [
   {
     path: '/backoffice',
     layout: 'backoffice',
-    access: ['admin', 'funcionario'],
+    access: ['admin', 'funcionario', 'developer'],
     children: [
       // ---- PRINCIPAL (cockpit do dia-a-dia) ----
       // Sprint 0 (F6): labelKey/sectionKey resolvidos via i18n no Layout.
@@ -71,6 +71,13 @@ export const routes = [
         path: 'ocorrencias',
         loader: () => import('./pages/Ocorrencias'),
         nav: { sectionKey: 'sections.main', labelKey: 'nav.ocorrencias', iconKey: 'IconAlarm', badge: 'alarms' },
+      },
+      // Sprint 1 follow-up: variante com :id para deep-link a uma ocorrencia
+      // (corrige bug #6 — clicar num alerta abria tab em branco porque a
+      // rota /backoffice/ocorrencias/15 nao tinha match no router).
+      {
+        path: 'ocorrencias/:id',
+        loader: () => import('./pages/Ocorrencias'),
       },
       // ---- OPERAÇÕES (planeamento) ----
       {
@@ -97,13 +104,13 @@ export const routes = [
       {
         path: 'users',
         loader: () => import('./pages/Users'),
-        access: ['admin'],
+        access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.users', iconKey: 'IconUsers' },
       },
       {
         path: 'drivers',
         loader: () => import('./pages/Drivers'),
-        access: ['admin'],
+        access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.drivers', iconKey: 'IconDriver' },
       },
       {
@@ -114,7 +121,7 @@ export const routes = [
       {
         path: 'gtfs',
         loader: () => import('./pages/GtfsManager'),
-        access: ['admin'],
+        access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.gtfs', iconKey: 'IconGtfs' },
       },
       {
@@ -134,22 +141,34 @@ export const routes = [
       {
         path: 'ai-monitoring',
         loader: () => import('./pages/AiMonitoring'),
-        access: ['admin'],
+        access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.aiMonitoring', iconKey: 'IconAiMonitoring' },
       },
       {
         path: 'configuracoes',
         loader: () => import('./pages/GlobalConfig'),
-        access: ['admin'],
+        access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.administration', labelKey: 'nav.settings', iconKey: 'IconSettings' },
       },
+      // Sprint 1 follow-up: Ferramentas Dev / Demo. Acesso restrito ao role
+      // "developer" — botoes que disparam endpoints placeholder no backend
+      // (sem efeitos reais; apenas validam wiring de role -> rota -> security).
+      {
+        // Sprint 1 follow-up: Ferramentas Dev tem section propria no topo
+        // do sidebar (mais visivel) — destinada apenas a role developer.
+        path: 'dev',
+        loader: () => import('./pages/DevTools'),
+        access: ['developer'],
+        nav: { sectionKey: 'sections.dev', labelKey: 'nav.devTools', iconKey: 'IconDevTools' },
+      },
       // ---- PESSOAL (self-service de conta) ----
-      // Visivel a admin + funcionario. Motoristas usam o modal no Painel de Bordo.
+      // Sprint 1 follow-up: removida a entrada do sidebar — agora abre-se
+      // clicando no bloco do user no rodape (sidebar-footer-user). A rota
+      // continua acessivel em /backoffice/conta.
       {
         path: 'conta',
         loader: () => import('./pages/MinhaConta'),
-        access: ['admin', 'funcionario'],
-        nav: { sectionKey: 'sections.personal', labelKey: 'nav.account', iconKey: 'IconAccount' },
+        access: ['admin', 'funcionario', 'developer'],
       },
     ],
   },

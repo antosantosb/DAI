@@ -10,15 +10,45 @@ const STATUS_CONFIG = {
  * Card minimalista de autocarro — info crucial em hierarquia visual clara.
  * Clica → abre o BusDetailPanel.
  */
-export default function BusCard({ bus, driver, unreadCount = 0, onClick, animationDelay = 0 }) {
+export default function BusCard({
+  bus,
+  driver,
+  unreadCount = 0,
+  onClick,
+  animationDelay = 0,
+  // Sprint 1 follow-up: modo selecao. Quando selectionMode=true, o card
+  // mostra checkbox sutil no header e o click no card vira "toggle select"
+  // (em vez de abrir o painel lateral). Fora desse modo, comportamento normal.
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
+}) {
   const cfg = STATUS_CONFIG[bus.status] || STATUS_CONFIG.STOPPED;
 
+  const handleClick = () => {
+    if (selectionMode && onToggleSelect) onToggleSelect(bus.id);
+    else onClick?.();
+  };
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
-    <button
-      className={`buscard buscard--${cfg.cls}`}
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
+      className={`buscard buscard--${cfg.cls}${selected ? ' buscard--selected' : ''}${selectionMode ? ' buscard--selectable' : ''}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       style={{ animationDelay: `${animationDelay}s`, '--accent': cfg.color }}
+      aria-pressed={selectionMode ? selected : undefined}
     >
+      {/* Sprint 1 follow-up: sem tick visual — o card inteiro acende
+       * (border + halo primary) quando seleccionado. Mais limpo que um
+       * checkbox que choca com o badge de status no canto. */}
       {unreadCount > 0 && (
         <span className="buscard-unread" aria-label={`${unreadCount} mensagens não lidas`}>
           {unreadCount > 9 ? '9+' : unreadCount}
@@ -65,6 +95,6 @@ export default function BusCard({ bus, driver, unreadCount = 0, onClick, animati
           </>
         )}
       </div>
-    </button>
+    </div>
   );
 }

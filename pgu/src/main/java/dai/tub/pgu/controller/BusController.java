@@ -54,7 +54,12 @@ public class BusController
      * Sprint -1 (BE-8): validacao declarativa com @Min/@Max.
      * Erros devolvem 400 (via GlobalExceptionHandler) em vez de 500.
      */
+    /**
+     * Sprint 1 follow-up: batch generation movido para a role `developer`
+     * (antes admin). Faz parte do toolkit de demo, nao da gestao normal.
+     */
     @PostMapping("/batch")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('developer')")
     @LogActivity(action = "Criar autocarros em batch")
     public ResponseEntity<List<BusDTO>> createBatch(
             @RequestParam(defaultValue = "5")

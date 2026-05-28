@@ -6,7 +6,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  /* Sprint 1 follow-up: subido de 1000 para 2000 para ficar sempre acima
+   * de paineis laterais (BusDetailPanel usa 1001). Modais sao sempre o
+   * topo da pilha de UI: se mostrarmos um modal, e' para ser visto. */
+  z-index: 2000;
   animation: modalFadeIn 0.2s ease;
   padding: 20px;
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { getMensagens, enviarMensagem } from '../services/despachoApi';
 import { createStompClient } from '../services/stompClient';
@@ -9,6 +10,7 @@ import './BusDetailPanel.css';
  * Aberto ao clicar num BusCard.
  */
 export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClose, onAction }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('info'); // info | chat
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -82,7 +84,9 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
     ACTIVE: '#10b981', STOPPING: '#f59e0b', STOPPED: '#94a3b8',
   };
 
-  const t = telemetry || {};
+  // Sprint 1 follow-up: renomeado de `t` para `tele` para nao colidir com
+  // o `t` do useTranslation (i18n) introduzido neste componente.
+  const tele = telemetry || {};
 
   return (
     <>
@@ -143,7 +147,20 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                   </div>
                 ) : (
                   <div className="bdp-driver-missing">
-                    ⚠ Sem motorista atribuído. Atribuir em <a href="/backoffice/drivers">Motoristas →</a>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>
+                      {t('pages.buses.driverMissing')}{' '}
+                      <a href="/backoffice/drivers" className="inline-link">
+                        {t('pages.buses.assignInDrivers')}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </a>
+                    </span>
                   </div>
                 )}
               </section>
@@ -154,17 +171,17 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                   <h4 className="bdp-section-title">Telemetria em tempo real</h4>
                   <div className="bdp-telemetry">
                     <div className="bdp-telem-item">
-                      <span className="bdp-telem-value">{t.speed?.toFixed(0) ?? '—'}</span>
+                      <span className="bdp-telem-value">{tele.speed?.toFixed(0) ?? '—'}</span>
                       <span className="bdp-telem-label">km/h</span>
                     </div>
                     <div className="bdp-telem-item">
                       <span className="bdp-telem-value">
-                        {t.passengers ?? '—'}<span className="bdp-telem-unit">/{bus.capacity || '?'}</span>
+                        {tele.passengers ?? '—'}<span className="bdp-telem-unit">/{bus.capacity || '?'}</span>
                       </span>
                       <span className="bdp-telem-label">Passageiros</span>
                     </div>
                     <div className="bdp-telem-item bdp-telem-item--wide">
-                      <span className="bdp-telem-value bdp-telem-value--small">{t.nextStop ?? '—'}</span>
+                      <span className="bdp-telem-value bdp-telem-value--small">{tele.nextStop ?? '—'}</span>
                       <span className="bdp-telem-label">Próxima paragem</span>
                     </div>
                   </div>

@@ -121,9 +121,8 @@ export default function Drivers() {
           <div className="page-subtitle">{t('pages.drivers.subtitleAlt')}</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-secondary" onClick={() => setShowBatch(true)}>
-            {t('pages.drivers.batchGenerate')}
-          </button>
+          {/* Sprint 1 follow-up: batch generation movido para "Ferramentas
+              Dev" (conta developer). Admin ja nao gera motoristas em batch. */}
           <Link to="/backoffice/users" className="btn btn-primary">
             {t('pages.drivers.createInUsers')}
           </Link>
@@ -146,7 +145,13 @@ export default function Drivers() {
             {drivers.length === 0 ? (
               <tr>
                 <td colSpan="6" className="empty">
-                  {t('pages.drivers.noDriversRegistered')} <Link to="/backoffice/users">{t('pages.drivers.createInUsersLink')}</Link>
+                  {t('pages.drivers.noDriversRegistered')}{' '}
+                  <Link to="/backoffice/users" className="inline-link">
+                    {t('pages.drivers.createInUsersLink')}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </Link>
                 </td>
               </tr>
             ) : (
@@ -287,6 +292,21 @@ export default function Drivers() {
                 value={batchCount}
                 onChange={e => setBatchCount(e.target.value)}
               />
+            </div>
+            <div
+              style={{
+                background: 'var(--color-warning-light)',
+                border: '1px solid var(--color-warning-light)',
+                color: 'var(--color-warning-hover)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '10px 12px',
+                fontSize: '13px',
+                lineHeight: 1.5,
+                marginBottom: '12px',
+              }}
+            >
+              <strong>{t('pages.drivers.batchPasswordHintTitle')}</strong>{' '}
+              {t('pages.drivers.batchPasswordHintBody')}
             </div>
             <div className="form-actions">
               <button className="btn btn-primary" onClick={handleBatch} disabled={batchLoading}>

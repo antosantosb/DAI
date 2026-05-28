@@ -2,6 +2,25 @@
    em vez de --surface/--text-primary/etc. que nao existem. Sem este fix a
    pagina ficava sempre em white porque caia para os fallbacks hex. */
 
+/* Sprint 1 follow-up: o Modal global tem max-width:420px + text-align:center
+ * que esmagam o AccountForm. Override APENAS para modais que o contem. */
+.modal-dialog:has(.account-form) {
+  max-width: 640px !important;
+  text-align: left !important;
+}
+.modal-dialog:has(.account-form) .modal-title {
+  text-align: left;
+}
+.modal-dialog:has(.account-form) .modal-icon {
+  display: none;
+}
+/* O `.modal-actions` que vem a seguir ao AccountForm (botao Fechar no
+ * PainelBordo) tambem precisa de alinhamento left consistente. */
+.modal-dialog:has(.account-form) .modal-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 .account-form {
   display: flex;
   flex-direction: column;
@@ -11,6 +30,24 @@
 
 .account-form--compact {
   gap: 16px;
+}
+
+/* Sprint 1 follow-up: banner que substitui o "Save profile" para contas
+ * protegidas (admin, dev). Indica visualmente que campos sao read-only. */
+.account-locked-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-bg-subtle);
+  border: 1px dashed var(--color-border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.account-locked-banner svg {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .account-section {

@@ -14,13 +14,18 @@ import {
 } from '../components/livemap/constants';
 import BusesTab from '../components/livemap/BusesTab';
 import RoutesTab from '../components/livemap/RoutesTab';
-import AccountTab from '../components/livemap/AccountTab';
+import SidebarUserMenu from '../components/SidebarUserMenu';
+import { useAuth } from '../context/AuthProvider';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import './Livemap.css';
 
 export default function Livemap() {
   const { t } = useTranslation();
+  const { username, roles, logout } = useAuth();
+  // Sprint 1 follow-up: substituido o tab Account pelo widget partilhado
+  // SidebarUserMenu no fim da sidebar (consistente com o backoffice).
+  const [meProfile, setMeProfile] = useState(null);
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const tileLayerRef = useRef(null);
@@ -54,9 +59,48 @@ export default function Livemap() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showCongestion, setShowCongestion] = useState(false);
   const [visibleLayers, setVisibleLayers] = useState({ stops: true, routes: true, buses: true });
+  // Sprint 1 follow-up: layer panel collapse (persistido).
+  const [layersCollapsed, setLayersCollapsed] = useState(() => {
+    try { return localStorage.getItem('pgu:livemap-layers-collapsed') === '1'; }
+    catch { return false; }
+  });
+  const toggleLayersCollapsed = () => {
+    setLayersCollapsed((v) => {
+      const nv = !v;
+      try { localStorage.setItem('pgu:livemap-layers-collapsed', nv ? '1' : '0'); } catch { /* noop */ }
+      return nv;
+    });
+  };
   const heatLayerRef = useRef(null);
   const congestionLayerRef = useRef(null);
   const stompClientRef = useRef(null);
+
+  // ─── Profile do utilizador (para o SidebarUserMenu) ───
+  useEffect(() => {
+    let mounted = true;
+    api.get('/me')
+      .then(({ data }) => { if (mounted) setMeProfile(data); })
+      .catch(() => { /* silencioso — Avatar mostra a inicial como fallback */ });
+    return () => { mounted = false; };
+  }, []);
+
+  // Sincronizar com upload/remocao de avatar feitos noutras paginas.
+  useEffect(() => {
+    const handler = (e) => {
+      setMeProfile((prev) => prev ? { ...prev, avatarUrl: e.detail?.avatarUrl ?? null } : prev);
+    };
+    window.addEventListener('pgu:avatar-updated', handler);
+    return () => window.removeEventListener('pgu:avatar-updated', handler);
+  }, []);
+
+  const fullName = meProfile
+    ? [meProfile.firstName, meProfile.lastName].filter(Boolean).join(' ').trim()
+    : '';
+  const displayRole = roles?.includes('admin')
+    ? t('auth.roles.admin')
+    : roles?.includes('motorista')
+      ? t('auth.roles.motorista')
+      : t('auth.roles.funcionario');
 
   // ─── Map initialization ───
   useEffect(() => {
@@ -65,9 +109,13 @@ export default function Livemap() {
     mapInstance.current = L.map(mapRef.current, {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
-      zoomControl: true,
+      // Sprint 1 follow-up: desativamos o zoomControl default (top-left) e
+      // criamos um manualmente abaixo, posicionado deliberadamente debaixo
+      // do card LAYERS para nao haver overlap.
+      zoomControl: false,
       preferCanvas: true,
     });
+    L.control.zoom({ position: 'topleft' }).addTo(mapInstance.current);
 
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -736,7 +784,25 @@ export default function Livemap() {
     <div className="livemap-wrapper">
       <div className="livemap-map-wrap">
         <div className="livemap-map" ref={mapRef} />
-        <div className="livemap-overlay-controls">
+        <div className={`livemap-overlay-controls${layersCollapsed ? ' livemap-overlay-controls--collapsed' : ''}`}>
+          <button
+            type="button"
+            className="livemap-overlay-header"
+            onClick={toggleLayersCollapsed}
+            aria-expanded={!layersCollapsed}
+            aria-controls="livemap-layer-items"
+            title={layersCollapsed ? t('livemap.layersExpand') : t('livemap.layersCollapse')}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="12 2 22 8.5 12 15 2 8.5 12 2" />
+              <polyline points="2 15.5 12 22 22 15.5" />
+            </svg>
+            <span className="livemap-overlay-header-label">{t('livemap.layersHeader')}</span>
+            <svg className="livemap-overlay-header-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <div id="livemap-layer-items" className="livemap-overlay-items">
           <button
             className={`livemap-overlay-btn${showHeatmap ? ' livemap-overlay-btn--active' : ''}`}
             onClick={() => { setShowHeatmap(h => !h); if (!showHeatmap) setShowCongestion(false); }}
@@ -788,6 +854,7 @@ export default function Livemap() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4S4 2.5 4 6v10zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z"/></svg>
             {t('livemap.tabs.buses')}
           </button>
+          </div>
         </div>
         <div className="livemap-lang">
           <ThemeSwitcher />
@@ -812,10 +879,6 @@ export default function Livemap() {
           <button className={`livemap-tab ${activeTab === 'routes' ? 'active' : ''}`} onClick={() => setActiveTab('routes')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-4h4v-2h-4V7h-2v4H7v2h4v4zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             {t('livemap.tabs.routes')}
-          </button>
-          <button className={`livemap-tab ${activeTab === 'account' ? 'active' : ''}`} onClick={() => setActiveTab('account')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            {t('livemap.tabs.account')}
           </button>
         </div>
 
@@ -847,7 +910,18 @@ export default function Livemap() {
               setRouteSort={setRouteSort}
             />
           )}
-          {activeTab === 'account' && <AccountTab />}
+        </div>
+
+        {/* Sprint 1 follow-up: widget de utilizador no fim — substitui o
+            antigo tab Account, consistente com o footer do backoffice. */}
+        <div className="livemap-sidebar-footer">
+          <SidebarUserMenu
+            avatarUrl={meProfile?.avatarUrl}
+            name={fullName || username || '?'}
+            username={username}
+            displayRole={displayRole}
+            onLogout={logout}
+          />
         </div>
       </div>
     </div>

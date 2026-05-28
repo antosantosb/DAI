@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthProvider';
 import api from '../services/api';
 import { getMensagens } from '../services/despachoApi';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import Modal from '../components/Modal';
 import AccountForm from '../components/AccountForm';
 import Avatar from '../components/Avatar';
@@ -105,7 +106,7 @@ export default function PainelBordo() {
         const msg = err.response?.data?.message
                  || err.response?.data?.error
                  || err.message
-                 || 'Erro desconhecido';
+                 || t('pages.painelBordo.unknownError');
         console.error('Erro ao obter bus do motorista:', err.response?.status, err.response?.data);
         setError(msg);
       });
@@ -122,9 +123,9 @@ export default function PainelBordo() {
         setRoute(routeData);
       }
     } catch {
-      setError('Autocarro não encontrado: ' + busCode);
+      setError(t('pages.painelBordo.busNotFound', { busCode }));
     }
-  }, [busCode]);
+  }, [busCode, t]);
 
   // Fetch messages
   const fetchMessages = useCallback(async () => {
@@ -265,7 +266,7 @@ export default function PainelBordo() {
   if (!authenticated) {
     return (
       <div className="pb-container">
-        <div className="pb-loading">A redirecionar para login...</div>
+        <div className="pb-loading">{t('pages.painelBordo.redirectingLogin')}</div>
       </div>
     );
   }
@@ -275,9 +276,13 @@ export default function PainelBordo() {
       <div className="pb-container">
         <div className="pb-error">
           <div className="pb-error-icon">!</div>
-          <h2>Acesso restrito</h2>
-          <p>A conta <strong>{username}</strong> não tem permissão de motorista.</p>
-          <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
+          <h2>{t('pages.painelBordo.restrictedTitle')}</h2>
+          <p>
+            {t('pages.painelBordo.restrictedAccountPrefix')}
+            <strong>{username}</strong>
+            {t('pages.painelBordo.restrictedAccountSuffix')}
+          </p>
+          <button className="pb-btn pb-btn--secondary" onClick={logout}>{t('pages.painelBordo.logout')}</button>
         </div>
       </div>
     );
@@ -289,10 +294,10 @@ export default function PainelBordo() {
         <div className="pb-error">
           <div className="pb-error-icon">!</div>
           <h2>{error}</h2>
-          <p>Contacte o administrador para atribuir um autocarro.</p>
+          <p>{t('pages.painelBordo.contactAdmin')}</p>
           <div className="pb-error-actions">
             {accountButton}
-            <button className="pb-btn pb-btn--secondary" onClick={logout}>Sair</button>
+            <button className="pb-btn pb-btn--secondary" onClick={logout}>{t('pages.painelBordo.logout')}</button>
           </div>
         </div>
         {accountModal}
@@ -303,7 +308,7 @@ export default function PainelBordo() {
   if (!bus) {
     return (
       <div className="pb-container">
-        <div className="pb-loading">A carregar painel de bordo...</div>
+        <div className="pb-loading">{t('pages.painelBordo.loadingPanel')}</div>
         {accountModal}
       </div>
     );
@@ -316,8 +321,13 @@ export default function PainelBordo() {
   const stops = route?.stops || [];
 
   const statusLabels = {
-    'active': 'Em serviço', 'at-stop': 'Na paragem', 'stopping': 'A parar',
-    'delayed': 'Atrasado', 'stopped': 'Parado', 'STOPPED': 'Parado', 'ACTIVE': 'Em serviço',
+    'active': t('pages.painelBordo.status.active'),
+    'at-stop': t('pages.painelBordo.status.atStop'),
+    'stopping': t('pages.painelBordo.status.stopping'),
+    'delayed': t('pages.painelBordo.status.delayed'),
+    'stopped': t('pages.painelBordo.status.stopped'),
+    'STOPPED': t('pages.painelBordo.status.stopped'),
+    'ACTIVE': t('pages.painelBordo.status.active'),
   };
   const statusColors = {
     'active': '#10b981', 'at-stop': '#6366f1', 'stopping': '#f59e0b',
@@ -333,7 +343,7 @@ export default function PainelBordo() {
         <div className="pb-header-left">
           <div className="pb-bus-code">{busCode}</div>
           <div className="pb-route-name">
-            {route ? `${route.code} — ${route.name}` : 'Sem rota atribuída'}
+            {route ? `${route.code} — ${route.name}` : t('pages.painelBordo.noRouteAssigned')}
           </div>
         </div>
         <div className="pb-header-center">
@@ -346,6 +356,7 @@ export default function PainelBordo() {
           </span>
           {accountButton}
           <div className="pb-theme">
+            <LanguageSwitcher />
             <ThemeSwitcher />
           </div>
         </div>
@@ -355,10 +366,10 @@ export default function PainelBordo() {
       <div className="pb-main">
         {/* Left: Route progress */}
         <section className="pb-section pb-route-section">
-          <h3 className="pb-section-title">Percurso</h3>
+          <h3 className="pb-section-title">{t('pages.painelBordo.route.title')}</h3>
           <div className="pb-route-list">
             {stops.length === 0 ? (
-              <div className="pb-empty">Sem paragens definidas</div>
+              <div className="pb-empty">{t('pages.painelBordo.route.noStops')}</div>
             ) : (
               stops.map((stop, i) => {
                 const isCurrent = stop.stopName === nextStop || stop.stopCode === nextStop;
@@ -391,20 +402,20 @@ export default function PainelBordo() {
             </div>
             <div className="pb-stat">
               <span className="pb-stat-value">{passengers}</span>
-              <span className="pb-stat-label">Passageiros</span>
+              <span className="pb-stat-label">{t('pages.painelBordo.tele.passengers')}</span>
             </div>
             <div className="pb-stat pb-stat--next">
-              <span className="pb-stat-label">Prox. Paragem</span>
+              <span className="pb-stat-label">{t('pages.painelBordo.tele.nextStop')}</span>
               <span className="pb-stat-value pb-stat-value--small">{nextStop}</span>
             </div>
           </section>
 
           {/* Chat */}
           <section className="pb-section pb-messages">
-            <h3 className="pb-section-title">Mensagens</h3>
+            <h3 className="pb-section-title">{t('pages.painelBordo.chat.title')}</h3>
             <div className="pb-message-list">
               {messages.length === 0 && (
-                <div className="pb-empty pb-empty--centered">Sem mensagens</div>
+                <div className="pb-empty pb-empty--centered">{t('pages.painelBordo.chat.empty')}</div>
               )}
               {messages.map(msg => {
                 const sent = isFromDriver(msg);
@@ -415,7 +426,7 @@ export default function PainelBordo() {
                   msg.estado === 'FALHOU' ? '!' : '';
                 return (
                   <div key={msg.id} className={`pb-message ${sent ? 'pb-message--sent' : 'pb-message--received'}`}>
-                    {!sent && <div className="pb-message-sender">Despacho</div>}
+                    {!sent && <div className="pb-message-sender">{t('pages.painelBordo.chat.dispatchSender')}</div>}
                     <div className="pb-message-content">{msg.conteudo}</div>
                     <div className="pb-message-meta">
                       <span className="pb-message-time">
@@ -436,35 +447,43 @@ export default function PainelBordo() {
               <input
                 className="pb-chat-input"
                 type="text"
-                placeholder="Escrever mensagem ao despacho..."
+                placeholder={t('pages.painelBordo.chat.placeholder')}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 maxLength={140}
                 disabled={sending}
               />
               <button type="submit" className="pb-chat-send" disabled={sending || !chatInput.trim()}>
-                {sending ? '...' : 'Enviar'}
+                {sending ? '...' : t('pages.painelBordo.chat.send')}
               </button>
             </form>
           </section>
 
           {/* Alert buttons */}
           <section className="pb-section pb-alerts">
-            <h3 className="pb-section-title">Alertas</h3>
+            <h3 className="pb-section-title">{t('pages.painelBordo.incident.title')}</h3>
             <div className="pb-alert-buttons">
               <button
                 className={`pb-alert-btn pb-alert-btn--avaria ${alertSending === 'ok-AVARIA' ? 'pb-alert-btn--success' : ''}`}
                 onClick={() => handleAlert('AVARIA')}
                 disabled={!!alertSending}
               >
-                {alertSending === 'AVARIA' ? 'A reportar...' : alertSending === 'ok-AVARIA' ? 'Reportada' : 'Reportar Avaria'}
+                {alertSending === 'AVARIA'
+                  ? t('pages.painelBordo.incident.reportingFemale')
+                  : alertSending === 'ok-AVARIA'
+                    ? t('pages.painelBordo.incident.reportedFemale')
+                    : t('pages.painelBordo.incident.reportBreakdown')}
               </button>
               <button
                 className={`pb-alert-btn pb-alert-btn--acidente ${alertSending === 'ok-ACIDENTE' ? 'pb-alert-btn--success' : ''}`}
                 onClick={() => handleAlert('ACIDENTE')}
                 disabled={!!alertSending}
               >
-                {alertSending === 'ACIDENTE' ? 'A reportar...' : alertSending === 'ok-ACIDENTE' ? 'Reportado' : 'Reportar Acidente'}
+                {alertSending === 'ACIDENTE'
+                  ? t('pages.painelBordo.incident.reportingMale')
+                  : alertSending === 'ok-ACIDENTE'
+                    ? t('pages.painelBordo.incident.reportedMale')
+                    : t('pages.painelBordo.incident.reportAccident')}
               </button>
             </div>
           </section>

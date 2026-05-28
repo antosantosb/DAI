@@ -215,19 +215,25 @@
 .bdp-driver-status--offline { background: #fee2e2; color: #991b1b; }
 
 .bdp-driver-missing {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 14px 16px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--color-danger-light);
+  border: 1px solid var(--color-danger-light);
   border-radius: 10px;
-  color: #b91c1c;
+  color: var(--color-danger-hover);
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.45;
 }
-
-.bdp-driver-missing a {
-  color: #dc2626;
-  text-decoration: underline;
-  font-weight: 700;
+.bdp-driver-missing > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-danger);
+}
+[data-theme="dark"] .bdp-driver-missing {
+  color: var(--color-danger);
 }
 
 /* Telemetria */

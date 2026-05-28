@@ -57,7 +57,13 @@ export default function Landing() {
                 {t('landing.welcome')}<strong>{username}</strong>
               </span>
               <span className="landing-user-role">
-                {roles.includes('admin') ? t('auth.roles.admin') : t('auth.roles.funcionario')}
+                {roles.includes('admin')
+                  ? t('auth.roles.admin')
+                  : roles.includes('developer')
+                    ? t('auth.roles.developer')
+                    : roles.includes('motorista')
+                      ? t('auth.roles.motorista')
+                      : t('auth.roles.funcionario')}
               </span>
             </div>
 

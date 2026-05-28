@@ -28,7 +28,8 @@ const UsersIcon = (p) => <Icon {...p} d={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 
 export default function Exports() {
   const { t } = useTranslation();
   const { hasRole, username } = useAuth();
-  const isAdmin = hasRole('admin');
+  // Sprint 1 follow-up: dev tem os mesmos privilégios de gestão que admin.
+  const isAdmin = hasRole('admin') || hasRole('developer');
   const [activeTab, setActiveTab] = useState('telemetry');
 
   // ─── Shared modal ───

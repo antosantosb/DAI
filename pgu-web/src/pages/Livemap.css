@@ -1,9 +1,13 @@
 /* ─── Layout ─── */
+/* Sprint 1 follow-up: sidebar invertida para a ESQUERDA (consistente com
+ * o backoffice). flex-direction: row-reverse com a sidebar primeiro no JSX
+ * — mais simples que mexer no JSX. */
 .livemap-wrapper {
   position: relative;
   height: 100vh;
   max-height: 100vh;
   display: flex;
+  flex-direction: row-reverse;
   overflow: hidden;
 }
 
@@ -19,58 +23,158 @@
   z-index: 0;
 }
 
-/* ─── Overlay Controls ─── */
+/* ─── Overlay Controls (card único) ─── */
+/* Sprint 1 follow-up: layers card no topo-esquerda, ACIMA dos zoom
+ * controls do Leaflet (empurrados para baixo via CSS). */
 .livemap-overlay-controls {
   position: absolute;
-  top: 80px;
+  top: 10px;
   left: 10px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  min-width: 140px;
+}
+/* Sprint 1 follow-up: header agora e' um botao que collapse/expand os items. */
+.livemap-overlay-header {
+  display: flex;
+  align-items: center;
   gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition), color var(--transition);
+}
+.livemap-overlay-header:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+.livemap-overlay-header:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+.livemap-overlay-header > svg:first-of-type {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.livemap-overlay-header-label {
+  flex: 1;
+  text-align: left;
+}
+.livemap-overlay-header-caret {
+  opacity: 0.6;
+  transition: transform var(--transition);
+  flex-shrink: 0;
+}
+
+/* Items container: animacao de collapse via max-height + opacity. */
+.livemap-overlay-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border-light);
+  overflow: hidden;
+  max-height: 400px;
+  opacity: 1;
+  transition: max-height 220ms ease, opacity 180ms ease,
+              margin-top 180ms ease, padding-top 180ms ease,
+              border-top-width 0ms 180ms;
+}
+.livemap-overlay-controls--collapsed .livemap-overlay-items {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+  border-top-width: 0;
+  pointer-events: none;
+}
+.livemap-overlay-controls--collapsed .livemap-overlay-header-caret {
+  transform: rotate(-90deg);
+}
+.livemap-overlay-controls--collapsed {
+  /* Quando collapsed o card fica fininho — so' o header. */
+  min-width: 0;
+}
+
+/* Sprint 1 follow-up: empurrar os zoom controls do Leaflet (topleft) para
+ * baixo do card LAYERS. Posicao adapta ao estado collapsed/expanded via
+ * :has() no map-wrap. */
+.livemap-map-wrap .leaflet-top.leaflet-left {
+  top: 260px;
+  transition: top 220ms ease;
+}
+.livemap-map-wrap:has(.livemap-overlay-controls--collapsed) .leaflet-top.leaflet-left {
+  top: 60px;
 }
 
 .livemap-overlay-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--color-surface);
-  border: 2px solid var(--color-border-medium);
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   color: var(--color-text-secondary);
-  transition: all 0.15s ease;
-  box-shadow: var(--shadow-xs);
+  transition: background var(--transition), color var(--transition);
   white-space: nowrap;
 }
-
+.livemap-overlay-btn svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity var(--transition);
+}
 .livemap-overlay-btn:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+.livemap-overlay-btn:hover svg {
+  opacity: 1;
 }
 
 .livemap-overlay-btn--active {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.livemap-overlay-btn--active svg {
+  opacity: 1;
 }
 .livemap-overlay-btn--active:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-primary-light);
+  color: var(--color-primary-hover);
 }
 
 .livemap-overlay-btn--danger.livemap-overlay-btn--active {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
-}
-.livemap-overlay-btn--danger:hover {
-  color: var(--color-danger);
+  background: var(--color-danger-light);
+  color: var(--color-danger-hover);
 }
 .livemap-overlay-btn--danger.livemap-overlay-btn--active:hover {
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+[data-theme="dark"] .livemap-overlay-btn--danger.livemap-overlay-btn--active {
+  color: var(--color-danger);
 }
 
 /* ─── Marker cluster (override leaflet.markercluster default) ─── */
@@ -112,7 +216,8 @@
   width: 360px;
   height: 100%;
   background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
+  /* Sprint 1 follow-up: border-right porque sidebar ficou na esquerda. */
+  border-right: 1px solid var(--color-border);
   overflow: hidden;
   padding: 20px 16px;
   display: flex;
@@ -120,6 +225,17 @@
   gap: 16px;
   flex-shrink: 0;
   box-sizing: border-box;
+}
+
+/* Sprint 1 follow-up: footer do sidebar do Livemap (widget user). */
+.livemap-sidebar-footer {
+  margin-top: auto;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: -20px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
 }
 
 .livemap-header {

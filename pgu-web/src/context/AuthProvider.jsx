@@ -77,9 +77,13 @@ export default function AuthProvider({ children }) {
   const username =
     keycloak.tokenParsed?.preferred_username ?? null;
 
+  // Sprint 1 follow-up: `developer` adicionado ao whitelist. Sem isto, o
+  // role do dev era filtrado fora aqui e o frontend via `roles=[]` -> caia
+  // no fallback "EMPLOYEE" na Landing e era barrado no /backoffice por nao
+  // ter role nenhum reconhecido.
   const roles =
     keycloak.tokenParsed?.realm_access?.roles?.filter(
-      (r) => r === 'admin' || r === 'funcionario' || r === 'motorista'
+      (r) => r === 'admin' || r === 'funcionario' || r === 'motorista' || r === 'developer'
     ) ?? [];
 
   const value = {

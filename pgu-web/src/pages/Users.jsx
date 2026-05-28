@@ -27,18 +27,121 @@ export default function Users() {
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [modal, setModal] = useState({ open: false });
   const [form, setForm] = useState(EMPTY_FORM);
+  // Sprint 1 follow-up: enriquecer linhas de motoristas com bus + duty status.
+  // Indexed por keycloakUserId para join O(1) na tabela.
+  const [driverByKcId, setDriverByKcId] = useState({});
+  // Sprint 1 follow-up: bulk select estilo Exports — checkbox sempre visivel,
+  // toolbar so aparece quando ha >=1 seleccionado.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const showModal = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
 
+  // ─── Sprint 1 follow-up: bulk actions estilo Exports ──────────────────
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulk = async (ids, fn, successKey, errorKey) => {
+    setBulkLoading(true);
+    const results = await Promise.allSettled(ids.map(fn));
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const ko = results.length - ok;
+    await new Promise((r) => { load(); r(); });
+    clearSelection();
+    setBulkLoading(false);
+    if (ko === 0) {
+      showModal({ type: 'success', title: t('toasts.successGeneric'),
+        message: t(successKey, { count: ok }) });
+    } else {
+      showModal({ type: 'warning', title: t('toasts.errorGeneric'),
+        message: t(errorKey, { ok, ko }) });
+    }
+  };
+
+  // Helper: filtra ids excluindo admin (admins nao podem ser tocados por bulk).
+  const eligibleIds = () => {
+    const ids = Array.from(selectedIds);
+    return ids.filter((id) => {
+      const u = users.find((x) => x.id === id);
+      // Protegidos: admin + developer — nao podem ser tocados via bulk.
+      return u && !u.roles?.includes('admin') && !u.roles?.includes('developer');
+    });
+  };
+
+  const handleBulkEnable = () => {
+    const ids = eligibleIds().filter((id) => {
+      const u = users.find((x) => x.id === id);
+      return u && !u.enabled;
+    });
+    if (ids.length === 0) {
+      showModal({ type: 'info', title: t('pages.users.bulkNoEligibleTitle'),
+        message: t('pages.users.bulkEnableNoEligible') });
+      return;
+    }
+    runBulk(ids, (id) => api.patch(`/users/${id}/toggle`, { enabled: true }),
+      'pages.users.bulkEnableSuccess', 'pages.users.bulkPartial');
+  };
+
+  const handleBulkDisable = () => {
+    const ids = eligibleIds().filter((id) => {
+      const u = users.find((x) => x.id === id);
+      return u && u.enabled;
+    });
+    if (ids.length === 0) {
+      showModal({ type: 'info', title: t('pages.users.bulkNoEligibleTitle'),
+        message: t('pages.users.bulkDisableNoEligible') });
+      return;
+    }
+    runBulk(ids, (id) => api.patch(`/users/${id}/toggle`, { enabled: false }),
+      'pages.users.bulkDisableSuccess', 'pages.users.bulkPartial');
+  };
+
+  const handleBulkDelete = () => {
+    const ids = eligibleIds();
+    if (ids.length === 0) {
+      showModal({ type: 'info', title: t('pages.users.bulkNoEligibleTitle'),
+        message: t('pages.users.bulkDeleteNoEligible') });
+      return;
+    }
+    showModal({
+      type: 'danger',
+      title: t('pages.users.bulkDeleteTitle', { count: ids.length }),
+      message: t('pages.users.bulkDeleteMessage', { count: ids.length }),
+      confirmText: t('pages.users.bulkDeleteConfirm'),
+      onConfirm: () => {
+        closeModal();
+        runBulk(ids, (id) => api.delete(`/users/${id}`),
+          'pages.users.bulkDeleteSuccess', 'pages.users.bulkPartial');
+      },
+    });
+  };
+
   const load = useCallback(() => {
     setLoading(true);
-    api.get('/users')
-      .then(r => setUsers(r.data || []))
-      .catch(() => setUsers([]))
-      .finally(() => setLoading(false));
+    // Fetch users + drivers em paralelo. Drivers tem keycloakUserId + bus
+    // assignment + status (ON_DUTY/AVAILABLE/OFFLINE), usado para enriquecer
+    // a linha quando o user e' motorista.
+    Promise.all([
+      api.get('/users').then(r => r.data || []).catch(() => []),
+      api.get('/drivers').then(r => r.data || []).catch(() => []),
+    ]).then(([usersData, driversData]) => {
+      setUsers(usersData);
+      const map = {};
+      for (const d of driversData) {
+        if (d.keycloakUserId) map[d.keycloakUserId] = d;
+      }
+      setDriverByKcId(map);
+    }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -157,6 +260,7 @@ export default function Users() {
   const getRoleLabel = (roles) => {
     if (!roles?.length) return t('pages.users.roleNone');
     if (roles.includes('admin')) return t('pages.users.roleAdmin');
+    if (roles.includes('developer')) return t('auth.roles.developer');
     if (roles.includes('funcionario')) return t('pages.users.roleFuncionario');
     if (roles.includes('motorista')) return t('pages.users.roleDriver');
     return roles[0];
@@ -164,8 +268,19 @@ export default function Users() {
 
   const getRoleCls = (roles) => {
     if (roles?.includes('admin')) return 'user-role--admin';
+    if (roles?.includes('developer')) return 'user-role--dev';
     if (roles?.includes('funcionario')) return 'user-role--func';
     return 'user-role--none';
+  };
+
+  // Sprint 1 follow-up: role principal de um user (prioridade: admin > developer > funcionario > motorista).
+  const primaryRole = (roles) => {
+    if (!roles?.length) return 'none';
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('developer')) return 'developer';
+    if (roles.includes('funcionario')) return 'funcionario';
+    if (roles.includes('motorista')) return 'motorista';
+    return 'none';
   };
 
   const filtered = users
@@ -174,6 +289,7 @@ export default function Users() {
       if (filter === 'disabled') return !u.enabled;
       return true;
     })
+    .filter(u => roleFilter === 'all' ? true : primaryRole(u.roles) === roleFilter)
     .filter(u => {
       if (!search) return true;
       const s = search.toLowerCase();
@@ -186,8 +302,23 @@ export default function Users() {
       return aA !== bA ? aA - bA : (a.username || '').localeCompare(b.username || '');
     });
 
-  const activeCount = users.filter(u => u.enabled).length;
-  const disabledCount = users.filter(u => !u.enabled).length;
+  // Sprint 1 follow-up: contadores cruzam os 2 filtros. Cada pilula mostra
+  // "quantos resultados terias se carregasses nesta" — o "All" do estado
+  // respeita o role filter, e vice-versa.
+  const usersByRole = roleFilter === 'all'
+    ? users
+    : users.filter(u => primaryRole(u.roles) === roleFilter);
+  const usersByState = users.filter(u => {
+    if (filter === 'active') return u.enabled;
+    if (filter === 'disabled') return !u.enabled;
+    return true;
+  });
+  const activeCount = usersByRole.filter(u => u.enabled).length;
+  const disabledCount = usersByRole.filter(u => !u.enabled).length;
+  const stateAllCount = usersByRole.length;
+  const countByRole = (key) => key === 'all'
+    ? usersByState.length
+    : usersByState.filter(u => primaryRole(u.roles) === key).length;
 
   return (
     <div>
@@ -202,7 +333,10 @@ export default function Users() {
           <h1>{t('pages.users.title')}</h1>
           <p className="page-subtitle">{t('pages.users.subtitleAlt')}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+        <button
+          className="btn btn-primary"
+          onClick={() => { resetForm(); setShowForm(true); }}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
           {t('pages.users.newAccount')}
         </button>
@@ -258,15 +392,16 @@ export default function Users() {
             aria-label={t('pages.users.ariaSearchUsers')}
           />
         </div>
-        <div className="user-filters" role="group" aria-label={t('pages.users.ariaFilterByState')}>
+        <div className="user-filter-group" role="group" aria-label={t('pages.users.ariaFilterByState')}>
+          <span className="user-filter-label">{t('pages.users.filterStateLabel')}</span>
           {[
-            { key: 'all', label: t('pages.users.filterAllLabel'), count: users.length },
+            { key: 'all', label: t('pages.users.filterAllLabel'), count: stateAllCount },
             { key: 'active', label: t('pages.users.filterActiveLabel'), count: activeCount },
             { key: 'disabled', label: t('pages.users.filterDisabledLabel'), count: disabledCount },
           ].map(f => (
             <button
               key={f.key}
-              className={`btn btn-filter${filter === f.key ? ' btn-filter--active' : ''}`}
+              className={`btn btn-filter btn-filter--sm${filter === f.key ? ' btn-filter--active' : ''}`}
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
             >
@@ -274,7 +409,54 @@ export default function Users() {
             </button>
           ))}
         </div>
+
+        <div className="user-filter-group" role="group" aria-label={t('pages.users.ariaFilterByRole')}>
+          <span className="user-filter-label">{t('pages.users.filterRoleLabel')}</span>
+          {[
+            { key: 'all',          label: t('pages.users.roleFilterAll') },
+            { key: 'admin',        label: t('pages.users.roleAdmin') },
+            { key: 'funcionario',  label: t('pages.users.roleFuncionario') },
+            { key: 'motorista',    label: t('pages.users.roleDriver') },
+          ].map(r => {
+            const c = countByRole(r.key);
+            return (
+              <button
+                key={r.key}
+                className={`btn btn-filter btn-filter--sm${roleFilter === r.key ? ' btn-filter--active' : ''}`}
+                onClick={() => setRoleFilter(r.key)}
+                aria-pressed={roleFilter === r.key}
+              >
+                {`${r.label} (${c})`}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Sprint 1 follow-up: bulk action bar — visivel so quando ha selecao */}
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar bulk-bar--visible" style={{ marginTop: '16px' }}>
+          <div className="bulk-bar-left">
+            <span className="bulk-bar-count">
+              {t('pages.users.bulkSelected', { count: selectedIds.size })}
+            </span>
+            <button type="button" className="bulk-bar-link" onClick={clearSelection} disabled={bulkLoading}>
+              {t('pages.users.bulkClear')}
+            </button>
+          </div>
+          <div className="bulk-bar-actions">
+            <button className="btn btn-sm btn-success" onClick={handleBulkEnable} disabled={bulkLoading}>
+              {t('pages.users.bulkEnable')}
+            </button>
+            <button className="btn btn-sm btn-warning" onClick={handleBulkDisable} disabled={bulkLoading}>
+              {t('pages.users.bulkDisable')}
+            </button>
+            <button className="btn btn-sm btn-danger" onClick={handleBulkDelete} disabled={bulkLoading}>
+              {t('pages.users.bulkDelete')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Form Modal */}
       {showForm && (
@@ -459,19 +641,70 @@ export default function Users() {
           <table className="data-table" role="table">
             <thead>
               <tr>
-                <th style={{ width: '25%' }}>{t('pages.users.headers.user')}</th>
-                <th style={{ width: '22%' }}>{t('pages.users.headers.email')}</th>
-                <th style={{ width: '13%' }}>{t('pages.users.headers.role')}</th>
-                <th style={{ width: '12%' }}>{t('pages.users.headers.state')}</th>
-                <th style={{ width: '12%' }}>{t('pages.users.headers.created')}</th>
-                <th style={{ width: '16%' }}>{t('pages.users.headers.actions')}</th>
+                {/* Sprint 1 follow-up: column de checkbox (estilo Exports). */}
+                <th className="user-checkbox-cell">
+                  <label className="user-checkbox-label" aria-label={t('pages.users.ariaSelectAll')}>
+                    <input
+                      type="checkbox"
+                      ref={(el) => {
+                        if (!el) return;
+                        const selectable = filtered.filter((u) => !u.roles?.includes('admin') && !u.roles?.includes('developer'));
+                        const selectedSelectable = selectable.filter((u) => selectedIds.has(u.id));
+                        el.checked = selectable.length > 0 && selectedSelectable.length === selectable.length;
+                        el.indeterminate = selectedSelectable.length > 0 && selectedSelectable.length < selectable.length;
+                      }}
+                      onChange={(e) => {
+                        const selectable = filtered.filter((u) => !u.roles?.includes('admin') && !u.roles?.includes('developer'));
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(selectable.map((u) => u.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                    />
+                    <span className="user-checkbox-box" />
+                  </label>
+                </th>
+                <th style={{ width: '20%' }}>{t('pages.users.headers.user')}</th>
+                <th style={{ width: '16%' }}>{t('pages.users.headers.email')}</th>
+                <th style={{ width: '10%' }}>{t('pages.users.headers.role')}</th>
+                <th style={{ width: '13%' }}>{t('pages.users.headers.assignment')}</th>
+                <th style={{ width: '10%' }}>{t('pages.users.headers.state')}</th>
+                <th style={{ width: '10%' }}>{t('pages.users.headers.created')}</th>
+                <th style={{ width: '15%' }}>{t('pages.users.headers.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(user => {
                 const isAdmin = user.roles?.includes('admin');
+                // Sprint 1 follow-up: a conta `dev` (role developer) tambem
+                // e' protegida — nao pode ser desativada nem eliminada,
+                // tal como o admin. So pode existir uma conta dev.
+                const isProtected = isAdmin || user.roles?.includes('developer');
+                const isMotorista = user.roles?.includes('motorista');
+                const driver = isMotorista ? driverByKcId[user.id] : null;
+                const isSelected = selectedIds.has(user.id);
+                const rowCls = [
+                  !user.enabled ? 'user-row--disabled' : '',
+                  isSelected ? 'user-row--selected' : '',
+                ].filter(Boolean).join(' ');
                 return (
-                  <tr key={user.id} className={!user.enabled ? 'user-row--disabled' : ''}>
+                  <tr key={user.id} className={rowCls}>
+                    {/* Sprint 1 follow-up: checkbox (admins nao seleccionaveis). */}
+                    <td className="user-checkbox-cell">
+                      {!isProtected ? (
+                        <label className="user-checkbox-label" aria-label={t('pages.users.ariaSelectRow', { username: user.username })}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(user.id)}
+                          />
+                          <span className="user-checkbox-box" />
+                        </label>
+                      ) : (
+                        <span className="user-checkbox-placeholder" />
+                      )}
+                    </td>
                     <td>
                       <div className="user-cell">
                         <Avatar
@@ -507,6 +740,22 @@ export default function Users() {
                       </span>
                     </td>
                     <td>
+                      {isMotorista && driver ? (
+                        <div className="user-assignment">
+                          <span className="user-assignment-mec">{driver.mechanographicNumber || '-'}</span>
+                          {driver.status === 'ON_DUTY' ? (
+                            <span className="user-duty user-duty--on">{t('pages.users.dutyOn')}</span>
+                          ) : driver.status === 'OFFLINE' ? (
+                            <span className="user-duty user-duty--off">{t('pages.users.dutyOffline')}</span>
+                          ) : (
+                            <span className="user-duty user-duty--avail">{t('pages.users.dutyAvailable')}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-light)' }}>-</span>
+                      )}
+                    </td>
+                    <td>
                       <span className={`user-status ${user.enabled ? 'user-status--active' : 'user-status--disabled'}`}>
                         <span className="user-status-dot" aria-hidden="true" />
                         {user.enabled ? t('pages.users.stateActive') : t('pages.users.stateInactive')}
@@ -519,15 +768,26 @@ export default function Users() {
                     </td>
                     <td>
                       <div className="user-actions">
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => startEdit(user)}
-                          aria-label={t('pages.users.ariaEdit', { username: user.username })}
-                        >
-                          {t('pages.users.btnEdit')}
-                        </button>
-                        {!isAdmin && (
+                        {isProtected ? (
+                          <span
+                            title={t('pages.users.protectedAccount')}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--color-text-light)', fontSize: 12 }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            {t('pages.users.protectedAccount')}
+                          </span>
+                        ) : (
                           <>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => startEdit(user)}
+                              aria-label={t('pages.users.ariaEdit', { username: user.username })}
+                            >
+                              {t('pages.users.btnEdit')}
+                            </button>
                             <button
                               className={`btn btn-sm ${user.enabled ? 'btn-warning' : 'btn-success'}`}
                               onClick={() => handleToggle(user)}
@@ -551,7 +811,7 @@ export default function Users() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan="6">
+                  <td colSpan="8">
                     <div className="user-empty">
                       <div className="user-empty-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

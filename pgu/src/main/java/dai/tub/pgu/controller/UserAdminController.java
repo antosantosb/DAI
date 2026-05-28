@@ -91,12 +91,39 @@ public class UserAdminController
         return ResponseEntity.status(201).body(created);
     }
 
+    // Sprint 1 follow-up: nomes portugueses reais para gerar motoristas de demo.
+    // Listas curtas mas suficientes para variedade visivel. Adicionar mais se
+    // criarmos batches grandes (>100) num so click.
+    private static final List<String> PT_FIRST_NAMES = List.of(
+            "Joao", "Maria", "Pedro", "Ana", "Carlos", "Sofia", "Miguel", "Rita",
+            "Tiago", "Beatriz", "Andre", "Ines", "Bruno", "Catarina", "Diogo",
+            "Mariana", "Ricardo", "Joana", "Goncalo", "Carolina", "Rui", "Marta",
+            "Filipe", "Helena", "Hugo", "Sara", "Luis", "Patricia", "Nuno", "Teresa"
+    );
+    private static final List<String> PT_LAST_NAMES = List.of(
+            "Silva", "Santos", "Ferreira", "Pereira", "Costa", "Rodrigues", "Martins",
+            "Sousa", "Oliveira", "Carvalho", "Lopes", "Marques", "Goncalves", "Almeida",
+            "Ribeiro", "Pinto", "Fernandes", "Mendes", "Nunes", "Cardoso", "Reis",
+            "Antunes", "Castro", "Teixeira", "Moreira", "Correia", "Cunha", "Rocha"
+    );
+
+    // Sprint 1 follow-up: password fixa para todos os motoristas gerados em
+    // batch. Modo demo apenas: em producao real esta funcionalidade vai ficar
+    // restrita a conta `developer` (Sprint 1 follow-up #8).
+    private static final String BATCH_DRIVER_PASSWORD = "motorista123";
+
     /**
-     * Cria N motoristas em lote com dados aleatórios.
-     * Cada um terá de mudar a password no primeiro login (required action UPDATE_PASSWORD).
-     * Username: motorista_<sufixo aleatório>; Password temporária aleatória (logada para auditoria).
+     * Cria N motoristas em lote com nomes portugueses aleatorios.
+     *
+     * <p><b>Feature de DEMO/DEV:</b> a password de todos os motoristas gerados
+     * e' {@code motorista123}. Documentado no UI.
+     *
+     * <p>NAO usa required action UPDATE_PASSWORD porque (a) a password e' "publica"
+     * para demos, (b) a required action bloqueava o flow de change-password normal
+     * pela /backoffice/conta (bug #3 do backlog).
      */
     @PostMapping("/drivers/batch")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('developer')")
     @LogActivity(action = "Criar motoristas em batch")
     public ResponseEntity<List<UserRepresentationDTO>> createDriversBatch(
             @RequestParam(defaultValue = "5")
@@ -108,27 +135,31 @@ public class UserAdminController
         List<UserRepresentationDTO> created = new ArrayList<>();
 
         for (int i = 0; i < count; i++) {
+            String firstName = PT_FIRST_NAMES.get(rng.nextInt(PT_FIRST_NAMES.size()));
+            String lastName  = PT_LAST_NAMES.get(rng.nextInt(PT_LAST_NAMES.size()));
+
             // Username único: motorista_<6 chars alfanuméricos>
             String suffix = randomAlphanumeric(rng, 6);
             String username = "motorista_" + suffix;
-            String tempPassword = randomPassword(rng);
+            // Password fixa para todos os motoristas gerados (feature de demo).
+            String password = BATCH_DRIVER_PASSWORD;
 
             UserRepresentationDTO dto = new UserRepresentationDTO();
             dto.setUsername(username);
-            dto.setEmail(username + "@tub.local");
-            dto.setFirstName("Motorista");
-            dto.setLastName(suffix.toUpperCase());
+            dto.setEmail((firstName + "." + lastName + "." + suffix + "@tub.local").toLowerCase());
+            dto.setFirstName(firstName);
+            dto.setLastName(lastName);
             dto.setEnabled(true);
-            dto.setPassword(tempPassword);
+            dto.setPassword(password);
             dto.setRoles(List.of("motorista"));
-            dto.setRequiredActions(List.of("UPDATE_PASSWORD"));
+            // SEM required actions: a password e' valida desde ja.
 
             try {
                 UserRepresentationDTO kcUser = keycloakAdminService.createUser(dto);
 
                 // Criar linha em drivers
                 String mecNum = driverService.nextMechanographicNumber();
-                String fullName = dto.getFirstName() + " " + dto.getLastName();
+                String fullName = firstName + " " + lastName;
                 try {
                     driverService.createDriverForKeycloakUser(
                             kcUser.getUsername(), fullName, mecNum, null);
@@ -138,9 +169,9 @@ public class UserAdminController
                     throw new RuntimeException("Falha ao criar motorista " + username + ": " + e.getMessage(), e);
                 }
 
-                // Auditoria: password temporária logada (não retornada ao cliente)
-                log.info("[BATCH-DRIVERS] criado motorista username={} mecNum={} tempPassword={}",
-                        username, mecNum, tempPassword);
+                // Auditoria: password do motorista logada (= apelido lowercase).
+                log.info("[BATCH-DRIVERS] criado motorista username={} fullName=\"{}\" mecNum={} password={}",
+                        username, fullName, mecNum, password);
 
                 // Limpar campos sensíveis antes de retornar
                 kcUser.setPassword(null);
@@ -196,6 +227,7 @@ public class UserAdminController
         @PathVariable String userId,
         @RequestBody Map<String, Boolean> body)
     {
+        assertNotProtected(userId);
         boolean enabled = body.getOrDefault("enabled", true);
         keycloakAdminService.toggleUserEnabled(userId, enabled);
         return ResponseEntity.noContent().build();
@@ -205,6 +237,7 @@ public class UserAdminController
     @LogActivity(action = "Eliminar utilizador")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId)
     {
+        assertNotProtected(userId);
         // Cascata: precisamos do username (não UUID) para localizar o driver
         UserRepresentationDTO user = keycloakAdminService.getUser(userId);
         if (user != null && user.getUsername() != null) {
@@ -212,5 +245,34 @@ public class UserAdminController
         }
         keycloakAdminService.deleteUser(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Sprint 1 follow-up: bloqueia mutacoes (delete/toggle) sobre as contas
+     * de sistema. Single source of truth no backend — mesmo que o frontend
+     * mostre o botao (bug ou bypass), o backend rejeita com 403.
+     *
+     * <p>Contas protegidas:
+     * <ul>
+     *   <li>{@code admin} — conta de administrador principal</li>
+     *   <li>{@code dev} — conta de developer/demo (Sprint 1 follow-up)</li>
+     * </ul>
+     */
+    private void assertNotProtected(String userId)
+    {
+        UserRepresentationDTO user = keycloakAdminService.getUser(userId);
+        if (user == null) return;
+        String uname = user.getUsername();
+        List<String> roles = user.getRoles();
+        boolean isAdmin = "admin".equalsIgnoreCase(uname)
+                || (roles != null && roles.contains("admin"));
+        boolean isDev = "dev".equalsIgnoreCase(uname)
+                || (roles != null && roles.contains("developer"));
+        if (isAdmin || isDev) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.FORBIDDEN,
+                "Conta de sistema (" + uname + ") nao pode ser modificada nem eliminada."
+            );
+        }
     }
 }

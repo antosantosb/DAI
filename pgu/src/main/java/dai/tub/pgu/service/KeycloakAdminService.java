@@ -43,7 +43,10 @@ public class KeycloakAdminService
     private String adminPassword;
 
     // Roles que o sistema reconhece (para filtrar roles internas do Keycloak)
-    private static final List<String> SYSTEM_ROLES = List.of("admin", "funcionario", "motorista");
+    // Sprint 1 follow-up: `developer` adicionado. Sem isto, GET /users devolvia
+    // o user `dev` com roles=[] no DTO -> frontend mostrava "NO ROLE" e tratava
+    // como user normal (mostrando botões Edit/Disable/Delete).
+    private static final List<String> SYSTEM_ROLES = List.of("admin", "funcionario", "motorista", "developer");
 
     public KeycloakAdminService()
     {

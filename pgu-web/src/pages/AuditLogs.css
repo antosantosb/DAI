@@ -205,13 +205,140 @@
 }
 
 /* ─── Error Cell ─── */
+/* Sprint 1 follow-up: celula compacta (resumo curto + botao "Ver" que abre
+ * modal com erro completo). Nada de stacktraces a vazar pela tabela. */
 .audit-cell-error {
-  font-size: 12px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  max-width: 360px;
+}
+.audit-error-empty {
+  color: var(--color-text-light);
+}
+.audit-error-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.audit-error-summary {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--color-danger-hover);
-  word-break: break-word;
-  white-space: normal;
-  line-height: 1.5;
-  max-width: 300px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+[data-theme="dark"] .audit-error-summary {
+  color: var(--color-danger);
+}
+.audit-error-more {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.audit-error-more:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+/* ─── Detail modal ─── */
+/* Sprint 1 follow-up: o componente Modal global tem max-width:420px e
+ * text-align:center. Esses defaults sao bons para confirmacoes curtas mas
+ * tornam este detalhe (com SQL longo) ilegivel. Override via :has() apenas
+ * para os modais que contem .audit-detail — nao afecta outros usos. */
+.modal-dialog:has(.audit-detail) {
+  max-width: 760px !important;
+  text-align: left !important;
+}
+.modal-dialog:has(.audit-detail) .modal-title {
+  text-align: left;
+}
+.modal-dialog:has(.audit-detail) .modal-icon {
+  display: none;
+}
+
+.audit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  text-align: left;
+  margin-top: 4px;
+}
+.audit-detail-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.audit-detail-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.audit-detail-meta dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+.audit-detail-meta dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.audit-detail-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  font-size: 12.5px !important;
+  color: var(--color-primary) !important;
+}
+.audit-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.audit-detail-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+/* Sprint 1 follow-up: `overflow-wrap: anywhere` em vez de `word-break: break-word`
+ * para que so' quebre palavras como ultimo recurso (e nao em meio de
+ * "statement", "constraint", etc.). pre-wrap respeita newlines. */
+.audit-detail-pre {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-height: 320px;
+  overflow: auto;
+  color: var(--color-text);
 }
 
 /* ─── Error Row ─── */
