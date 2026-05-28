@@ -6,10 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import AccountForm from '../components/AccountForm';
+import { useAuth } from '../context/AuthProvider';
 import './MinhaConta.css';
 
 export default function MinhaConta() {
   const { t } = useTranslation();
+  const { logout } = useAuth();
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,12 @@ export default function MinhaConta() {
   const handleChangePassword = async (currentPassword, newPassword) => {
     try {
       await api.post('/me/password', { currentPassword, newPassword });
-      toast.success(t('pages.minhaConta.passwordChanged'));
+      // Sprint 1 follow-up: ao mudar password, o Keycloak invalida o refresh
+      // token desta sessao. Em vez de deixar o axios interceptor receber 401
+      // e despejar o user para a Landing (UX confusa), fazemos logout
+      // intencional com toast claro depois do success.
+      toast.success(t('pages.minhaConta.passwordChangedReLogin'), { autoClose: 4000 });
+      setTimeout(() => { logout(); }, 1500);
     } catch (err) {
       // Deixa o componente apresentar a mensagem inline; relancamos
       // para o AccountForm distinguir 401 (password atual errada).

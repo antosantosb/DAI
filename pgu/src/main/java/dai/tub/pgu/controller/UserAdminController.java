@@ -15,6 +15,7 @@ import dai.tub.pgu.dto.UserRepresentationDTO;
 import dai.tub.pgu.service.AvatarService;
 import dai.tub.pgu.service.DriverService;
 import dai.tub.pgu.service.KeycloakAdminService;
+import dai.tub.pgu.service.UserReferenceSyncService;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,14 +33,17 @@ public class UserAdminController
     private final KeycloakAdminService keycloakAdminService;
     private final DriverService driverService;
     private final AvatarService avatarService;
+    private final UserReferenceSyncService userReferenceSyncService;
 
     public UserAdminController(KeycloakAdminService keycloakAdminService,
                                DriverService driverService,
-                               AvatarService avatarService)
+                               AvatarService avatarService,
+                               UserReferenceSyncService userReferenceSyncService)
     {
         this.keycloakAdminService = keycloakAdminService;
         this.driverService = driverService;
         this.avatarService = avatarService;
+        this.userReferenceSyncService = userReferenceSyncService;
     }
 
     @GetMapping
@@ -62,6 +66,14 @@ public class UserAdminController
     @LogActivity(action = "Criar utilizador")
     public ResponseEntity<UserRepresentationDTO> createUser(@RequestBody UserRepresentationDTO dto)
     {
+        // Sprint 1 follow-up: todas as contas criadas manualmente (funcionário,
+        // motorista individual) recebem UPDATE_PASSWORD + CONFIGURE_TOTP como
+        // required actions — segue a politica do realm (idêntico ao seed admin).
+        // Excepcoes: (a) seed `admin` ja vem no realm.json com estas flags, e
+        // (b) seed `dev` que nao tem nenhuma. O batch de motoristas tem o seu
+        // proprio endpoint (/drivers/batch) que NAO passa por aqui e e' modo demo.
+        dto.setRequiredActions(java.util.List.of("UPDATE_PASSWORD", "CONFIGURE_TOTP"));
+
         UserRepresentationDTO created = keycloakAdminService.createUser(dto);
 
         // Se for motorista, criar também a linha em drivers, atomicamente ligada à conta Keycloak.
@@ -216,7 +228,41 @@ public class UserAdminController
         @PathVariable String userId,
         @RequestBody UserRepresentationDTO dto)
     {
+        // Sprint 1 follow-up: politica de update das contas de sistema.
+        //   - admin → não pode ser editado por aqui (403).
+        //   - dev   → apenas password pode ser alterada; outros campos
+        //             (username, nome, email, role, enabled) são ignorados
+        //             silenciosamente. Permite ao admin reset password do
+        //             dev sem mexer no perfil read-only.
+        UserRepresentationDTO target = keycloakAdminService.getUser(userId);
+        String oldUsername = target != null ? target.getUsername() : null;
+        if (target != null) {
+            if (isAdminUser(target)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "A conta admin nao pode ser editada por aqui."
+                );
+            }
+            if (isDevUser(target)) {
+                UserRepresentationDTO sanitized = new UserRepresentationDTO();
+                sanitized.setPassword(dto.getPassword());
+                dto = sanitized;
+            }
+        }
+
         UserRepresentationDTO updated = keycloakAdminService.updateUser(userId, dto);
+
+        // Sprint 1 follow-up: se o username mudou, propagar a renomeação em
+        // todas as tabelas onde guardamos username como string sem FK.
+        //   - drivers.keycloak_user_id (DriverService)
+        //   - export_job.requested_by, data_source.owner (UserReferenceSyncService)
+        // Tabelas de histórico/audit ficam intencionalmente com o username antigo.
+        if (oldUsername != null && updated.getUsername() != null
+                && !oldUsername.equals(updated.getUsername())) {
+            driverService.renameKeycloakUserId(oldUsername, updated.getUsername());
+            userReferenceSyncService.renameUsernameReferences(oldUsername, updated.getUsername());
+        }
+
         avatarService.enrich(updated);
         return ResponseEntity.ok(updated);
     }
@@ -227,9 +273,22 @@ public class UserAdminController
         @PathVariable String userId,
         @RequestBody Map<String, Boolean> body)
     {
-        assertNotProtected(userId);
+        assertCannotToggle(userId);
         boolean enabled = body.getOrDefault("enabled", true);
+
+        // Sprint 1 follow-up: bloquear desativar conta de motorista a conduzir.
+        UserRepresentationDTO target = keycloakAdminService.getUser(userId);
+        if (!enabled) {
+            assertMotoristaNotOnDuty(target, "desativar");
+        }
+
         keycloakAdminService.toggleUserEnabled(userId, enabled);
+        // Sprint 1 follow-up: se for motorista, sincronizar driver.status
+        //   - disable -> OFFLINE
+        //   - enable  -> AVAILABLE (se estava OFFLINE)
+        if (target != null && target.getRoles() != null && target.getRoles().contains("motorista")) {
+            driverService.syncEnabledStatus(target.getUsername(), enabled);
+        }
         return ResponseEntity.noContent().build();
     }
 
@@ -237,9 +296,13 @@ public class UserAdminController
     @LogActivity(action = "Eliminar utilizador")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId)
     {
-        assertNotProtected(userId);
+        assertCannotDelete(userId);
         // Cascata: precisamos do username (não UUID) para localizar o driver
         UserRepresentationDTO user = keycloakAdminService.getUser(userId);
+
+        // Sprint 1 follow-up: bloquear eliminar conta de motorista a conduzir.
+        assertMotoristaNotOnDuty(user, "eliminar");
+
         if (user != null && user.getUsername() != null) {
             driverService.deleteByKeycloakUserId(user.getUsername());
         }
@@ -248,31 +311,66 @@ public class UserAdminController
     }
 
     /**
-     * Sprint 1 follow-up: bloqueia mutacoes (delete/toggle) sobre as contas
-     * de sistema. Single source of truth no backend — mesmo que o frontend
-     * mostre o botao (bug ou bypass), o backend rejeita com 403.
-     *
-     * <p>Contas protegidas:
-     * <ul>
-     *   <li>{@code admin} — conta de administrador principal</li>
-     *   <li>{@code dev} — conta de developer/demo (Sprint 1 follow-up)</li>
-     * </ul>
+     * Sprint 1 follow-up: bloqueia desativar/eliminar uma conta cujo motorista
+     * está a meio de uma viagem (status ON_DUTY). Evita orfanizar autocarros
+     * em movimento. Não faz nada se o user não for motorista.
      */
-    private void assertNotProtected(String userId)
+    private void assertMotoristaNotOnDuty(UserRepresentationDTO user, String operacao) {
+        if (user == null || user.getUsername() == null) return;
+        if (user.getRoles() == null || !user.getRoles().contains("motorista")) return;
+        if (driverService.isOnDuty(user.getUsername())) {
+            throw new IllegalStateException(
+                "Não é possível " + operacao + " a conta de " + user.getUsername()
+                + ": o motorista está actualmente a conduzir um autocarro. "
+                + "Pare o autocarro primeiro."
+            );
+        }
+    }
+
+    /**
+     * Sprint 1 follow-up: politica de proteção das contas de sistema.
+     *
+     * <p>
+     * <table>
+     *   <tr><th>Conta</th><th>Pode ser desativada?</th><th>Pode ser eliminada?</th></tr>
+     *   <tr><td>{@code admin}</td><td>NAO (lockout próprio)</td><td>NAO</td></tr>
+     *   <tr><td>{@code dev}</td><td>SIM (admin pode desligar a conta demo)</td><td>NAO (singular)</td></tr>
+     *   <tr><td>outros</td><td>SIM</td><td>SIM</td></tr>
+     * </table>
+     */
+    private void assertCannotDelete(String userId)
     {
         UserRepresentationDTO user = keycloakAdminService.getUser(userId);
         if (user == null) return;
-        String uname = user.getUsername();
-        List<String> roles = user.getRoles();
-        boolean isAdmin = "admin".equalsIgnoreCase(uname)
-                || (roles != null && roles.contains("admin"));
-        boolean isDev = "dev".equalsIgnoreCase(uname)
-                || (roles != null && roles.contains("developer"));
-        if (isAdmin || isDev) {
+        if (isAdminUser(user) || isDevUser(user)) {
             throw new org.springframework.web.server.ResponseStatusException(
                 org.springframework.http.HttpStatus.FORBIDDEN,
-                "Conta de sistema (" + uname + ") nao pode ser modificada nem eliminada."
+                "Conta de sistema (" + user.getUsername() + ") nao pode ser eliminada."
             );
         }
+    }
+
+    private void assertCannotToggle(String userId)
+    {
+        UserRepresentationDTO user = keycloakAdminService.getUser(userId);
+        if (user == null) return;
+        if (isAdminUser(user)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.FORBIDDEN,
+                "A conta admin nao pode ser desativada (lockout próprio)."
+            );
+        }
+    }
+
+    private static boolean isAdminUser(UserRepresentationDTO u)
+    {
+        return "admin".equalsIgnoreCase(u.getUsername())
+                || (u.getRoles() != null && u.getRoles().contains("admin"));
+    }
+
+    private static boolean isDevUser(UserRepresentationDTO u)
+    {
+        return "dev".equalsIgnoreCase(u.getUsername())
+                || (u.getRoles() != null && u.getRoles().contains("developer"));
     }
 }

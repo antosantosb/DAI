@@ -84,6 +84,63 @@ public class DriverService {
      * Elimina o Driver associado a um Keycloak user (cascata de delete do user).
      * Idempotente — não falha se não houver driver associado.
      */
+    /**
+     * Sprint 1 follow-up: quando o admin muda o username no Keycloak, a tabela
+     * {@code drivers} (que guarda {@code keycloak_user_id = username}) tem de
+     * apanhar a mesma alteração — caso contrário o motorista fica desligado
+     * da sua conta Keycloak (Painel de Bordo deixa de encontrar o bus
+     * atribuído, etc.). Idempotente: se não existir driver ou o username não
+     * mudou, não faz nada.
+     */
+    /**
+     * Sprint 1 follow-up: sincroniza {@code driver.status} com o estado
+     * {@code enabled} da conta Keycloak. Chamado quando o admin desativa
+     * ou reativa um user.
+     *  - enabled=false -> driver.status = OFFLINE
+     *  - enabled=true  -> driver.status = AVAILABLE (se OFFLINE)
+     *
+     * <p>Mantém o ON_DUTY se a conta for reativada (motorista a meio de
+     * uma viagem que voltou a estar activa). Idempotente.
+     */
+    @Transactional
+    public void syncEnabledStatus(String keycloakUserId, boolean enabled) {
+        if (keycloakUserId == null) return;
+        driverRepository.findByKeycloakUserId(keycloakUserId).ifPresent(d -> {
+            if (!enabled && !"OFFLINE".equals(d.getStatus())) {
+                d.setStatus("OFFLINE");
+                driverRepository.save(d);
+            } else if (enabled && "OFFLINE".equals(d.getStatus())) {
+                d.setStatus("AVAILABLE");
+                driverRepository.save(d);
+            }
+        });
+    }
+
+    /**
+     * Sprint 1 follow-up: verifica se o motorista associado a um Keycloak user
+     * está ON_DUTY (a conduzir um autocarro neste momento). Devolve {@code false}
+     * se não houver driver associado ou se não estiver em serviço.
+     *
+     * <p>Usado pelo UserAdminController para bloquear desativar/eliminar uma
+     * conta cujo motorista está a meio de uma viagem.
+     */
+    public boolean isOnDuty(String keycloakUserId) {
+        if (keycloakUserId == null) return false;
+        return driverRepository.findByKeycloakUserId(keycloakUserId)
+                .map(d -> "ON_DUTY".equals(d.getStatus()))
+                .orElse(false);
+    }
+
+    @Transactional
+    public void renameKeycloakUserId(String oldUsername, String newUsername) {
+        if (oldUsername == null || newUsername == null) return;
+        if (oldUsername.equals(newUsername)) return;
+        driverRepository.findByKeycloakUserId(oldUsername).ifPresent(d -> {
+            d.setKeycloakUserId(newUsername);
+            driverRepository.save(d);
+        });
+    }
+
     @Transactional
     public void deleteByKeycloakUserId(String keycloakUserId) {
         driverRepository.findByKeycloakUserId(keycloakUserId).ifPresent(d -> {
@@ -136,12 +193,16 @@ public class DriverService {
 
         assignmentRepository.findByDriverIdAndActiveTrue(driverId)
             .ifPresent(assignment -> {
-                // Regra: não desatribuir motorista de autocarro em andamento
+                // Sprint 1 follow-up: só permitir desatribuir se o autocarro
+                // está totalmente parado (STOPPED). Antes só bloqueava ACTIVE,
+                // o que deixava passar STOPPING (a parar — bus ainda em
+                // movimento na estrada).
                 Bus bus = busRepository.findById(assignment.getBusId()).orElse(null);
-                if (bus != null && "ACTIVE".equals(bus.getStatus())) {
+                if (bus != null && !"STOPPED".equals(bus.getStatus())) {
                     throw new RuntimeException("Não é possível desatribuir o motorista "
-                            + driver.getName() + " — o autocarro " + bus.getBusCode()
-                            + " está em andamento. Pare o autocarro primeiro.");
+                            + driver.getName() + ". O autocarro " + bus.getBusCode()
+                            + " ainda não está parado (estado atual: "
+                            + bus.getStatus() + "). Pare o autocarro primeiro.");
                 }
                 assignment.deactivate();
                 assignmentRepository.save(assignment);

@@ -51,6 +51,24 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
 }
 
+/* Sprint 1 follow-up: estado disabled global para todos os botoes */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: auto; /* manter cursor not-allowed visivel no hover */
+  box-shadow: none !important;
+  transform: none !important;
+}
+.btn:disabled:hover,
+.btn[disabled]:hover,
+.btn:disabled:active,
+.btn[disabled]:active {
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none;
+}
+
 .btn-primary {
   background: var(--color-primary);
   color: #fff;

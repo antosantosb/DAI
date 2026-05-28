@@ -98,9 +98,11 @@ export default function Livemap() {
     : '';
   const displayRole = roles?.includes('admin')
     ? t('auth.roles.admin')
-    : roles?.includes('motorista')
-      ? t('auth.roles.motorista')
-      : t('auth.roles.funcionario');
+    : roles?.includes('developer')
+      ? t('auth.roles.developer')
+      : roles?.includes('motorista')
+        ? t('auth.roles.motorista')
+        : t('auth.roles.funcionario');
 
   // ─── Map initialization ───
   useEffect(() => {

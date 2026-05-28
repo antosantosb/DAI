@@ -222,24 +222,72 @@
 }
 .assign-bus-empty a:hover { text-decoration: underline; }
 
-/* ─── Indicador de bus em andamento na coluna "Autocarro Atual" ─── */
-.bus-active-dot {
+/* ─── Sprint 1 follow-up: dot indicador do status do bus na coluna
+ * "Autocarro Atual". Verde a piscar = ACTIVE, amarelo a piscar = STOPPING,
+ * cinzento estático = STOPPED. */
+.bus-dot {
   display: inline-block;
-  margin-left: 6px;
-  color: var(--color-success);
-  font-size: 10px;
-  animation: pulse-dot 2s ease-in-out infinite;
+  margin-left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.bus-dot--active {
+  background: var(--color-success);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.bus-dot--stopping {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.bus-dot--stopped {
+  background: var(--color-text-light);
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.85); }
 }
 
-/* ─── Botão desabilitado ─── */
+/* Sprint 1 follow-up: toolbar com search + filtros */
+.drivers-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.drivers-toolbar .search-bar {
+  flex: 0 1 320px;
+}
+
+/* Sprint 1 follow-up: replicar regras dos filtros (Users.css nao e' carregado nesta pagina) */
+.drivers-toolbar .user-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.drivers-toolbar .user-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  margin-right: 4px;
+}
+.drivers-toolbar .btn-filter--sm {
+  padding: 5px 10px !important;
+  font-size: 12px !important;
+  border-radius: var(--radius-pill) !important;
+}
+
+/* ─── Botão desabilitado: regra global em App.css cobre quase tudo ─── */
 .btn-unassign:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+  /* Mantida para compatibilidade. Cursor + opacidade vem de App.css. */
 }
 
 /* ─── Modal assign-bus: search box ─── */

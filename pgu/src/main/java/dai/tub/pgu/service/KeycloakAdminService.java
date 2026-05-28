@@ -308,7 +308,13 @@ public class KeycloakAdminService
         String token = getAdminToken();
 
         ObjectNode payload = mapper.createObjectNode();
-        // username é read-only no Keycloak — não incluir no PUT
+        // Sprint 1 follow-up: username passa a ser editável (realm tem
+        // `editUsernameAllowed: true`). UserAdminController chama
+        // driverService.renameKeycloakUserId() para sincronizar a tabela
+        // drivers se o username mudou.
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            payload.put("username", request.getUsername());
+        }
         if (request.getEmail() != null) payload.put("email", request.getEmail());
         if (request.getFirstName() != null) payload.put("firstName", request.getFirstName());
         if (request.getLastName() != null) payload.put("lastName", request.getLastName());

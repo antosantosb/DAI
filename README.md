@@ -34,13 +34,13 @@ Plataforma de centralização, monitorização e gestão de dados de mobilidade 
 
 ## Estado do projeto
 
-Sprint -1 (hardening) e Sprint 0 (fundações + polish) estão **concluídos**. A plataforma está pronta para entrar no Sprint 1 (Vertical 3.1 Transportes Públicos). Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
+Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. A plataforma está pronta para entrar no Sprint 1 (Vertical 3.1 Transportes Públicos). Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
 
 ### Principais funcionalidades já entregues
 
 **Autenticação e segurança (Sprint -1 + Sprint 0 F4/F5):**
 
-- Realm Keycloak `pgu-realm` com três roles: `admin`, `funcionario` e `motorista`.
+- Realm Keycloak `pgu-realm` com quatro roles: `admin`, `funcionario`, `motorista` e `developer` (conta `dev`/`dev123` para demos, com ferramentas em `/backoffice/dev`).
 - MFA TOTP obrigatório (required action `CONFIGURE_TOTP`), com tema PGU custom no setup do QR. Suporta FreeOTP, Google Authenticator e Microsoft Authenticator.
 - `unmanagedAttributePolicy=ENABLED` configurado automaticamente no boot pelo backend (necessário para custom attributes como `avatarKey`).
 - Tema Keycloak completo (login, account, totp-config) com toggle de tema claro/escuro e troca de língua PT/EN.
@@ -273,18 +273,23 @@ Substituir `<host>` por `localhost` (modo local) ou pelo domínio configurado em
 
 ### Utilizadores do realm `pgu-realm`
 
-Apenas o utilizador `admin` vem pré-criado em `keycloak/pgu-realm-realm.json`, com `temporary: true` e `requiredActions: ["UPDATE_PASSWORD"]`. **A password tem de ser alterada no primeiro login.**
+Dois utilizadores vêm pré-criados em `keycloak/pgu-realm-realm.json`:
 
 | Username | Password inicial | Role | Destino |
 |---|---|---|---|
-| `admin` | `admin123` | `admin` | Backoffice (acesso total) |
+| `admin` | `admin123` | `admin` | Backoffice. Password `temporary: true`, tem de ser alterada no primeiro login. **Conta protegida**: não pode ser eliminada nem desactivada via UI/API. |
+| `dev` | `dev123` | `developer` | Backoffice + página `/backoffice/dev` (Ferramentas Dev). Password permanente, sem MFA. **Conta protegida**: idem. O `developer` faz tudo o que o `admin` faz **mais** geração em massa e simulações de demo. |
 
-As contas de **funcionários** e **motoristas** são criadas pelo admin a partir do backoffice:
+As contas de **funcionários** e **motoristas** são criadas a partir do backoffice:
 
 - `/backoffice/users`: gestão de funcionários (atribui role `funcionario`).
 - `/backoffice/drivers`: gestão de motoristas (atribui role `motorista` e o autocarro a que ficam associados).
 
-As roles `funcionario` e `motorista` estão definidas no realm e prontas a ser atribuídas. Em alternativa, o admin pode criar contas em massa via `POST /api/v1/users/drivers/batch?count=N` ou `POST /api/v1/buses/batch?count=N` (limite de 1 a 50), com `UPDATE_PASSWORD` como required action no Keycloak.
+Para popular o ambiente rapidamente (apresentações, testes), a conta `dev` tem ferramentas em `/backoffice/dev`:
+
+- **Gerar autocarros em batch** (`POST /api/v1/buses/batch?count=N`, limite 1-50) — matrículas, capacidades e rotas aleatórias.
+- **Gerar motoristas em batch** (`POST /api/v1/users/drivers/batch?count=N`) — nomes portugueses aleatórios, **password fixa `motorista123`** para todos os motoristas gerados (modo demo). Os 2 endpoints estão restritos ao role `developer` (admin sozinho já não tem acesso).
+- ***Stubs* de simulação** (`Simular atraso`, `Adicionar passageiros`) marcados com badge `STUB` — registam o pedido nos logs mas não afectam o estado real. Esqueleto para hooks futuros do simulador.
 
 ### Email (SMTP)
 
@@ -315,6 +320,8 @@ SMTP_STARTTLS=true
 
 ### Rotas principais
 
+> **Nota.** O role `developer` herda tudo o que o `admin` faz. Para não duplicar, as tabelas abaixo só listam `admin` na coluna *Acesso* — entenda-se "admin **ou** developer". A única excepção é `/backoffice/dev` e os endpoints `/api/v1/dev/**` + `/api/v1/buses/batch` + `/api/v1/users/drivers/batch`, que estão restritos a `developer` (admin sozinho não tem acesso).
+
 | Rota | Acesso | Descrição |
 |---|---|---|
 | `/` | Público | Landing page (apresentação) |
@@ -328,6 +335,7 @@ SMTP_STARTTLS=true
 | `/backoffice/data-sources` | `admin` | Saúde de fontes de dados (probes + timeline) |
 | `/backoffice/exports` | `admin`, `funcionario` | Exportações CSV / JSON (MinIO + presigned URLs) |
 | `/backoffice/conta` | `admin`, `funcionario` | Self-service de conta (dados, password, avatar) |
+| `/backoffice/dev` | `developer` | **Ferramentas Dev**: geração em batch + simulações stub |
 | `/bordo` | `motorista` | **Painel de Bordo** (auto-deteta o autocarro atribuído) |
 
 ### LiveMap
@@ -366,12 +374,14 @@ Interface dedicada ao motorista, em `/bordo`:
 | `GET/POST` | `/api/v1/routes` | `admin`, `funcionario` | CRUD de rotas (calcula segmentos OSRM) |
 | `GET` | `/api/v1/route-segments/route/{id}` | `admin`, `funcionario` | Segmentos OSRM de uma rota |
 | `GET/POST` | `/api/v1/buses` | `admin`, `funcionario` | CRUD de autocarros |
-| `POST` | `/api/v1/buses/batch?count=N` | `admin` | Criar 1 a 50 autocarros aleatórios |
+| `POST` | `/api/v1/buses/batch?count=N` | `developer` | Criar 1 a 50 autocarros aleatórios |
 | `PUT` | `/api/v1/buses/{id}/activate` | `admin`, `funcionario` | Ativa o autocarro |
 | `PUT` | `/api/v1/buses/{id}/stop` | `admin`, `funcionario` | Marca como `STOPPING` |
 | `GET` | `/api/v1/buses/{id}/health` | `admin`, `funcionario` | Dashboard de saúde |
 | `GET/POST` | `/api/v1/drivers` | `admin` | Gestão de motoristas (via Keycloak) |
-| `POST` | `/api/v1/users/drivers/batch?count=N` | `admin` | Criar 1 a 50 motoristas aleatórios |
+| `POST` | `/api/v1/users/drivers/batch?count=N` | `developer` | Criar 1 a 50 motoristas aleatórios (password fixa `motorista123`) |
+| `POST` | `/api/v1/dev/simulate/bus-delay` | `developer` | **Stub** — simular atraso (log apenas) |
+| `POST` | `/api/v1/dev/simulate/add-passengers` | `developer` | **Stub** — incrementar passageiros (log apenas) |
 | `GET` | `/api/v1/drivers/me/bus` | `motorista` | Autocarro atribuído ao motorista autenticado |
 | `GET/PUT` | `/api/v1/me` | Autenticado | Self-service de conta (dados, avatar, password) |
 | `GET/POST` | `/api/v1/ocorrencias` | `admin`, `funcionario`, `maintenance` | Avarias e ocorrências |
@@ -560,10 +570,11 @@ Plano completo, com critérios de aceitação por fase, em [`PLANO_ITERACAO.md`]
 |---|---|---|
 | Sprint -1 | **Concluído** | Hardening (segurança, CORS, JWT, audit, índices) |
 | Sprint 0 | **Concluído** | Fundações e polish: MFA TOTP, i18n PT/EN, tema escuro, DataSources, self-service de conta, avatares, batch de drivers/buses, exports em MinIO, GTFS toast, proxy NGSI-LD, LiveMap polido |
+| Pré-Sprint 1 | **Concluído** | 8 follow-ups do backlog (motoristas password demo, chatbot AI funcional com stubs Spring Boot 4, password loop, i18n EN Ocorrências + PainelBordo, modal MinhaConta no bordo, deep-link a alarmes, conta `developer` + Ferramentas Dev) |
 | Sprint 1 | **Em curso** | Vertical 3.1 Transportes Públicos (10 fases F0 a F9): entidade `Operator`, GeoJSON, schedule adherence stoplight, DCAT-AP, Calendar, cobertura/frequência, GTFS-RT, NeTEx |
 | Sprint 2 a 8b | Planeados | Verticais adicionais (consultar `PLANO_ITERACAO.md`) |
 
-> **Nota:** o termo "operadores de transportes" mencionado a partir do Sprint 1 refere-se à entidade de domínio `Operator` (TUB, Carris, etc.) e não a uma role do sistema. As roles continuam a ser `admin`, `funcionario` e `motorista`.
+> **Nota:** o termo "operadores de transportes" mencionado a partir do Sprint 1 refere-se à entidade de domínio `Operator` (TUB, Carris, etc.) e não a uma role do sistema. As roles do sistema são `admin`, `funcionario`, `motorista` e `developer`.
 
 ---
 

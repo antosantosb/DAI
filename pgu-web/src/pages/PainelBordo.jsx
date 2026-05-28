@@ -57,7 +57,11 @@ export default function PainelBordo() {
   const handleChangePassword = async (currentPassword, newPassword) => {
     try {
       await api.post('/me/password', { currentPassword, newPassword });
-      toast.success(t('pages.minhaConta.passwordChanged'));
+      // Sprint 1 follow-up: ao mudar password, o refresh token desta sessão
+      // é invalidado. Logout intencional com toast claro evita ser despejado
+      // pelo axios interceptor para a Landing.
+      toast.success(t('pages.minhaConta.passwordChangedReLogin'), { autoClose: 4000 });
+      setTimeout(() => { logout(); }, 1500);
     } catch (err) {
       throw err;
     }

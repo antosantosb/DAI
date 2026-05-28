@@ -680,6 +680,84 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 
 ---
 
+### Pré-Sprint 1 — Follow-ups e UX Polish (CONCLUÍDO)
+
+**Contexto.** Antes de arrancar Sprint 1, fechou-se um conjunto de 8 problemas do backlog acumulados durante Sprint 0 + integração do chatbot do colega + várias iterações de polish com o utilizador. Esta secção documenta esse trabalho para o próximo audit não perder contexto.
+
+#### Backlog fechado (8 itens)
+
+| # | Item | Resolução |
+|---|---|---|
+| 1 | Motoristas batch: password = apelido | Password agora é constante `motorista123` para todos os motoristas gerados em batch (decisão UX: apelido como password ficava demasiado curto e variável). Removida `setRequiredActions(UPDATE_PASSWORD)` para a password não pedir change-on-login. Lista de nomes PT reais incluída no controller. Callout warning no UI a explicar o modo demo. |
+| 2 | Chatbot real | Stubs Spring AI para classes movidas em Spring Boot 4 (`RestClientAutoConfiguration`, `WebClientAutoConfiguration`, `RestTemplateAutoConfiguration`, `HttpMessageConvertersAutoConfiguration`, `JacksonAutoConfiguration`). Swagger `Parameter.validationGroups()` override para 2.2.30. Path duplicado `/api/v1/api/v1/ai/chat` corrigido. Roles `operador` → `funcionario` em `AiChatController` e `SecurityConfig`. |
+| 3 | Password loop em contas geradas | Causa raiz: `UPDATE_PASSWORD` required action no batch. Removida. Confirmado em SQL que 0 ghost required actions ficaram pendentes na DB Keycloak. |
+| 4 | i18n + theme no Painel de Bordo | 24 strings PT extraídas para `pages.painelBordo.*`, EN traduzidas, `LanguageSwitcher` + `ThemeSwitcher` adicionados no header (`.pb-header-right`). |
+| 5 | Modal "Minha Conta" no Painel de Bordo | Override CSS via `:has(.account-form)` no `.modal-dialog`: largura 640px + left-align (em vez do default 420px center que esmagava o form). |
+| 6 | Tab em branco ao clicar num alerta | Rota `ocorrencias/:id` adicionada ao `routes.js` (antes só existia `ocorrencias`, então deep-link a um alarme não tinha match e renderizava em branco). |
+| 7 | i18n EN para Ocorrências | ~60 strings PT extraídas para `pages.ocorrencias.*` (toasts, filtros, headers, pagination, detail, telemetry, chart, timeline, actions, attach), EN equivalentes. |
+| 8 | Conta `developer` com ferramentas de simulação | Ver secção dedicada abaixo. |
+
+#### Conta `developer` (item #8 expandido)
+
+- **Role `developer` no Keycloak** (no realm export `keycloak/pgu-realm-realm.json`), juntamente com role `funcionario`/`admin`/`motorista`.
+- **User seed `dev`** com password `dev123` (não temporária, sem MFA, sem `requiredActions`).
+- **Página `/backoffice/dev`** (componente `DevTools.jsx`) com 4 cards:
+  - **Gerar autocarros em batch** (real — chama `/api/v1/buses/batch`).
+  - **Gerar motoristas em batch** (real — chama `/api/v1/users/drivers/batch`). Callout warning com password `motorista123`.
+  - **Simular atraso** (stub — só `log.info`; endpoint `/api/v1/dev/simulate/bus-delay`).
+  - **Adicionar passageiros** (stub — só `log.info`; endpoint `/api/v1/dev/simulate/add-passengers`).
+- **Secção dedicada `DEV` no topo do sidebar**, separada da `ADMINISTRATION`, com pílula `DEV` primary-light a indicar "ferramenta interna".
+- **Privilégios alargados.** O `developer` tem TODOS os direitos do admin (gerir users, drivers, stops, routes, GTFS, exports, ocorrências, AI). `SecurityConfig` estendido em todos os matchers (`hasAnyRole("admin", "developer")`). Frontend (`routes.js`, `Buses.jsx`, `Stops.jsx`, `Routes.jsx`, `GtfsManager.jsx`, `Exports.jsx`, `AuthProvider.jsx`) também actualizado.
+- **Batch generation movido de admin para developer.** Botões "Generate Batch" removidos das páginas `Buses.jsx` e `Drivers.jsx`. Agora vivem em `/backoffice/dev`. SecurityConfig matchers explícitos: `POST /api/v1/buses/batch` e `POST /api/v1/users/drivers/batch` requerem `developer` (admin sozinho não consegue).
+- **Conta dev protegida.** `assertNotProtected(userId)` no `UserAdminController` rejeita (403) tentativas de DELETE ou toggle sobre admin/dev. Frontend `Users.jsx` esconde checkbox e os botões Edit/Disable/Delete, mostrando ícone de cadeado + label "Conta protegida". `AccountForm.jsx` torna todos os campos read-only excepto password com banner "Conta de sistema".
+- **`@EnableMethodSecurity(prePostEnabled=true)`** activado no `SecurityConfig` (era omisso — `@PreAuthorize` não eram processados).
+
+#### UX polish significativo
+
+- **`SidebarUserMenu` componente partilhado.** Avatar + nome + role + caret → popover com Minha Conta / Voltar ao Início / Sair. Theme-aware via tokens, com override dedicado no `Layout.css` para a sidebar dark hardcoded do backoffice. Substitui os botões inline home/logout.
+- **Livemap sidebar invertida para a esquerda** (`flex-direction: row-reverse`) para consistência com backoffice. Tab `Account` removida, widget no rodapé.
+- **Layer panel do Livemap** agrupado num card com header `LAYERS` colapsável (estado em localStorage). Zoom controls do Leaflet deslocam-se em sync via `:has()` com transition.
+- **Bulk select em Buses** com modo selecção via botão (sem checkboxes permanentes no canto que poluíam o UI). Cards seleccionados ganham halo primary. Acções: Iniciar/Parar/Descomissionar com `Promise.allSettled` e feedback parcial.
+- **Bulk select em Users** estilo Exports (checkbox sempre visível na primeira coluna, header com indeterminate state, bulk-bar quando ≥1 seleccionado). Admin/dev excluídos do conjunto seleccionável.
+- **Coluna `Atribuição` em Users** mostra mecnum + duty status (`Em serviço` / `Disponível` / `Offline`) para motoristas — uma só vista do user backoffice + driver entity.
+- **Filtros Users** com 2 grupos labeled (`Estado:`, `Role:`) e **counts cross-filter** (cada pílula mostra preview do resultado da combinação).
+- **Sections do sidebar colapsáveis** com estado persistido em localStorage. Útil para reduzir scroll na secção `ADMINISTRATION` (8+ items).
+- **AuditLogs**: coluna `Erro` passou a `Detalhes` (porque transporta payload variável, não só erros). Célula compacta com resumo curto via parser melhorado (Hibernate/Postgres) + botão "Ver" que abre modal com erro completo formatado (`<pre>`, monospace, `overflow-wrap: anywhere`, max-width 760px, modal alargado via `:has(.audit-detail)`).
+- **`BusCard` polish**: barra superior colorida via `inset box-shadow` (em vez de `::before` absoluto que vazava no hover). Bubble de mensagens não lidas visível inteira fora do card (overflow visible). Estado `--selected` com halo duplo (border + outline primary + light glow).
+- **Modal global**: `z-index: 2000` (era cortado pelo `BusDetailPanel` com z-index 1001).
+- **Inline links** com chevron SVG animado no hover em vez da arrow unicode `→`. Sem underline por defeito. `.inline-link` classe partilhada em App.css.
+- **Toast auto-close** ajustado: `Critical escalation` (15s, era `false`), `alerta-${id}` (20s, era `false`). Críticos têm tempo de leitura mas não ocupam ecrã indefinidamente. Loadings (export resume, GTFS sync) mantêm `autoClose: false` porque dismissam via WS.
+- **DevTools UI** com 2 secções (`Geração em batch`, `Simulações em tempo real`) e badge `STUB` warm no header das simulações para evitar confusão futura sobre o que tem efeito real.
+
+#### Fixes críticos
+
+- **Ghost rider**: `BusService.delete()` passou a `@Transactional` e desactiva o assignment activo + repõe driver em `AVAILABLE` antes do `deleteById`. Sem isto, descomissionar deixava drivers em `ON_DUTY` para sempre apontando a `bus_id` inexistente. SQL one-off corrido para limpar ghosts existentes na DB.
+- **Driver delete bloqueado por FK**: `deleteByKeycloakUserId` agora apaga todo o histórico de assignments (`findByDriverIdOrderByAssignedAtDesc` + `deleteAll`) antes do `driverRepository.delete`. O FK `fk_assignment_driver` sem CASCADE estava a violar a constraint mesmo com 1 linha antiga `active=false`.
+- **`KeycloakAdminService.SYSTEM_ROLES`** estendido para incluir `developer`. Sem isto, o GET `/users` devolvia o user `dev` com `roles=[]` no DTO → frontend mostrava `NO ROLE`.
+- **`AuthProvider.jsx`** whitelist de roles estendido para incluir `developer`. Sem isto, o JWT do user dev tinha o role mas era filtrado fora no cliente.
+- **Em-dashes** substituídos por hífens em placeholders e copy (segue regra de escrita PT do utilizador).
+- **`spring.ai.ollama.init.pull-model-strategy=always`** mudou para `when_missing`. Sem isto, cada restart do backend bloqueava 120s+ a re-puxar gemma2. `embedding.include=false` desliga o auto-pull do `mxbai-embed-large` (~700MB) que era puxado por defeito.
+- **`pgu-setup.sh` Spring Boot wait_for** subiu de 120s para 240s (margem para auto-pull em cold start).
+
+#### Decisões de produto
+
+1. **Conta `dev` é singular**, não criável via UI (só seed via realm.json). Protegida em frontend + backend.
+2. **Simulações** (`/api/v1/dev/simulate/*`) ficam como **stubs** marcados visualmente. Implementação real (`offset` no telemetry, modificações ao `simulator.py`) adiada até haver necessidade concreta para a apresentação técnica.
+3. **Developer fala tudo o que admin faz**, não cria divisão hierárquica. O role `developer` é "admin + ferramentas demo".
+4. **Section `DEV` no topo do sidebar** em vez de submenu dentro de `ADMINISTRATION` — pílula `DEV` torna óbvio que é conta interna. Sem destaque cromático invasivo (warning/amarelo grosseiro foi rejeitado em iteração).
+
+#### Saída do Pré-Sprint 1
+
+- ✅ 8 itens do backlog fechados.
+- ✅ Conta `dev`/`dev123` operacional, com sidebar dedicada e privilégios alargados.
+- ✅ Chatbot AI restaurado com stubs Spring Boot 4 (passou de loop de restart para Started OK).
+- ✅ UX consistente em Backoffice + Livemap (sidebar layout, account widget, footer/header).
+- ✅ Cobertura i18n PT/EN agora cobre 100% das páginas (Ocorrências e PainelBordo eram os gaps).
+- ✅ Defesa profunda em contas protegidas (frontend hide + backend `assertNotProtected`).
+- ✅ Auto-pull do Ollama deixa de bloquear cold start do backend.
+
+---
+
 ### Sprint 1 — Vertical 3.1 Completo (Transportes Públicos)
 
 **Duração estimada:** 2 semanas (~41h).

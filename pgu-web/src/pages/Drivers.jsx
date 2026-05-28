@@ -14,6 +14,9 @@ export default function Drivers() {
   const [assignModal, setAssignModal] = useState({ open: false, driver: null });
   const [assignSearch, setAssignSearch] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
+  // Sprint 1 follow-up: search + filter por status
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Batch creation
   const [showBatch, setShowBatch] = useState(false);
@@ -46,6 +49,25 @@ export default function Drivers() {
     drivers.map(d => d.currentBusId).filter(Boolean)
   );
   const availableBuses = allBuses.filter(b => !busesAlreadyAssigned.has(b.id));
+
+  // Sprint 1 follow-up: filtered list (search + status filter) para a tabela.
+  const filteredDrivers = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return drivers.filter((d) => {
+      if (statusFilter !== 'all' && d.status !== statusFilter) return false;
+      if (!q) return true;
+      return [d.name, d.mechanographicNumber, d.phoneNumber, d.currentBusCode]
+        .some((f) => (f || '').toLowerCase().includes(q));
+    });
+  }, [drivers, search, statusFilter]);
+
+  // Counts por status para os filtros
+  const counts = useMemo(() => ({
+    all: drivers.length,
+    ON_DUTY: drivers.filter(d => d.status === 'ON_DUTY').length,
+    AVAILABLE: drivers.filter(d => d.status === 'AVAILABLE').length,
+    OFFLINE: drivers.filter(d => d.status === 'OFFLINE').length,
+  }), [drivers]);
 
   // Search filter sobre availableBuses (modal de assign)
   const filteredAssignBuses = useMemo(() => {
@@ -129,6 +151,38 @@ export default function Drivers() {
         </div>
       </div>
 
+      {/* Sprint 1 follow-up: toolbar com search + filtros por status */}
+      <div className="drivers-toolbar">
+        <div className="search-bar">
+          <svg className="search-bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input
+            placeholder={t('pages.drivers.searchPlaceholder')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="user-filter-group" role="group" aria-label={t('pages.drivers.ariaFilterByStatus')}>
+          <span className="user-filter-label">{t('pages.drivers.filterStatusLabel')}</span>
+          {[
+            { key: 'all',       label: t('pages.drivers.filterAll'),        count: counts.all },
+            { key: 'ON_DUTY',   label: t('pages.drivers.statusOnDuty'),     count: counts.ON_DUTY },
+            { key: 'AVAILABLE', label: t('pages.drivers.statusAvailable'),  count: counts.AVAILABLE },
+            { key: 'OFFLINE',   label: t('pages.drivers.statusOffline'),    count: counts.OFFLINE },
+          ].map(f => (
+            <button
+              key={f.key}
+              className={`btn btn-filter btn-filter--sm${statusFilter === f.key ? ' btn-filter--active' : ''}`}
+              onClick={() => setStatusFilter(f.key)}
+              aria-pressed={statusFilter === f.key}
+            >
+              {`${f.label} (${f.count})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="table-container">
         <table className="data-table">
           <thead>
@@ -142,7 +196,7 @@ export default function Drivers() {
             </tr>
           </thead>
           <tbody>
-            {drivers.length === 0 ? (
+            {filteredDrivers.length === 0 ? (
               <tr>
                 <td colSpan="6" className="empty">
                   {t('pages.drivers.noDriversRegistered')}{' '}
@@ -155,8 +209,19 @@ export default function Drivers() {
                 </td>
               </tr>
             ) : (
-              drivers.map(driver => {
-                const busActive = driver.currentBusStatus === 'ACTIVE';
+              filteredDrivers.map(driver => {
+                const busStopped = driver.currentBusStatus === 'STOPPED';
+                const busActive  = driver.currentBusStatus === 'ACTIVE';
+                const busStopping = driver.currentBusStatus === 'STOPPING';
+                // Sprint 1 follow-up: dot indicador do status do bus
+                //   active   -> verde a piscar
+                //   stopping -> amarelo a piscar
+                //   stopped  -> cinzento estático
+                const busDotClass = busActive
+                  ? 'bus-dot bus-dot--active'
+                  : busStopping
+                    ? 'bus-dot bus-dot--stopping'
+                    : 'bus-dot bus-dot--stopped';
                 return (
                   <tr key={driver.id}>
                     <td>
@@ -166,7 +231,7 @@ export default function Drivers() {
                       </div>
                     </td>
                     <td>{driver.mechanographicNumber}</td>
-                    <td>{driver.phoneNumber || '—'}</td>
+                    <td>{driver.phoneNumber || '-'}</td>
                     <td>
                       <span className={`driver-status driver-status--${driver.status === 'ON_DUTY' ? 'on-duty' : driver.status === 'AVAILABLE' ? 'available' : 'offline'}`}>
                         {driver.status === 'ON_DUTY' ? t('pages.drivers.statusOnDuty') : driver.status === 'AVAILABLE' ? t('pages.drivers.statusAvailable') : driver.status}
@@ -176,17 +241,24 @@ export default function Drivers() {
                       {driver.currentBusCode ? (
                         <span className="current-bus">
                           {driver.currentBusCode}
-                          {busActive && <span className="bus-active-dot" title={t('pages.drivers.busInProgress')}>●</span>}
+                          <span
+                            className={busDotClass}
+                            title={busActive
+                              ? t('pages.drivers.busInProgress')
+                              : busStopping
+                                ? t('pages.drivers.busStopping')
+                                : t('pages.drivers.busStopped')}
+                          />
                         </span>
-                      ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                      ) : <span style={{ color: '#94a3b8' }}>-</span>}
                     </td>
                     <td className="actions">
                       {driver.currentBusId ? (
                         <button
                           onClick={() => handleUnassign(driver.id)}
                           className="btn btn-unassign btn-sm"
-                          disabled={busActive}
-                          title={busActive ? t('pages.drivers.unassignDisabledTitle') : t('pages.drivers.unassignTitle')}
+                          disabled={!busStopped}
+                          title={!busStopped ? t('pages.drivers.unassignDisabledTitle') : t('pages.drivers.unassignTitle')}
                         >
                           {t('pages.drivers.unassignAction')}
                         </button>
@@ -194,6 +266,8 @@ export default function Drivers() {
                         <button
                           onClick={() => { setAssignSearch(''); setAssignModal({ open: true, driver }); }}
                           className="btn btn-primary btn-sm"
+                          disabled={driver.status === 'OFFLINE'}
+                          title={driver.status === 'OFFLINE' ? t('pages.drivers.assignDisabledOffline') : undefined}
                         >
                           {t('pages.drivers.assignBus')}
                         </button>

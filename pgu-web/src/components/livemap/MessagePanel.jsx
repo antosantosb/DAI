@@ -129,7 +129,7 @@ export default function MessagePanel({ bus, isOnline, onClose, subscribeToMessag
             <line x1="1" y1="1" x2="23" y2="23"></line>
             <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.5a12.9 12.9 0 0 1-3.53 3.53m-10.4-10.4A12.9 12.9 0 0 0 2 12.5a12.9 12.9 0 0 0 10.4 4.1m4.1-4.1a3 3 0 0 0-4.1-4.1"></path>
           </svg>
-          <span>Ativo Offline — Não é possível enviar mensagens no momento.</span>
+          <span>Ativo offline. Não é possível enviar mensagens no momento.</span>
         </div>
       )}
 

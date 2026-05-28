@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import Avatar from '../components/Avatar';
+import PasswordInput from '../components/PasswordInput';
 import './Users.css';
 
 const EMPTY_FORM = {
@@ -25,6 +26,9 @@ export default function Users() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  // Sprint 1 follow-up: helper que sabe se o user em edição é a conta dev —
+  // usado em vários sítios do modal para disable campos não-password.
+  // (calculado em cada render porque depende de `users` que muda).
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -40,6 +44,12 @@ export default function Users() {
 
   const showModal = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
+
+  // Sprint 1 follow-up: editingDev = true sse estamos a editar a conta dev.
+  // Locka os campos não-password do modal e força o reset password como
+  // único motivo de Edit aceite. Backend faz sanitize defensivo na mesma.
+  const editingDevUser = editing ? users.find((u) => u.id === editing) : null;
+  const editingDev = !!editingDevUser?.roles?.includes('developer');
 
   // ─── Sprint 1 follow-up: bulk actions estilo Exports ──────────────────
   const toggleSelect = (id) => {
@@ -68,18 +78,24 @@ export default function Users() {
     }
   };
 
-  // Helper: filtra ids excluindo admin (admins nao podem ser tocados por bulk).
-  const eligibleIds = () => {
-    const ids = Array.from(selectedIds);
-    return ids.filter((id) => {
+  // Sprint 1 follow-up: 2 helpers separados
+  //   - eligibleForToggle: exclui só admin (dev pode ser desativado)
+  //   - eligibleForDelete: exclui admin + dev (dev nao pode ser eliminado)
+  const eligibleForToggle = () => {
+    return Array.from(selectedIds).filter((id) => {
       const u = users.find((x) => x.id === id);
-      // Protegidos: admin + developer — nao podem ser tocados via bulk.
+      return u && !u.roles?.includes('admin');
+    });
+  };
+  const eligibleForDelete = () => {
+    return Array.from(selectedIds).filter((id) => {
+      const u = users.find((x) => x.id === id);
       return u && !u.roles?.includes('admin') && !u.roles?.includes('developer');
     });
   };
 
   const handleBulkEnable = () => {
-    const ids = eligibleIds().filter((id) => {
+    const ids = eligibleForToggle().filter((id) => {
       const u = users.find((x) => x.id === id);
       return u && !u.enabled;
     });
@@ -93,7 +109,7 @@ export default function Users() {
   };
 
   const handleBulkDisable = () => {
-    const ids = eligibleIds().filter((id) => {
+    const ids = eligibleForToggle().filter((id) => {
       const u = users.find((x) => x.id === id);
       return u && u.enabled;
     });
@@ -107,7 +123,7 @@ export default function Users() {
   };
 
   const handleBulkDelete = () => {
-    const ids = eligibleIds();
+    const ids = eligibleForDelete();
     if (ids.length === 0) {
       showModal({ type: 'info', title: t('pages.users.bulkNoEligibleTitle'),
         message: t('pages.users.bulkDeleteNoEligible') });
@@ -486,6 +502,37 @@ export default function Users() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="user-modal-body">
+                {(() => {
+                  // Sprint 1 follow-up: a editar conta dev — banner + lock dos
+                  // campos não-password. Backend faz sanitize defensivo.
+                  const editingUser = editing ? users.find(u => u.id === editing) : null;
+                  const editingDev = !!editingUser?.roles?.includes('developer');
+                  if (!editingDev) return null;
+                  return (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        padding: '10px 12px',
+                        marginBottom: 16,
+                        background: 'var(--color-warning-light)',
+                        color: 'var(--color-warning-hover)',
+                        border: '1px solid var(--color-warning-light)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                           strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                      <span>{t('pages.users.devEditHint')}</span>
+                    </div>
+                  );
+                })()}
                 <div className="form-grid">
                   <div className="form-group">
                     <label htmlFor="user-username">{t('pages.users.labelUsername')}</label>
@@ -495,15 +542,9 @@ export default function Users() {
                       onChange={e => setForm({ ...form, username: e.target.value })}
                       placeholder={t('pages.users.placeholderUsername')}
                       required
-                      disabled={!!editing}
+                      disabled={editingDev}
                       autoComplete="username"
                     />
-                    {editing && (
-                      <span className="form-hint">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                        {t('pages.users.hintUsernameKeycloak')}
-                      </span>
-                    )}
                   </div>
                   <div className="form-group">
                     <label htmlFor="user-email">{t('pages.users.labelEmail')}</label>
@@ -514,6 +555,7 @@ export default function Users() {
                       onChange={e => setForm({ ...form, email: e.target.value })}
                       placeholder={t('pages.users.placeholderEmail')}
                       required
+                      disabled={editingDev}
                       autoComplete="email"
                     />
                   </div>
@@ -524,6 +566,7 @@ export default function Users() {
                       value={form.firstName}
                       onChange={e => setForm({ ...form, firstName: e.target.value })}
                       placeholder={t('pages.users.placeholderFirstName')}
+                      disabled={editingDev}
                       autoComplete="given-name"
                     />
                   </div>
@@ -534,20 +577,20 @@ export default function Users() {
                       value={form.lastName}
                       onChange={e => setForm({ ...form, lastName: e.target.value })}
                       placeholder={t('pages.users.placeholderLastName')}
+                      disabled={editingDev}
                       autoComplete="family-name"
                     />
                   </div>
                   <div className="form-group">
                     <label htmlFor="user-password">{editing ? t('pages.users.labelNewPassword') : t('pages.users.labelPassword')}</label>
-                    <input
+                    <PasswordInput
                       id="user-password"
-                      type="password"
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
                       placeholder={editing ? t('pages.users.placeholderPasswordEdit') : t('pages.users.placeholderPassword')}
-                      required={!editing}
+                      required={!editing || editingDev}
                       minLength={6}
-                      autoComplete={editing ? 'new-password' : 'new-password'}
+                      autoComplete="new-password"
                     />
                   </div>
                   <div className="form-group">
@@ -557,6 +600,8 @@ export default function Users() {
                         <input id="user-role" value={t('pages.users.roleAdminLong')} disabled />
                         <span className="form-hint">{t('pages.users.hintRoleAdmin')}</span>
                       </>
+                    ) : form.role === 'developer' ? (
+                      <input id="user-role" value={t('auth.roles.developer')} disabled />
                     ) : (
                       <select
                         id="user-role"
@@ -648,13 +693,13 @@ export default function Users() {
                       type="checkbox"
                       ref={(el) => {
                         if (!el) return;
-                        const selectable = filtered.filter((u) => !u.roles?.includes('admin') && !u.roles?.includes('developer'));
+                        const selectable = filtered.filter((u) => !u.roles?.includes('admin'));
                         const selectedSelectable = selectable.filter((u) => selectedIds.has(u.id));
                         el.checked = selectable.length > 0 && selectedSelectable.length === selectable.length;
                         el.indeterminate = selectedSelectable.length > 0 && selectedSelectable.length < selectable.length;
                       }}
                       onChange={(e) => {
-                        const selectable = filtered.filter((u) => !u.roles?.includes('admin') && !u.roles?.includes('developer'));
+                        const selectable = filtered.filter((u) => !u.roles?.includes('admin'));
                         if (e.target.checked) {
                           setSelectedIds(new Set(selectable.map((u) => u.id)));
                         } else {
@@ -677,10 +722,16 @@ export default function Users() {
             <tbody>
               {filtered.map(user => {
                 const isAdmin = user.roles?.includes('admin');
-                // Sprint 1 follow-up: a conta `dev` (role developer) tambem
-                // e' protegida — nao pode ser desativada nem eliminada,
-                // tal como o admin. So pode existir uma conta dev.
-                const isProtected = isAdmin || user.roles?.includes('developer');
+                const isDev = user.roles?.includes('developer');
+                // Sprint 1 follow-up: politica de proteção:
+                //   - admin    -> nao pode ser desativado nem eliminado
+                //   - dev      -> pode ser desativado, NAO pode ser eliminado
+                //   - outros   -> tudo permitido
+                const cannotDelete = isAdmin || isDev;
+                const cannotToggle = isAdmin;
+                // Sprint 1 follow-up: admin nao tem botao Edit; dev pode ser
+                // "editado" apenas para reset password (modal restringe campos).
+                const cannotEdit = isAdmin;
                 const isMotorista = user.roles?.includes('motorista');
                 const driver = isMotorista ? driverByKcId[user.id] : null;
                 const isSelected = selectedIds.has(user.id);
@@ -692,7 +743,7 @@ export default function Users() {
                   <tr key={user.id} className={rowCls}>
                     {/* Sprint 1 follow-up: checkbox (admins nao seleccionaveis). */}
                     <td className="user-checkbox-cell">
-                      {!isProtected ? (
+                      {!isAdmin ? (
                         <label className="user-checkbox-label" aria-label={t('pages.users.ariaSelectRow', { username: user.username })}>
                           <input
                             type="checkbox"
@@ -768,7 +819,8 @@ export default function Users() {
                     </td>
                     <td>
                       <div className="user-actions">
-                        {isProtected ? (
+                        {isAdmin ? (
+                          // Admin: nenhuma accao individual permitida
                           <span
                             title={t('pages.users.protectedAccount')}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--color-text-light)', fontSize: 12 }}
@@ -781,13 +833,17 @@ export default function Users() {
                           </span>
                         ) : (
                           <>
-                            <button
-                              className="btn btn-sm"
-                              onClick={() => startEdit(user)}
-                              aria-label={t('pages.users.ariaEdit', { username: user.username })}
-                            >
-                              {t('pages.users.btnEdit')}
-                            </button>
+                            {/* Edit: escondido para dev (campos sao read-only) */}
+                            {!cannotEdit && (
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => startEdit(user)}
+                                aria-label={t('pages.users.ariaEdit', { username: user.username })}
+                              >
+                                {t('pages.users.btnEdit')}
+                              </button>
+                            )}
+                            {/* Disable/Enable: visivel sempre que !isAdmin (inclui dev) */}
                             <button
                               className={`btn btn-sm ${user.enabled ? 'btn-warning' : 'btn-success'}`}
                               onClick={() => handleToggle(user)}
@@ -795,13 +851,16 @@ export default function Users() {
                             >
                               {user.enabled ? t('pages.users.btnDeactivate') : t('pages.users.btnActivate')}
                             </button>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleDelete(user)}
-                              aria-label={t('pages.users.ariaDelete', { username: user.username })}
-                            >
-                              {t('pages.users.btnDelete')}
-                            </button>
+                            {/* Delete: escondido para dev (conta singular protegida) */}
+                            {!cannotDelete && (
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleDelete(user)}
+                                aria-label={t('pages.users.ariaDelete', { username: user.username })}
+                              >
+                                {t('pages.users.btnDelete')}
+                              </button>
+                            )}
                           </>
                         )}
                       </div>

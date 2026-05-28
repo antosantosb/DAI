@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
 import Avatar from './Avatar';
+import PasswordInput from './PasswordInput';
 import './AccountForm.css';
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -322,8 +323,7 @@ export default function AccountForm({
         <div className="account-grid">
           <label className="account-field">
             <span>{t('pages.minhaConta.currentPassword')}</span>
-            <input
-              type="password"
+            <PasswordInput
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               autoComplete="current-password"
@@ -331,8 +331,7 @@ export default function AccountForm({
           </label>
           <label className="account-field">
             <span>{t('pages.minhaConta.newPassword')}</span>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
@@ -340,8 +339,7 @@ export default function AccountForm({
           </label>
           <label className="account-field">
             <span>{t('pages.minhaConta.confirmPassword')}</span>
-            <input
-              type="password"
+            <PasswordInput
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
