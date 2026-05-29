@@ -215,3 +215,239 @@
   border-radius: var(--radius-sm);
   background: var(--color-bg-subtle);
 }
+
+/* ─── Padrões da linha (linha expansível) ─── */
+.route-expand-cell {
+  text-align: center;
+  width: 44px;
+}
+
+.route-expand-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.route-expand-btn svg {
+  transition: transform var(--transition);
+}
+
+.route-expand-btn:hover {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Chevron aponta para baixo quando a linha está expandida. */
+.route-expand-btn--open {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.route-expand-btn--open svg {
+  transform: rotate(90deg);
+}
+
+/* Realce subtil na linha-pai expandida. */
+.route-row--expanded > td {
+  background: var(--color-bg-subtle);
+}
+
+/* Sub-painel aninhado: indentado e com fundo subtil. */
+.route-patterns-cell {
+  padding: 0 !important;
+  background: var(--color-bg-subtle);
+}
+
+.route-patterns-panel {
+  padding: 14px 20px 16px 56px;
+  border-left: 3px solid var(--color-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.route-patterns-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-secondary);
+}
+
+.route-patterns-msg {
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+.route-patterns-msg--error {
+  color: var(--color-danger);
+}
+
+.route-patterns-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.route-pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* Badge de direção (Ida / Volta). */
+.route-pattern-dir {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.route-pattern-dir--outbound {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.route-pattern-dir--inbound {
+  background: var(--color-border-light);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.route-pattern-name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.route-pattern-meta {
+  color: var(--color-text-secondary);
+}
+
+.route-pattern-sep {
+  color: var(--color-text-light);
+}
+
+/* ─── Padrão clicável → abre o mapa ─── */
+.route-pattern-item--clickable {
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.route-pattern-item--clickable:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-xs);
+}
+.route-pattern-item--clickable:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow, var(--color-primary-light));
+}
+/* Ícone de mapa empurrado para a direita; realça no hover da linha. */
+.route-pattern-map-icon {
+  margin-left: auto;
+  color: var(--color-text-light);
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+.route-pattern-item--clickable:hover .route-pattern-map-icon {
+  color: var(--color-primary);
+}
+
+/* ─── Modal com mapa do padrão ─── */
+/* O modal partilhado tem max-width:420px e text-align:center (bom para
+ * mensagens). Para o mapa precisamos de mais largura e alinhamento normal —
+ * subimos a especificidade via :has() para nao mexer no Modal.css partilhado. */
+.modal-dialog:has(.pattern-map-modal) {
+  max-width: 720px;
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+}
+
+.pattern-map-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pattern-map-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pattern-map-modal-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+}
+.pattern-map-modal-title code {
+  font-size: 15px;
+  font-weight: 800;
+  font-family: monospace;
+}
+.pattern-map-modal-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.pattern-map-modal-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all var(--transition);
+}
+.pattern-map-modal-close:hover {
+  background: var(--color-danger-light);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.pattern-map-canvas {
+  width: 100%;
+  height: 360px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+}
+/* Garantir que os tiles/controlos do Leaflet ficam abaixo do z-index do
+ * backdrop do modal (2000) mas visiveis dentro do canvas. */
+.pattern-map-canvas .leaflet-pane,
+.pattern-map-canvas .leaflet-control {
+  z-index: auto;
+}

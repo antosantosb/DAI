@@ -51,12 +51,18 @@ public class GtfsService
     private final GtfsConfigRepository configRepository;
     private final BusStopRepository busStopRepository;
     private final RouteRepository routeRepository;
-    private final RouteStopRepository routeStopRepository;
-    private final RouteSegmentRepository segmentRepository;
-    private final StopScheduleRepository scheduleRepository;
+    // Sprint 1 (Fase 1): modelo Transmodel (substitui route_stops/route_segments/stop_schedule)
+    private final JourneyPatternRepository journeyPatternRepository;
+    private final PatternStopRepository patternStopRepository;
+    private final PatternSegmentRepository patternSegmentRepository;
+    private final TripRepository tripRepository;
+    private final TripStopTimeRepository tripStopTimeRepository;
     private final BusRepository busRepository;
     // Sprint 1 (F0): mapear agency.txt -> Operator e popular Route.operator
     private final OperatorRepository operatorRepository;
+    // Sprint 1 (Fase 1): OSRM para gerar a geometria dos padroes a seguir as
+    // estradas (corrige os shapes GTFS grosseiros dos TUB).
+    private final OsrmService osrmService;
     private final SimpMessagingTemplate ws;
     private final GeometryFactory geometryFactory;
     private final ObjectMapper objectMapper;
@@ -76,11 +82,14 @@ public class GtfsService
                        GtfsConfigRepository configRepository,
                        BusStopRepository busStopRepository,
                        RouteRepository routeRepository,
-                       RouteStopRepository routeStopRepository,
-                       RouteSegmentRepository segmentRepository,
-                       StopScheduleRepository scheduleRepository,
+                       JourneyPatternRepository journeyPatternRepository,
+                       PatternStopRepository patternStopRepository,
+                       PatternSegmentRepository patternSegmentRepository,
+                       TripRepository tripRepository,
+                       TripStopTimeRepository tripStopTimeRepository,
                        BusRepository busRepository,
                        OperatorRepository operatorRepository,
+                       OsrmService osrmService,
                        SimpMessagingTemplate ws,
                        @org.springframework.context.annotation.Lazy GtfsService self,
                        org.springframework.cache.CacheManager cacheManager,
@@ -91,11 +100,14 @@ public class GtfsService
         this.configRepository = configRepository;
         this.busStopRepository = busStopRepository;
         this.routeRepository = routeRepository;
-        this.routeStopRepository = routeStopRepository;
-        this.segmentRepository = segmentRepository;
-        this.scheduleRepository = scheduleRepository;
+        this.journeyPatternRepository = journeyPatternRepository;
+        this.patternStopRepository = patternStopRepository;
+        this.patternSegmentRepository = patternSegmentRepository;
+        this.tripRepository = tripRepository;
+        this.tripStopTimeRepository = tripStopTimeRepository;
         this.busRepository = busRepository;
         this.operatorRepository = operatorRepository;
+        this.osrmService = osrmService;
         this.ws = ws;
         this.self = self;
         this.cacheManager = cacheManager;
@@ -228,39 +240,41 @@ public class GtfsService
     // API PÚBLICA
     // ================================================================
 
-    // ─── Horários (stop_schedule) ─────────────────────────────
+    // ─── Horários (Trip + TripStopTime) ─────────────────────────────
 
     public List<StopScheduleDTO> getSchedulesByStop(Long stopId)
     {
-        return scheduleRepository.findByStopId(stopId).stream().map(this::toScheduleDTO).toList();
+        return tripStopTimeRepository.findByStopIdFull(stopId).stream().map(this::toScheduleDTO).toList();
     }
 
     public List<StopScheduleDTO> getSchedulesByStopAndRoute(Long stopId, Long routeId)
     {
-        return scheduleRepository.findByStopIdAndRouteId(stopId, routeId).stream().map(this::toScheduleDTO).toList();
+        return tripStopTimeRepository.findByStopIdAndRouteIdFull(stopId, routeId).stream().map(this::toScheduleDTO).toList();
     }
 
     public List<StopScheduleDTO> getSchedulesByRoute(Long routeId)
     {
-        return scheduleRepository.findByRouteId(routeId).stream().map(this::toScheduleDTO).toList();
+        return tripStopTimeRepository.findByRouteIdFull(routeId).stream().map(this::toScheduleDTO).toList();
     }
 
-    private StopScheduleDTO toScheduleDTO(StopSchedule s)
+    private StopScheduleDTO toScheduleDTO(TripStopTime t)
     {
         StopScheduleDTO dto = new StopScheduleDTO();
-        dto.setId(s.getId());
-        dto.setRouteId(s.getRoute().getId());
-        dto.setRouteCode(s.getRoute().getCode());
-        dto.setRouteColor(s.getRoute().getColor());
-        dto.setStopId(s.getStop().getId());
-        dto.setStopName(s.getStop().getName());
-        dto.setStopCode(s.getStop().getCode());
-        dto.setTripId(s.getTripId());
-        dto.setArrivalTime(s.getArrivalTime());
-        dto.setDepartureTime(s.getDepartureTime());
-        dto.setStopSequence(s.getStopSequence());
-        dto.setDirectionId(s.getDirectionId());
-        dto.setServiceId(s.getServiceId());
+        Trip trip = t.getTrip();
+        Route route = trip.getRoute();
+        dto.setId(t.getId());
+        dto.setRouteId(route.getId());
+        dto.setRouteCode(route.getCode());
+        dto.setRouteColor(route.getColor());
+        dto.setStopId(t.getStop().getId());
+        dto.setStopName(t.getStop().getName());
+        dto.setStopCode(t.getStop().getCode());
+        dto.setTripId(trip.getGtfsTripId());
+        dto.setArrivalTime(t.getArrivalTime());
+        dto.setDepartureTime(t.getDepartureTime());
+        dto.setStopSequence(t.getStopSequence());
+        dto.setDirectionId(trip.getPattern() != null ? trip.getPattern().getDirectionId() : 0);
+        dto.setServiceId(trip.getServiceId());
         return dto;
     }
 
@@ -422,32 +436,17 @@ public class GtfsService
 
         log.info("[GTFS] A reverter importação #{}", importId);
 
-        // Apagar horários desta importação
-        scheduleRepository.deleteByImportId(importId);
+        // Apagar padroes e trips desta importacao.
+        // O cascade DB (ON DELETE CASCADE) trata de pattern_stop, pattern_segment e trip_stop_time.
+        journeyPatternRepository.deleteByImportId(importId);
+        tripRepository.deleteByImportId(importId);
 
-        // Apagar na ordem inversa: segments → route_stops → routes → stops
-        // Nota: Route tem cascade=ALL + orphanRemoval nos routeStops,
-        // por isso apagamos segments antes e deixamos o cascade tratar dos route_stops.
-
+        // Apagar rotas e paragens criadas (rastreadas via GtfsImportEntity).
         List<Long> routeIds = importEntityRepository.findEntityIdsByImportIdAndType(importId, "ROUTE");
         if (!routeIds.isEmpty())
         {
-            for (Long rid : routeIds)
-            {
-                segmentRepository.deleteByRouteId(rid);
-            }
-            // Apagar rotas — o cascade ALL + orphanRemoval apaga route_stops automaticamente
             List<Route> routes = routeRepository.findAllById(routeIds);
             routeRepository.deleteAll(routes);
-        }
-        else
-        {
-            // Se não há rotas rastreadas, apagar segments e route_stops individualmente
-            List<Long> segmentIds = importEntityRepository.findEntityIdsByImportIdAndType(importId, "SEGMENT");
-            if (!segmentIds.isEmpty()) segmentRepository.deleteAllById(segmentIds);
-
-            List<Long> routeStopIds = importEntityRepository.findEntityIdsByImportIdAndType(importId, "ROUTE_STOP");
-            if (!routeStopIds.isEmpty()) routeStopRepository.deleteAllById(routeStopIds);
         }
 
         List<Long> stopIds = importEntityRepository.findEntityIdsByImportIdAndType(importId, "STOP");
@@ -570,7 +569,8 @@ public class GtfsService
             int routesCreated = 0, routesUpdated = 0;
             int shapesLoaded = 0;
 
-            Map<String, Long> stopIdMap = new HashMap<>(); // GTFS stop_id → DB id
+            Map<String, Long> stopIdMap = new HashMap<>();        // GTFS stop_id → DB id
+            Map<String, double[]> stopCoordMap = new HashMap<>(); // GTFS stop_id → [lat, lon] (p/ OSRM)
 
             // 1. CARREGAR PARAGENS
             if (files.containsKey("stops.txt"))
@@ -595,6 +595,7 @@ public class GtfsService
 
                     BusStop saved = busStopRepository.save(entity);
                     stopIdMap.put(stop.get("stop_id"), saved.getId());
+                    stopCoordMap.put(stop.get("stop_id"), new double[]{lat, lon});
 
                     if (isNew)
                     {
@@ -612,20 +613,15 @@ public class GtfsService
 
             broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A mapear viagens…", 40);
 
-            // 2. CONSTRUIR MAPA ROTA → PARAGENS + HORÁRIOS
-            Map<String, List<String[]>> routeStopsMap = new HashMap<>(); // route_id → [(stop_id, sequence)]
-            Map<String, String> routeShapeMap = new HashMap<>(); // route_id → shape_id
-            // Todos os stop_times por rota (para guardar horários completos)
-            // route_id → List of {trip_id, stop_id, arrival, departure, sequence, direction_id, service_id}
-            Map<String, List<Map<String, String>>> allSchedules = new HashMap<>();
-            Map<String, Map<String, String>> tripInfoMap = new HashMap<>(); // trip_id → {route_id, direction_id, service_id, shape_id}
+            // 2. TRIPS + STOP_TIMES → PADRÕES (dedup por assinatura de sequência)
+            // trip_id → {route_id, direction_id, service_id, shape_id, headsign}
+            Map<String, Map<String, String>> tripInfo = new HashMap<>();
+            // trip_id → [{stop_id, sequence, arrival, departure}] (ordenado por sequence)
+            Map<String, List<String[]>> tripStops = new HashMap<>();
 
             if (files.containsKey("trips.txt") && files.containsKey("stop_times.txt"))
             {
                 List<Map<String, String>> trips = parseCsv(files.get("trips.txt"));
-                List<Map<String, String>> stopTimes = parseCsv(files.get("stop_times.txt"));
-
-                // Indexar todos os trips
                 for (Map<String, String> trip : trips)
                 {
                     Map<String, String> info = new HashMap<>();
@@ -633,68 +629,56 @@ public class GtfsService
                     info.put("direction_id", trip.getOrDefault("direction_id", "0"));
                     info.put("service_id", trip.getOrDefault("service_id", ""));
                     info.put("shape_id", trip.getOrDefault("shape_id", "").trim());
-                    tripInfoMap.put(trip.get("trip_id"), info);
+                    info.put("headsign", trip.getOrDefault("trip_headsign", "").trim());
+                    tripInfo.put(trip.get("trip_id"), info);
                 }
 
-                // 1 trip por rota (direction_id=0 preferido) para route_stops
-                Map<String, String> routeTrip = new LinkedHashMap<>(); // route_id → trip_id
-                for (Map<String, String> trip : trips)
-                {
-                    String rid = trip.get("route_id");
-                    String dir = trip.getOrDefault("direction_id", "0");
-                    if (!routeTrip.containsKey(rid) && "0".equals(dir))
-                    {
-                        routeTrip.put(rid, trip.get("trip_id"));
-                        String shapeId = trip.getOrDefault("shape_id", "").trim();
-                        if (!shapeId.isEmpty()) routeShapeMap.put(rid, shapeId);
-                    }
-                }
-                // Fallback para direction_id=1
-                for (Map<String, String> trip : trips)
-                {
-                    String rid = trip.get("route_id");
-                    if (!routeTrip.containsKey(rid))
-                    {
-                        routeTrip.put(rid, trip.get("trip_id"));
-                        String shapeId = trip.getOrDefault("shape_id", "").trim();
-                        if (!shapeId.isEmpty() && !routeShapeMap.containsKey(rid))
-                            routeShapeMap.put(rid, shapeId);
-                    }
-                }
-
-                Set<String> selectedTrips = new HashSet<>(routeTrip.values());
-                Map<String, String> tripToRoute = new HashMap<>();
-                routeTrip.forEach((rid, tid) -> tripToRoute.put(tid, rid));
-
+                List<Map<String, String>> stopTimes = parseCsv(files.get("stop_times.txt"));
                 for (Map<String, String> st : stopTimes)
                 {
                     String tid = st.get("trip_id");
-                    Map<String, String> tInfo = tripInfoMap.get(tid);
-                    if (tInfo == null) continue;
-                    String rid = tInfo.get("route_id");
-
-                    // Para route_stops (1 trip selecionado por rota)
-                    if (selectedTrips.contains(tid))
-                    {
-                        routeStopsMap.computeIfAbsent(rid, k -> new ArrayList<>())
-                                .add(new String[]{st.get("stop_id"), st.get("stop_sequence")});
-                    }
-
-                    // Para horários completos (todos os trips)
-                    Map<String, String> sched = new HashMap<>();
-                    sched.put("trip_id", tid);
-                    sched.put("stop_id", st.get("stop_id"));
-                    sched.put("arrival_time", st.getOrDefault("arrival_time", ""));
-                    sched.put("departure_time", st.getOrDefault("departure_time", ""));
-                    sched.put("stop_sequence", st.getOrDefault("stop_sequence", "0"));
-                    sched.put("direction_id", tInfo.get("direction_id"));
-                    sched.put("service_id", tInfo.get("service_id"));
-                    allSchedules.computeIfAbsent(rid, k -> new ArrayList<>()).add(sched);
+                    if (!tripInfo.containsKey(tid)) continue;
+                    tripStops.computeIfAbsent(tid, k -> new ArrayList<>()).add(new String[]{
+                        st.get("stop_id"),
+                        st.getOrDefault("stop_sequence", "0"),
+                        st.getOrDefault("arrival_time", "").trim(),
+                        st.getOrDefault("departure_time", "").trim()
+                    });
                 }
+                tripStops.values().forEach(list ->
+                        list.sort(Comparator.comparingInt(a -> parseIntSafe(a[1], 0))));
+            }
 
-                // Ordenar por sequence
-                routeStopsMap.values().forEach(list ->
-                        list.sort(Comparator.comparingInt(a -> Integer.parseInt(a[1]))));
+            // Agrupar trips por gtfs route_id → assinatura → padrão.
+            Map<String, Map<String, PatternAgg>> patternsByRoute = new HashMap<>();
+            List<String> orderedTripIds = new ArrayList<>(tripInfo.keySet());
+            Collections.sort(orderedTripIds); // determinismo
+            for (String tid : orderedTripIds)
+            {
+                List<String[]> stops = tripStops.get(tid);
+                if (stops == null || stops.isEmpty()) continue;
+                Map<String, String> info = tripInfo.get(tid);
+                String gtfsRouteId = info.get("route_id");
+                int dir = parseIntSafe(info.getOrDefault("direction_id", "0"), 0);
+
+                StringBuilder sigSb = new StringBuilder().append(dir).append(':');
+                for (String[] s : stops) sigSb.append(s[0]).append(',');
+                String signature = sha256Hex(sigSb.toString());
+
+                Map<String, PatternAgg> byRoute =
+                        patternsByRoute.computeIfAbsent(gtfsRouteId, k -> new LinkedHashMap<>());
+                PatternAgg agg = byRoute.get(signature);
+                if (agg == null)
+                {
+                    agg = new PatternAgg();
+                    agg.directionId = dir;
+                    agg.stopTemplate = stops; // ordem ja' garantida
+                    agg.shapeId = info.getOrDefault("shape_id", "");
+                    String hs = info.getOrDefault("headsign", "");
+                    agg.name = hs.isEmpty() ? null : hs;
+                    byRoute.put(signature, agg);
+                }
+                agg.tripIds.add(tid);
             }
 
             // 3. CARREGAR SHAPES
@@ -704,7 +688,6 @@ public class GtfsService
                 List<Map<String, String>> shapesRaw = parseCsv(files.get("shapes.txt"));
                 log.info("[GTFS] #{}: {} pontos de shape encontrados", imp.getId(), shapesRaw.size());
 
-                // Detectar nomes das colunas
                 if (!shapesRaw.isEmpty())
                 {
                     Map<String, String> sample = shapesRaw.get(0);
@@ -712,7 +695,6 @@ public class GtfsService
                     String lonKey = sample.keySet().stream().filter(k -> k.toLowerCase().contains("lon")).findFirst().orElse("shape_pt_lon");
                     String seqKey = sample.keySet().stream().filter(k -> k.toLowerCase().contains("sequence")).findFirst().orElse("shape_pt_sequence");
 
-                    // Agrupar por shape_id
                     Map<String, List<Map<String, String>>> grouped = new LinkedHashMap<>();
                     for (Map<String, String> row : shapesRaw)
                     {
@@ -725,7 +707,7 @@ public class GtfsService
                     {
                         List<Map<String, String>> points = entry.getValue();
                         points.sort(Comparator.comparingInt(p ->
-                                Integer.parseInt(p.getOrDefault(seqKey, "0").trim())));
+                                parseIntSafe(p.getOrDefault(seqKey, "0"), 0)));
 
                         List<List<Double>> coords = new ArrayList<>();
                         for (Map<String, String> p : points)
@@ -746,9 +728,6 @@ public class GtfsService
             }
 
             // Sprint 1 (F0): processar agency.txt -> Operators (R.IVT.03).
-            // GTFS standard: agency_id e' opcional, agency_name obrigatorio.
-            // Mapeamos por agency_id (chave em routes.txt) ou pelo unico agency
-            // quando o campo nao existe. Fallback para o operador 'TUB' do seed.
             Map<String, Operator> agencyByGtfsId = new HashMap<>();
             Operator defaultOperator = operatorRepository.findByCode("TUB").orElse(null);
             if (files.containsKey("agency.txt"))
@@ -762,7 +741,6 @@ public class GtfsService
                     String agencyEmail = row.getOrDefault("agency_email", "").trim();
                     if (agencyName.isEmpty()) continue;
 
-                    // Code: usar agency_id se disponivel; senao derivar de agency_name.
                     String code = !gtfsAgencyId.isEmpty()
                             ? gtfsAgencyId.toUpperCase()
                             : agencyName.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
@@ -786,7 +764,7 @@ public class GtfsService
 
             broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A importar rotas…", 60);
 
-            // 4. CARREGAR ROTAS
+            // 4. CARREGAR ROTAS + PADRÕES + TRIPS
             if (files.containsKey("routes.txt"))
             {
                 List<Map<String, String>> routes = parseCsv(files.get("routes.txt"));
@@ -813,13 +791,15 @@ public class GtfsService
                     entity.setCode(code);
                     entity.setColor(color);
 
-                    // Se existente, limpar stops antigos
-                    if (!isNew)
-                    {
-                        routeStopRepository.deleteByRouteId(entity.getId());
-                        segmentRepository.deleteByRouteId(entity.getId());
-                        scheduleRepository.deleteByRouteId(entity.getId());
-                    }
+                    // Sprint 1 (F0): associar operador (agency.txt -> Operator), com fallback ao default 'TUB'.
+                    Operator op = null;
+                    if (!routeAgencyId.isEmpty()) op = agencyByGtfsId.get(routeAgencyId);
+                    if (op == null) op = agencyByGtfsId.get("_default");
+                    if (op == null) op = defaultOperator;
+                    if (op != null) entity.setOperator(op);
+
+                    // Re-import de rota existente: limpar padroes/trips antigos (cascade trata dos filhos).
+                    if (!isNew) journeyPatternRepository.deleteByRouteId(entity.getId());
 
                     Route saved = routeRepository.save(entity);
 
@@ -833,112 +813,137 @@ public class GtfsService
                         routesUpdated++;
                     }
 
-                    // Associar paragens à rota
-                    List<String[]> stopsList = routeStopsMap.get(gtfsRouteId);
-                    if (stopsList != null)
+                    Map<String, PatternAgg> patterns = patternsByRoute.get(gtfsRouteId);
+                    if (patterns == null || patterns.isEmpty())
                     {
-                        for (String[] pair : stopsList)
-                        {
-                            Long stopDbId = stopIdMap.get(pair[0]);
-                            if (stopDbId == null) continue;
-
-                            Optional<BusStop> stopOpt = busStopRepository.findById(stopDbId);
-                            if (stopOpt.isEmpty()) continue;
-
-                            RouteStop rs = new RouteStop();
-                            rs.setRoute(saved);
-                            rs.setStop(stopOpt.get());
-                            rs.setStopOrder(Integer.parseInt(pair[1]));
-                            RouteStop savedRs = routeStopRepository.save(rs);
-
-                            if (isNew)
-                                importEntityRepository.save(new GtfsImportEntity(imp, "ROUTE_STOP", savedRs.getId()));
-                        }
+                        log.warn("[GTFS] #{}: Rota {} sem padroes (trips/stop_times em falta)", imp.getId(), code);
+                        continue;
                     }
 
-                    // Guardar horários (stop_schedule) para esta rota
-                    // Sprint 0 (F4 follow-up): batch de 100 com flush() entre chunks
-                    // para reduzir tempo da conexão aberta (HikariCP leak detection).
-                    List<Map<String, String>> schedList = allSchedules.get(gtfsRouteId);
-                    int schedulesCreated = 0;
-                    if (schedList != null)
+                    int tripsCreated = 0;
+                    for (PatternAgg agg : patterns.values())
                     {
-                        final int BATCH_SIZE = 100;
-                        List<StopSchedule> batch = new ArrayList<>(BATCH_SIZE);
-                        for (Map<String, String> sc : schedList)
+                        // Padrão
+                        JourneyPattern jp = new JourneyPattern();
+                        jp.setRoute(saved);
+                        jp.setDirectionId(agg.directionId);
+                        jp.setSignature(agg.signatureOf());
+                        jp.setName(agg.name);
+                        jp.setGtfsImport(imp);
+                        jp = journeyPatternRepository.save(jp);
+
+                        // Paragens do padrão
+                        List<PatternStop> psBatch = new ArrayList<>();
+                        for (String[] s : agg.stopTemplate)
                         {
-                            Long stopDbId = stopIdMap.get(sc.get("stop_id"));
+                            Long stopDbId = stopIdMap.get(s[0]);
                             if (stopDbId == null) continue;
-                            Optional<BusStop> stopOpt = busStopRepository.findById(stopDbId);
-                            if (stopOpt.isEmpty()) continue;
-
-                            String arrival = sc.getOrDefault("arrival_time", "").trim();
-                            String departure = sc.getOrDefault("departure_time", "").trim();
-                            if (arrival.isEmpty() && departure.isEmpty()) continue;
-
-                            StopSchedule ss = new StopSchedule();
-                            ss.setRoute(saved);
-                            ss.setStop(stopOpt.get());
-                            ss.setTripId(sc.get("trip_id"));
-                            ss.setArrivalTime(arrival.isEmpty() ? departure : arrival);
-                            ss.setDepartureTime(departure.isEmpty() ? arrival : departure);
-                            ss.setStopSequence(Integer.parseInt(sc.getOrDefault("stop_sequence", "0")));
-                            ss.setDirectionId(Integer.parseInt(sc.getOrDefault("direction_id", "0")));
-                            ss.setServiceId(sc.getOrDefault("service_id", ""));
-                            ss.setGtfsImport(imp);
-                            batch.add(ss);
-                            if (batch.size() >= BATCH_SIZE)
-                            {
-                                scheduleRepository.saveAll(batch);
-                                scheduleRepository.flush();
-                                schedulesCreated += batch.size();
-                                batch.clear();
-                            }
+                            PatternStop ps = new PatternStop();
+                            ps.setPattern(jp);
+                            ps.setStop(busStopRepository.getReferenceById(stopDbId));
+                            ps.setStopSequence(parseIntSafe(s[1], 0));
+                            psBatch.add(ps);
                         }
-                        if (!batch.isEmpty())
-                        {
-                            scheduleRepository.saveAll(batch);
-                            scheduleRepository.flush();
-                            schedulesCreated += batch.size();
-                            batch.clear();
-                        }
-                    }
-                    if (schedulesCreated == 0)
-                        log.warn("[GTFS] #{}: Rota {} importada SEM horários (stop_times em falta)",
-                                imp.getId(), code);
-                    else
-                        log.info("[GTFS] #{}: Rota {} — {} horários guardados",
-                                imp.getId(), code, schedulesCreated);
+                        if (!psBatch.isEmpty()) patternStopRepository.saveAll(psBatch);
 
-                    // Guardar shape GTFS se disponível
-                    String shapeId = routeShapeMap.get(gtfsRouteId);
-                    if (shapeId != null && shapesMap.containsKey(shapeId))
-                    {
+                        // Geometria do padrão: PARTE do shape GTFS dos TUB (o corredor que eles
+                        // desenharam) e usa OSRM SO para remendar os troços com saltos grandes
+                        // (rectas longas). Os troços já bons ficam intactos. Sem shape, usa
+                        // OSRM a passar pelas paragens; em ultimo caso, rectas.
                         try
                         {
-                            List<RouteStop> orderedStops = routeStopRepository.findAll().stream()
-                                    .filter(rs -> rs.getRoute().getId().equals(saved.getId()))
-                                    .sorted(Comparator.comparingInt(RouteStop::getStopOrder))
-                                    .toList();
-                            int lastOrder = orderedStops.isEmpty() ? 1
-                                    : orderedStops.get(orderedStops.size() - 1).getStopOrder();
+                            int firstSeq = parseIntSafe(agg.stopTemplate.get(0)[1], 1);
+                            int lastSeq = parseIntSafe(agg.stopTemplate.get(agg.stopTemplate.size() - 1)[1], 1);
 
-                            RouteSegment seg = new RouteSegment();
-                            seg.setRoute(saved);
-                            seg.setFromStopOrder(1);
-                            seg.setToStopOrder(lastOrder);
-                            seg.setPoints(objectMapper.writeValueAsString(shapesMap.get(shapeId)));
+                            List<List<Double>> geom;
+                            if (agg.shapeId != null && !agg.shapeId.isEmpty() && shapesMap.containsKey(agg.shapeId))
+                            {
+                                geom = refineShapeWithOsrm(shapesMap.get(agg.shapeId)); // mantem TUB, remenda saltos
+                            }
+                            else
+                            {
+                                List<double[]> coords = new ArrayList<>();
+                                for (String[] s : agg.stopTemplate)
+                                {
+                                    double[] c = stopCoordMap.get(s[0]);
+                                    if (c != null) coords.add(c);
+                                }
+                                geom = coords.size() >= 2 ? osrmService.getRouteThrough(coords) : null;
+                                if (geom == null || geom.size() < 2)
+                                {
+                                    geom = new ArrayList<>();
+                                    for (double[] c : coords) geom.add(List.of(c[0], c[1]));
+                                }
+                            }
 
-                            RouteSegment savedSeg = segmentRepository.save(seg);
-                            if (isNew)
-                                importEntityRepository.save(new GtfsImportEntity(imp, "SEGMENT", savedSeg.getId()));
+                            if (geom != null && geom.size() >= 2)
+                            {
+                                PatternSegment seg = new PatternSegment();
+                                seg.setPattern(jp);
+                                seg.setFromSequence(firstSeq);
+                                seg.setToSequence(lastSeq);
+                                seg.setPoints(objectMapper.writeValueAsString(geom));
+                                patternSegmentRepository.save(seg);
+                            }
                         }
                         catch (Exception e)
                         {
-                            log.warn("[GTFS] #{}: Erro ao guardar shape para rota {}: {}",
+                            log.warn("[GTFS] #{}: Erro na geometria do padrao da rota {}: {}",
                                     imp.getId(), code, e.getMessage());
                         }
+
+                        // Trips do padrão + horas (TripStopTime)
+                        final int BATCH_SIZE = 200;
+                        List<TripStopTime> tstBatch = new ArrayList<>(BATCH_SIZE);
+                        for (String tid : agg.tripIds)
+                        {
+                            Map<String, String> ti = tripInfo.get(tid);
+                            String hs = ti.getOrDefault("headsign", "");
+
+                            Trip t = new Trip();
+                            t.setPattern(jp);
+                            t.setRoute(saved);
+                            t.setServiceId(ti.getOrDefault("service_id", ""));
+                            t.setHeadsign(hs.isEmpty() ? null : hs);
+                            t.setGtfsTripId(tid);
+                            t.setGtfsImport(imp);
+                            t = tripRepository.save(t);
+                            tripsCreated++;
+
+                            List<String[]> stops = tripStops.get(tid);
+                            if (stops == null) continue;
+                            for (String[] s : stops)
+                            {
+                                Long stopDbId = stopIdMap.get(s[0]);
+                                if (stopDbId == null) continue;
+                                String arrival = s[2], departure = s[3];
+                                if (arrival.isEmpty() && departure.isEmpty()) continue;
+
+                                TripStopTime tst = new TripStopTime();
+                                tst.setTrip(t);
+                                tst.setStop(busStopRepository.getReferenceById(stopDbId));
+                                tst.setStopSequence(parseIntSafe(s[1], 0));
+                                tst.setArrivalTime(arrival.isEmpty() ? departure : arrival);
+                                tst.setDepartureTime(departure.isEmpty() ? arrival : departure);
+                                tstBatch.add(tst);
+                                if (tstBatch.size() >= BATCH_SIZE)
+                                {
+                                    tripStopTimeRepository.saveAll(tstBatch);
+                                    tripStopTimeRepository.flush();
+                                    tstBatch.clear();
+                                }
+                            }
+                        }
+                        if (!tstBatch.isEmpty())
+                        {
+                            tripStopTimeRepository.saveAll(tstBatch);
+                            tripStopTimeRepository.flush();
+                            tstBatch.clear();
+                        }
                     }
+
+                    log.info("[GTFS] #{}: Rota {} — {} padroes, {} trips",
+                            imp.getId(), code, patterns.size(), tripsCreated);
                 }
 
                 log.info("[GTFS] #{}: Rotas — {} criadas, {} atualizadas",
@@ -970,6 +975,87 @@ public class GtfsService
     // ================================================================
     // UTILITÁRIOS
     // ================================================================
+
+    /** Agregado em memoria de um padrao durante o import. */
+    private static final class PatternAgg
+    {
+        int directionId;
+        List<String[]> stopTemplate;       // [{stop_id, sequence, arrival, departure}]
+        String shapeId;
+        String name;
+        final List<String> tripIds = new ArrayList<>();
+
+        /** Recalcula a assinatura (direcao + stop_ids ordenados). */
+        String signatureOf()
+        {
+            StringBuilder sb = new StringBuilder().append(directionId).append(':');
+            for (String[] s : stopTemplate) sb.append(s[0]).append(',');
+            return sha256Hex(sb.toString());
+        }
+    }
+
+    /** SHA-256 em hex (64 chars) da string dada. Fallback para hashCode em hex. */
+    private static String sha256Hex(String s)
+    {
+        try
+        {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] d = md.digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : d) sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            return sb.toString();
+        }
+        catch (Exception e)
+        {
+            return Integer.toHexString(s.hashCode());
+        }
+    }
+
+    private static int parseIntSafe(String s, int def)
+    {
+        if (s == null) return def;
+        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return def; }
+    }
+
+    /**
+     * Mantem o shape GTFS dos TUB e usa OSRM SO para remendar os troços com
+     * saltos grandes (rectas longas, &gt; ~250m entre pontos consecutivos),
+     * inserindo o caminho real da estrada. Os troços bons ficam intactos.
+     */
+    private List<List<Double>> refineShapeWithOsrm(List<List<Double>> shape)
+    {
+        final double GAP_THRESHOLD_M = 250.0;
+        if (shape == null || shape.size() < 2) return shape;
+
+        List<List<Double>> out = new ArrayList<>();
+        for (int i = 0; i < shape.size() - 1; i++)
+        {
+            List<Double> a = shape.get(i), b = shape.get(i + 1);
+            out.add(a);
+            double d = haversineMeters(a.get(0), a.get(1), b.get(0), b.get(1));
+            if (d > GAP_THRESHOLD_M)
+            {
+                List<List<Double>> leg = osrmService.getRoute(a.get(0), a.get(1), b.get(0), b.get(1));
+                if (leg != null && leg.size() > 2)
+                {
+                    // inserir só os pontos intermédios (extremos a/b já existem no shape)
+                    for (int k = 1; k < leg.size() - 1; k++) out.add(leg.get(k));
+                }
+            }
+        }
+        out.add(shape.get(shape.size() - 1));
+        return out;
+    }
+
+    private static double haversineMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        double R = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1), dLon = Math.toRadians(lon2 - lon1);
+        double x = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    }
 
     private GtfsImport createImportRecord(String source, String filename, String username)
     {
@@ -1012,7 +1098,6 @@ public class GtfsService
                 if (!entry.isDirectory())
                 {
                     String name = entry.getName();
-                    // Extrair nome do ficheiro se estiver em subdiretoria
                     if (name.contains("/")) name = name.substring(name.lastIndexOf('/') + 1);
                     files.put(name.toLowerCase(), zis.readAllBytes());
                 }
@@ -1066,7 +1151,7 @@ public class GtfsService
         dto.setRoutesCreated(entity.getRoutesCreated());
         dto.setRoutesUpdated(entity.getRoutesUpdated());
         dto.setShapesLoaded(entity.getShapesLoaded());
-        dto.setSchedulesLoaded(scheduleRepository.countByImportId(entity.getId()));
+        dto.setSchedulesLoaded(tripStopTimeRepository.countByImportId(entity.getId()));
         dto.setErrorMessage(entity.getErrorMessage());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());

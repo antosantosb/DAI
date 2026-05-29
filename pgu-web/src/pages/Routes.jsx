@@ -1,5 +1,7 @@
-﻿import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
@@ -36,8 +38,50 @@ export default function Routes() {
     } catch { return 'all'; }
   });
 
+  // Sprint 1: vista de "padrões da linha" (trajetórias distintas de cada rota).
+  // expandedId: rota actualmente expandida (apenas uma de cada vez).
+  // patternsCache: padrões já carregados por routeId (lazy, uma vez por rota).
+  // patternsState: estado de carregamento por routeId ('loading' | 'error').
+  const [expandedId, setExpandedId] = useState(null);
+  const [patternsCache, setPatternsCache] = useState({});
+  const [patternsState, setPatternsState] = useState({});
+
+  const togglePatterns = (routeId) => {
+    // Fechar se já estiver aberta.
+    if (expandedId === routeId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(routeId);
+    // Lazy fetch: só pede uma vez por rota.
+    if (patternsCache[routeId] || patternsState[routeId] === 'loading') return;
+    setPatternsState(s => ({ ...s, [routeId]: 'loading' }));
+    api.get(`/routes/${routeId}/patterns`)
+      .then(r => {
+        setPatternsCache(c => ({ ...c, [routeId]: r.data || [] }));
+        setPatternsState(s => { const next = { ...s }; delete next[routeId]; return next; });
+      })
+      .catch(() => {
+        setPatternsState(s => ({ ...s, [routeId]: 'error' }));
+      });
+  };
+
   const showModalMsg = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
+
+  // Sprint 1: modal com mapa do padrão (trajetória + paragens).
+  // patternModal guarda o padrão clicado (id, directionId, name) + a rota-pai
+  // (code, color) para o titulo e a cor da linha. mapDivRef aponta para o
+  // container do mapa; patternMapRef guarda a instancia Leaflet para destruir
+  // ao fechar.
+  const [patternModal, setPatternModal] = useState(null);
+  const mapDivRef = useRef(null);
+  const patternMapRef = useRef(null);
+
+  const openPatternMap = (pattern, route) => {
+    setPatternModal({ pattern, route });
+  };
+  const closePatternMap = () => setPatternModal(null);
 
   const load = () => {
     api.get('/routes').then(r => setRoutes(r.data || [])).catch(() => setRoutes([]));
@@ -179,6 +223,76 @@ export default function Routes() {
 
   const visible = filtered.slice(0, visibleCount);
 
+  // Sprint 1: inicializa o mapa Leaflet quando o modal do padrão abre.
+  // Keyed no id do padrão: re-corre se o utilizador abrir outro padrão sem
+  // fechar o modal pelo meio. Desenha a trajetória (geometry) na cor da rota
+  // e as paragens (resolvidas via allStops, que so' trazem stopId no endpoint
+  // /stops do padrao). Destroi o mapa no cleanup para evitar leaks/re-init.
+  const patternId = patternModal?.pattern?.id;
+  useEffect(() => {
+    if (!patternId || !mapDivRef.current) return undefined;
+
+    const routeColor = patternModal.route?.color || '#009BDB';
+
+    // Lookup {stopId: [lat, lon]} a partir das paragens ja' carregadas na
+    // pagina (GET /stops). O endpoint /patterns/{id}/stops nao traz coords.
+    const coordsById = {};
+    allStops.forEach(s => {
+      if (s.latitude != null && s.longitude != null) {
+        coordsById[s.id] = [s.latitude, s.longitude];
+      }
+    });
+
+    const map = L.map(mapDivRef.current, { zoomControl: true });
+    patternMapRef.current = map;
+    map.setView([41.5454, -8.4265], 12); // Braga — fallback ate' ao fitBounds
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Gotcha: o container tem tamanho 0 enquanto o modal nao esta' visivel.
+    // invalidateSize apos montar garante que os tiles renderizam bem.
+    const sizeTimer = setTimeout(() => map.invalidateSize(), 100);
+
+    let cancelled = false;
+
+    api.get(`/patterns/${patternId}/geometry`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const points = data?.points || [];
+        if (points.length >= 2) {
+          const polyline = L.polyline(points, { color: routeColor, weight: 5, opacity: 0.9 }).addTo(map);
+          const bounds = polyline.getBounds();
+          if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+        }
+        // Paragens: circleMarker por paragem com coords resolvidas. Skip se sem coords.
+        api.get(`/patterns/${patternId}/stops`)
+          .then(({ data: stopsData }) => {
+            if (cancelled) return;
+            (stopsData || []).forEach(s => {
+              const coords = coordsById[s.stopId];
+              if (!coords) return;
+              L.circleMarker(coords, {
+                radius: 4, color: '#fff', weight: 2, fillColor: routeColor, fillOpacity: 1,
+              })
+                .bindTooltip(s.stopName, { direction: 'top' })
+                .addTo(map);
+            });
+          })
+          .catch(() => { /* paragens sao opcionais para o desenho */ });
+      })
+      .catch(() => { /* sem geometria: o mapa fica no fallback de Braga */ });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(sizeTimer);
+      map.remove();
+      patternMapRef.current = null;
+    };
+  }, [patternId, patternModal, allStops]);
+
   return (
     <div>
       <Modal
@@ -190,6 +304,37 @@ export default function Routes() {
         type={modal.type}
         confirmText={modal.confirmText}
       />
+
+      {/* Sprint 1: modal com mapa do padrão (trajetória + paragens). */}
+      <Modal open={!!patternModal} onClose={closePatternMap}>
+        {patternModal && (
+          <div className="pattern-map-modal">
+            <div className="pattern-map-modal-header">
+              <h3 className="modal-title pattern-map-modal-title">
+                <code style={{ color: patternModal.route?.color || 'var(--color-primary)' }}>
+                  {patternModal.route?.code}
+                </code>
+                <span className={`route-pattern-dir route-pattern-dir--${patternModal.pattern?.directionId === 1 ? 'inbound' : 'outbound'}`}>
+                  {patternModal.pattern?.directionId === 1 ? t('pages.schedules.inbound') : t('pages.schedules.outbound')}
+                </span>
+                {patternModal.pattern?.name && (
+                  <span className="pattern-map-modal-name">{patternModal.pattern.name}</span>
+                )}
+              </h3>
+              <button
+                type="button"
+                className="pattern-map-modal-close"
+                onClick={closePatternMap}
+                aria-label={t('common.close')}
+                title={t('common.close')}
+              >
+                &#10005;
+              </button>
+            </div>
+            <div ref={mapDivRef} className="pattern-map-canvas" />
+          </div>
+        )}
+      </Modal>
 
       <div className="page-header">
         <div>
@@ -353,6 +498,7 @@ export default function Routes() {
         <table className="data-table">
           <thead>
             <tr>
+              <th style={{ width: '44px' }} aria-hidden="true"></th>
               <th style={{ width: '70px' }}>{t('pages.routes.headers.id')}</th>
               <th style={{ width: '110px' }}>{t('pages.routes.headers.code')}</th>
               <th>{t('pages.routes.headers.name')}</th>
@@ -363,8 +509,26 @@ export default function Routes() {
             </tr>
           </thead>
           <tbody>
-            {visible.map(route => (
-              <tr key={route.id}>
+            {visible.map(route => {
+              const isExpanded = expandedId === route.id;
+              const patterns = patternsCache[route.id];
+              const loadState = patternsState[route.id];
+              return (
+              <Fragment key={route.id}>
+              <tr className={isExpanded ? 'route-row--expanded' : ''}>
+                <td className="route-expand-cell">
+                  <button
+                    type="button"
+                    className={`route-expand-btn ${isExpanded ? 'route-expand-btn--open' : ''}`}
+                    onClick={() => togglePatterns(route.id)}
+                    aria-expanded={isExpanded}
+                    title={isExpanded ? t('pages.routes.patterns.hide') : t('pages.routes.patterns.show')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </button>
+                </td>
                 <td><span className="count-badge">{route.id}</span></td>
                 <td><code style={{ fontSize: 13, fontWeight: 700, color: route.color || 'var(--color-primary)' }}>{route.code}</code></td>
                 <td><strong>{route.name}</strong></td>
@@ -395,16 +559,63 @@ export default function Routes() {
                   )}
                 </td>
               </tr>
-            ))}
+              {isExpanded && (
+                <tr className="route-patterns-row">
+                  <td colSpan="8" className="route-patterns-cell">
+                    <div className="route-patterns-panel">
+                      <span className="route-patterns-title">{t('pages.routes.patterns.title')}</span>
+                      {loadState === 'loading' && (
+                        <div className="route-patterns-msg">{t('pages.routes.patterns.loading')}</div>
+                      )}
+                      {loadState === 'error' && (
+                        <div className="route-patterns-msg route-patterns-msg--error">{t('pages.routes.patterns.loadError')}</div>
+                      )}
+                      {!loadState && patterns && patterns.length === 0 && (
+                        <div className="route-patterns-msg">{t('pages.routes.patterns.empty')}</div>
+                      )}
+                      {!loadState && patterns && patterns.length > 0 && (
+                        <ul className="route-patterns-list">
+                          {patterns.map(p => (
+                            <li
+                              key={p.id}
+                              className="route-pattern-item route-pattern-item--clickable"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => openPatternMap(p, route)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPatternMap(p, route); } }}
+                              title={t('pages.routes.patterns.viewMap', 'Ver trajeto no mapa')}
+                            >
+                              <span className={`route-pattern-dir route-pattern-dir--${p.directionId === 1 ? 'inbound' : 'outbound'}`}>
+                                {p.directionId === 1 ? t('pages.schedules.inbound') : t('pages.schedules.outbound')}
+                              </span>
+                              {p.name && <span className="route-pattern-name">{p.name}</span>}
+                              <span className="route-pattern-meta">{t('pages.routes.patterns.stopCount', { count: p.stopCount ?? 0 })}</span>
+                              <span className="route-pattern-sep" aria-hidden="true">·</span>
+                              <span className="route-pattern-meta">{t('pages.routes.patterns.tripCount', { count: p.tripCount ?? 0 })}</span>
+                              <svg className="route-pattern-map-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                                <line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" />
+                              </svg>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+              );
+            })}
             {visibleCount < filtered.length && (
               <tr ref={loaderRef}>
-                <td colSpan="7" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
+                <td colSpan="8" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
                   {t('pages.routes.loadingMore', { current: visibleCount, total: filtered.length })}
                 </td>
               </tr>
             )}
             {filtered.length === 0 && (
-              <tr><td colSpan="7" className="empty">
+              <tr><td colSpan="8" className="empty">
                 {search ? t('pages.routes.notFound') : t('pages.routes.noRoutes')}
               </td></tr>
             )}

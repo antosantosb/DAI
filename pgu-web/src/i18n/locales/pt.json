@@ -308,6 +308,18 @@
         "color": "Cor",
         "stops": "Paragens",
         "actions": "Ações"
+      },
+      "patterns": {
+        "title": "Padrões da linha",
+        "show": "Ver padrões",
+        "hide": "Esconder padrões",
+        "loading": "A carregar padrões…",
+        "empty": "Sem padrões",
+        "stopCount_one": "{{count}} paragem",
+        "stopCount_other": "{{count}} paragens",
+        "tripCount_one": "{{count}} viagem",
+        "tripCount_other": "{{count}} viagens",
+        "loadError": "Falha ao carregar padrões."
       }
     },
     "projectDisclaimer": {
@@ -1476,7 +1488,20 @@
     "showAllRoutes": "Mostrar Todas as Rotas",
     "tabBuses": "Motoristas",
     "tabRoutes": "Rotas",
-    "tabAccount": "Conta"
+    "tabAccount": "Conta",
+    "patterns": {
+      "title": "Trajetos",
+      "loading": "A carregar trajetos...",
+      "none": "Sem trajetos disponíveis",
+      "clear": "Limpar",
+      "stopsSuffix": "paragens",
+      "tripsSuffix": "viagens",
+      "viewSchedules": "Ver horários",
+      "noSchedules": "Sem horários para este padrão",
+      "departure": "Partida",
+      "arrival": "Chegada",
+      "stops": "Paragens"
+    }
   },
   "modal": {
     "confirmDefault": "Confirmar",

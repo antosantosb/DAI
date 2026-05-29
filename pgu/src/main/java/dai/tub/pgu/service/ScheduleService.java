@@ -9,10 +9,13 @@ import org.springframework.stereotype.Service;
 /**
  * Sprint 1 (F4): horários planeados (trips do GTFS).
  *
- * <p>Uma "trip" e' um grupo de linhas {@code stop_schedule} com o mesmo
- * {@code trip_id} — rota + direção + service_id + sequência de paragens com
- * horas. Esta camada expõe-as para a aba Horários (vista) e para o selector
- * de trip ao pôr um autocarro numa rota.
+ * <p>Uma "trip" e' agora uma linha da tabela {@code trip} — rota + direção
+ * (via {@code journey_pattern}) + service_id + sequência de paragens com horas
+ * (via {@code trip_stop_time}). Esta camada expõe-as para a aba Horários
+ * (vista) e para o selector de trip ao pôr um autocarro numa rota.
+ *
+ * <p>O {@code trip_id} devolvido ao cliente e' o {@code trip.gtfs_trip_id}
+ * (string), para os deep-links de detalhe de trip continuarem a funcionar.
  */
 @Service
 public class ScheduleService
@@ -30,12 +33,13 @@ public class ScheduleService
      */
     public List<Map<String, Object>> getCoverage()
     {
+        // trip_count por rota = nº de linhas em trip para essa rota.
         return jdbc.queryForList(
             "SELECT r.id AS route_id, r.code AS route_code, r.name AS route_name, "
             + "r.color AS route_color, "
-            + "COUNT(DISTINCT ss.trip_id) AS trip_count "
+            + "COUNT(t.id) AS trip_count "
             + "FROM routes r "
-            + "LEFT JOIN stop_schedule ss ON ss.route_id = r.id "
+            + "LEFT JOIN trip t ON t.route_id = r.id "
             + "GROUP BY r.id, r.code, r.name, r.color "
             + "ORDER BY r.code");
     }
@@ -46,14 +50,20 @@ public class ScheduleService
      */
     public List<Map<String, Object>> getTrips(Long routeId)
     {
+        // Agrega trip_stop_time por trip; junta trip (gtfs_trip_id, service_id,
+        // filtro de rota) e journey_pattern (direction_id). O trip_id devolvido
+        // e' o gtfs_trip_id, para os links de detalhe continuarem validos.
         return jdbc.queryForList(
-            "SELECT trip_id, direction_id, service_id, "
-            + "MIN(departure_time) AS first_departure, "
-            + "MAX(arrival_time)   AS last_arrival, "
-            + "COUNT(*)            AS stop_count "
-            + "FROM stop_schedule WHERE route_id = ? "
-            + "GROUP BY trip_id, direction_id, service_id "
-            + "ORDER BY MIN(departure_time), trip_id",
+            "SELECT t.gtfs_trip_id AS trip_id, jp.direction_id, t.service_id, "
+            + "MIN(tst.departure_time) AS first_departure, "
+            + "MAX(tst.arrival_time)   AS last_arrival, "
+            + "COUNT(*)                AS stop_count "
+            + "FROM trip t "
+            + "JOIN trip_stop_time tst ON tst.trip_id = t.id "
+            + "JOIN journey_pattern jp ON jp.id = t.pattern_id "
+            + "WHERE t.route_id = ? "
+            + "GROUP BY t.gtfs_trip_id, jp.direction_id, t.service_id "
+            + "ORDER BY MIN(tst.departure_time), t.gtfs_trip_id",
             routeId);
     }
 
@@ -62,13 +72,16 @@ public class ScheduleService
      */
     public List<Map<String, Object>> getTripStops(String tripId)
     {
+        // tripId e' o gtfs_trip_id (string). Junta-se trip_stop_time -> trip
+        // (via gtfs_trip_id) -> bus_stops.
         return jdbc.queryForList(
-            "SELECT ss.stop_sequence, ss.arrival_time, ss.departure_time, "
+            "SELECT tst.stop_sequence, tst.arrival_time, tst.departure_time, "
             + "bs.id AS stop_id, bs.name AS stop_name, bs.code AS stop_code "
-            + "FROM stop_schedule ss "
-            + "JOIN bus_stops bs ON ss.stop_id = bs.id "
-            + "WHERE ss.trip_id = ? "
-            + "ORDER BY ss.stop_sequence",
+            + "FROM trip_stop_time tst "
+            + "JOIN trip t ON tst.trip_id = t.id "
+            + "JOIN bus_stops bs ON tst.stop_id = bs.id "
+            + "WHERE t.gtfs_trip_id = ? "
+            + "ORDER BY tst.stop_sequence",
             tripId);
     }
 }

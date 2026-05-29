@@ -2,7 +2,7 @@ package dai.tub.pgu.ai;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;  // DTO real do serviço
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +25,7 @@ import dai.tub.pgu.ai.dto.VehicleProblemSummaryDTO;
 import dai.tub.pgu.dto.AnalyticsDTOs.*;
 import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
-import dai.tub.pgu.dto.StopScheduleDTO;
+import dai.tub.pgu.dto.StopScheduleDTO;  // DTO real do serviço (proveniente de Trip + TripStopTime)
 import dai.tub.pgu.service.AlertaService;
 import dai.tub.pgu.service.AnalyticsService;
 import dai.tub.pgu.service.GtfsService;

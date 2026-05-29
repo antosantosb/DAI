@@ -2,7 +2,9 @@ package dai.tub.pgu.service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 // import org.slf4j.Logger;
 // import org.slf4j.LoggerFactory;
@@ -10,14 +12,15 @@ import org.springframework.stereotype.Service;
 
 import dai.tub.pgu.domain.Bus;
 import dai.tub.pgu.domain.BusStop;
+import dai.tub.pgu.domain.JourneyPattern;
+import dai.tub.pgu.domain.PatternStop;
 import dai.tub.pgu.domain.Route;
-import dai.tub.pgu.domain.RouteStop;
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.StopEtaDTO;
 import dai.tub.pgu.dto.StopPanelDTO;
 import dai.tub.pgu.repository.BusRepository;
 import dai.tub.pgu.repository.BusStopRepository;
-import dai.tub.pgu.repository.RouteStopRepository;
+import dai.tub.pgu.repository.PatternStopRepository;
 import dai.tub.pgu.repository.TelemetryRepository;
 
 @Service
@@ -28,17 +31,17 @@ public class StopPanelService
     private static final double DWELL_TIME_SECONDS = 30.0; // tempo parado por paragem
 
     private final BusStopRepository stopRepo;
-    private final RouteStopRepository routeStopRepo;
+    private final PatternStopRepository patternStopRepo;
     private final BusRepository busRepo;
     private final TelemetryRepository telemetryRepo;
     private final OsrmService osrmService;
 
-    public StopPanelService(BusStopRepository stopRepo, RouteStopRepository routeStopRepo,
+    public StopPanelService(BusStopRepository stopRepo, PatternStopRepository patternStopRepo,
                             BusRepository busRepo, TelemetryRepository telemetryRepo,
                             OsrmService osrmService)
     {
         this.stopRepo = stopRepo;
-        this.routeStopRepo = routeStopRepo;
+        this.patternStopRepo = patternStopRepo;
         this.busRepo = busRepo;
         this.telemetryRepo = telemetryRepo;
         this.osrmService = osrmService;
@@ -53,16 +56,29 @@ public class StopPanelService
         double stopLon = stop.getLocation().getX();
         int maxDisplay = stop.getMaxBusesDisplay() != null ? stop.getMaxBusesDisplay() : 3;
 
-        // Encontrar todas as rotas que passam por esta paragem
-        List<RouteStop> routeStops = routeStopRepo.findByStopId(stopId);
+        // Encontrar as rotas que passam por esta paragem (via padroes).
+        // Por rota usamos o padrao representativo (o que tem mais paragens) que
+        // contem esta paragem, para obter a ordem da paragem e o total de paragens.
+        List<PatternStop> hits = patternStopRepo.findByStopIdFull(stopId);
+        Map<Long, PatternStop> bestPerRoute = new HashMap<>();
+        Map<Long, Long> patternStopCount = new HashMap<>();
+        for (PatternStop ps : hits)
+        {
+            JourneyPattern jp = ps.getPattern();
+            Long routeId = jp.getRoute().getId();
+            long total = patternStopCount.computeIfAbsent(jp.getId(), patternStopRepo::countByPatternId);
+            PatternStop cur = bestPerRoute.get(routeId);
+            long curTotal = cur == null ? -1 : patternStopCount.getOrDefault(cur.getPattern().getId(), 0L);
+            if (cur == null || total > curTotal) bestPerRoute.put(routeId, ps);
+        }
 
         List<StopEtaDTO> allEtas = new ArrayList<>();
 
-        for (RouteStop rs : routeStops)
+        for (PatternStop rs : bestPerRoute.values())
         {
-            Route route = rs.getRoute();
-            int stopOrder = rs.getStopOrder();
-            int totalStops = route.getRouteStops().size();
+            Route route = rs.getPattern().getRoute();
+            int stopOrder = rs.getStopSequence();
+            int totalStops = patternStopCount.getOrDefault(rs.getPattern().getId(), 0L).intValue();
 
             // Buscar autocarros ativos nesta rota
             List<Bus> activeBuses = busRepo.findByRouteIdAndStatus(route.getId(), "ACTIVE");

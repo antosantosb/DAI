@@ -33,6 +33,13 @@ export default function Livemap() {
   const tileLayerRef = useRef(null);
   const stopLayerGroup = useRef(null);
   const routeLayerGroup = useRef(null);
+  // Feature "ver trajetos da rota": layer DEDICADA para o realce do pattern
+  // selecionado. Separada de routeLayerGroup para nao interferir com o
+  // desenho normal das rotas (requisito de seguranca).
+  const patternHighlightLayerRef = useRef(null);
+  // Guarda o padrao actualmente pedido, para descartar fetches obsoletos
+  // (ao trocar rapidamente de padrao, o fetch anterior nao deve redesenhar).
+  const drawnPatternRef = useRef(null);
   const busClusterGroup = useRef(null);
   const busMarkersRef = useRef({});
   const busStatusRef = useRef({});
@@ -67,6 +74,11 @@ export default function Livemap() {
   const [onlyActiveRoutes, setOnlyActiveRoutes] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedBus, setSelectedBus] = useState(null);
+  // Feature "ver trajetos da rota": patterns (trajetos distintos) da rota
+  // selecionada + qual esta realcado no mapa.
+  const [patterns, setPatterns] = useState([]);
+  const [patternsLoading, setPatternsLoading] = useState(false);
+  const [selectedPattern, setSelectedPattern] = useState(null);
   const [buses, setBuses] = useState({});
   const [backendBuses, setBackendBuses] = useState({});
   const [wsConnected, setWsConnected] = useState(false);
@@ -169,6 +181,9 @@ export default function Livemap() {
 
     stopLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
     routeLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
+    // Feature "ver trajetos da rota": layer do realce do pattern, adicionada
+    // ao mapa uma unica vez. Fica por cima das rotas (adicionada depois).
+    patternHighlightLayerRef.current = L.layerGroup().addTo(mapInstance.current);
 
     // ─── Cluster group para autocarros (F8, requisito do plano) ───
     busClusterGroup.current = L.markerClusterGroup({
@@ -665,9 +680,11 @@ export default function Livemap() {
     // Draw routes
     // Sprint 1 (F2): se onlyActiveRoutes ON, so' desenhamos rotas com >= 1 bus
     // activo. Identificamos rotas activas a partir dos backendBuses.
-    let routesToDraw = selectedRoute
-      ? routePolylineData.filter(r => r.id === selectedRoute)
-      : routePolylineData;
+    // Feature "ver trajetos": com uma rota selecionada, a linha vem da camada
+    // dos padroes (drawPattern desenha o padrao escolhido na cor da rota + as
+    // paragens). Por isso aqui NAO desenhamos a linha representativa — so na
+    // vista geral (sem selecao), que e' o "canal" ao nivel da rede.
+    let routesToDraw = selectedRoute ? [] : routePolylineData;
     if (!selectedRoute && onlyActiveRoutes) {
       // Sprint 1 (F2 fix): rota "em servico" = tem >= 1 autocarro NAO
       // desativado. Um autocarro azul (at-stop) ESTA' em servico — so'
@@ -705,20 +722,25 @@ export default function Livemap() {
       routeLayerGroup.current.addLayer(polyline);
     });
 
-    // Draw stop markers
-    const stopsToShow = selectedRoute
-      ? (() => {
-          const route = routes.find(r => r.id === selectedRoute);
-          if (!route) return stops;
-          const ids = new Set((route.stops || []).map(rs => rs.stopId));
-          return stops.filter(s => ids.has(s.id));
-        })()
-      : stops;
+    // Draw stop markers.
+    // Feature "ver trajetos": com uma rota selecionada NAO desenhamos as
+    // paragens gerais (estilo antigo) — as paragens do padrao escolhido sao
+    // desenhadas por drawPattern (novo modelo). So' na vista geral mostramos
+    // todas as paragens.
+    const stopsToShow = selectedRoute ? [] : stops;
 
     stopsToShow.forEach(stop => {
       if (stop.latitude == null || stop.longitude == null) return;
+      // Revamp: ponto mais pequeno e crisp (borda fina), ligeiramente
+      // translucido para nao saturar quando ha' muitas paragens. Distinto
+      // dos marcadores do padrao (maiores e na cor da rota).
       const marker = L.circleMarker([stop.latitude, stop.longitude], {
-        radius: 7, fillColor: '#009BDB', color: '#fff', weight: 2, fillOpacity: 0.9,
+        radius: 5,
+        fillColor: '#009BDB',
+        color: '#fff',
+        weight: 1.5,
+        fillOpacity: 0.92,
+        opacity: 0.85,
       });
       const popupContent = buildPanelLoading(stop);
       marker.bindPopup(popupContent, { minWidth: 260, maxWidth: 300, className: 'stop-panel-popup' });
@@ -785,6 +807,109 @@ export default function Livemap() {
       });
     }
   }, [selectedBus, selectedRoute]);
+
+  // ─── Feature "ver trajetos da rota" (patterns) ───
+  // Esvazia a layer dedicada do realce. Nao toca em routeLayerGroup.
+  const clearPatternHighlight = useCallback(() => {
+    patternHighlightLayerRef.current?.clearLayers();
+  }, []);
+
+  // Limpar o realce + deselecionar o pattern (botao "limpar" ou re-clique).
+  const handlePatternClear = useCallback(() => {
+    clearPatternHighlight();
+    setSelectedPattern(null);
+  }, [clearPatternHighlight]);
+
+  // Desenha um padrao (trajeto) na layer dedicada: a linha NA COR DA ROTA + as
+  // paragens do padrao (coordenadas via stopMap). Substitui o que la' estava.
+  const drawPattern = useCallback((patternId) => {
+    const layer = patternHighlightLayerRef.current;
+    const map = mapInstance.current;
+    if (!layer || !map) return;
+    drawnPatternRef.current = patternId;
+    const routeColor = routes.find(r => r.id === selectedRouteRef.current)?.color || '#009BDB';
+
+    api.get(`/patterns/${patternId}/geometry`)
+      .then(({ data }) => {
+        if (drawnPatternRef.current !== patternId) return; // ja' foi pedido outro padrao
+        const points = data?.points || [];
+        layer.clearLayers();
+        if (points.length >= 2) {
+          // points sao [lat, lon] (ordem Leaflet) — usar diretamente.
+          const polyline = L.polyline(points, { color: routeColor, weight: 6, opacity: 0.95 });
+          layer.addLayer(polyline);
+          const bounds = polyline.getBounds();
+          if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+        }
+        // Paragens do padrao (coordenadas resolvidas pelo stopMap ja' carregado).
+        api.get(`/patterns/${patternId}/stops`)
+          .then(({ data: stopsData }) => {
+            if (drawnPatternRef.current !== patternId) return; // descartar se obsoleto
+            (stopsData || []).forEach(s => {
+              const sm = stopMap[s.stopId];
+              if (!sm) return;
+              const marker = L.circleMarker([sm.latitude, sm.longitude], {
+                radius: 6, color: '#fff', weight: 2, fillColor: routeColor, fillOpacity: 0.95,
+              });
+              marker.bindTooltip(`${s.stopName}`, { direction: 'top' });
+              layer.addLayer(marker);
+            });
+          })
+          .catch(() => { /* paragens sao opcionais para o realce */ });
+      })
+      .catch((err) => {
+        if (err?.code !== 'ERR_CANCELED' && err?.name !== 'CanceledError') {
+          console.error('Falha ao carregar geometria do pattern:', err);
+        }
+      });
+  }, [routes, stopMap]);
+
+  // Clicar num pattern: troca o trajeto mostrado (re-clique no mesmo = no-op).
+  const handlePatternSelect = useCallback((patternId) => {
+    if (selectedPattern === patternId) return;
+    setSelectedPattern(patternId);
+    drawPattern(patternId);
+  }, [selectedPattern, drawPattern]);
+
+  // Quando a rota selecionada muda (ou e' deselecionada), ir buscar os
+  // patterns dessa rota. A limpeza do realce + lista + selecao anterior e'
+  // feita na funcao de cleanup (corre antes do efeito seguinte e no
+  // unmount), evitando setState sincrono no corpo do efeito.
+  useEffect(() => {
+    if (!selectedRoute) return undefined;
+
+    const ctrl = new AbortController();
+    // Sincronizacao com sistema externo (selecao de rota -> fetch async):
+    // o flag de loading tem de ligar antes do fetch resolver. Mesmo padrao
+    // ja' usado noutros efeitos deste ficheiro.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPatternsLoading(true);
+    api.get(`/routes/${selectedRoute}/patterns`, { signal: ctrl.signal })
+      .then(({ data }) => {
+        const pats = data || [];
+        setPatterns(pats);
+        setPatternsLoading(false);
+        // Auto-selecciona o 1.o padrao da lista (direcao 0, id mais baixo) e desenha-o.
+        if (pats.length > 0) {
+          setSelectedPattern(pats[0].id);
+          drawPattern(pats[0].id);
+        }
+      })
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+        console.error('Falha ao carregar patterns da rota:', err);
+        setPatterns([]);
+        setPatternsLoading(false);
+      });
+
+    return () => {
+      ctrl.abort();
+      clearPatternHighlight();
+      setPatterns([]);
+      setPatternsLoading(false);
+      setSelectedPattern(null);
+    };
+  }, [selectedRoute, clearPatternHighlight, drawPattern]);
 
   // Sprint 1 (F2 fix): popup STANDALONE na layer do mapa (nao bound ao
   // marker). Imune ao remove/re-add que o markercluster faz aos markers a
@@ -1107,6 +1232,11 @@ export default function Livemap() {
               routeSort={routeSort}
               setRouteSort={setRouteSort}
               adherenceMap={adherenceMap}
+              patterns={patterns}
+              patternsLoading={patternsLoading}
+              selectedPattern={selectedPattern}
+              onPatternClick={handlePatternSelect}
+              onPatternClear={handlePatternClear}
             />
           )}
         </div>

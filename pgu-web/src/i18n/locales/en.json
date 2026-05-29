@@ -308,6 +308,18 @@
         "color": "Color",
         "stops": "Stops",
         "actions": "Actions"
+      },
+      "patterns": {
+        "title": "Line patterns",
+        "show": "Show patterns",
+        "hide": "Hide patterns",
+        "loading": "Loading patterns…",
+        "empty": "No patterns",
+        "stopCount_one": "{{count}} stop",
+        "stopCount_other": "{{count}} stops",
+        "tripCount_one": "{{count}} trip",
+        "tripCount_other": "{{count}} trips",
+        "loadError": "Failed to load patterns."
       }
     },
     "projectDisclaimer": {
@@ -1476,7 +1488,20 @@
     "showAllRoutes": "Show All Routes",
     "tabBuses": "Drivers",
     "tabRoutes": "Routes",
-    "tabAccount": "Account"
+    "tabAccount": "Account",
+    "patterns": {
+      "title": "Trajectories",
+      "loading": "Loading trajectories...",
+      "none": "No trajectories available",
+      "clear": "Clear",
+      "stopsSuffix": "stops",
+      "tripsSuffix": "trips",
+      "viewSchedules": "View schedule",
+      "noSchedules": "No schedule for this pattern",
+      "departure": "Departure",
+      "arrival": "Arrival",
+      "stops": "Stops"
+    }
   },
   "modal": {
     "confirmDefault": "Confirm",

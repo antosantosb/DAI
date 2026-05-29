@@ -92,6 +92,53 @@ public class OsrmService
     }
 
     /**
+     * Rota real (a seguir as estradas) que passa por uma sequencia de pontos
+     * {@code [lat, lon]} (ex.: as paragens de um padrao, em ordem). Usa o OSRM
+     * com varios waypoints e devolve a geometria completa em [lat, lon].
+     * Devolve null em caso de falha. Serve para corrigir shapes GTFS grosseiros.
+     */
+    public List<List<Double>> getRouteThrough(List<double[]> latlonPoints)
+    {
+        if (latlonPoints == null || latlonPoints.size() < 2) return null;
+
+        StringBuilder coords = new StringBuilder();
+        for (int i = 0; i < latlonPoints.size(); i++)
+        {
+            if (i > 0) coords.append(';');
+            // OSRM espera lon,lat
+            coords.append(String.format(Locale.US, "%f,%f", latlonPoints.get(i)[1], latlonPoints.get(i)[0]));
+        }
+        String url = String.format("%s/route/v1/driving/%s?overview=full&geometries=polyline",
+            osrmUrl, coords);
+
+        try
+        {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .header("User-Agent", "TUB-PGU/1.0")
+                .GET()
+                .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return null;
+
+            JsonNode root = objectMapper.readTree(response.body());
+            if (!"Ok".equals(root.path("code").asText())) return null;
+
+            JsonNode routes = root.path("routes");
+            if (!routes.isArray() || routes.isEmpty()) return null;
+
+            return decodePolyline(routes.get(0).path("geometry").asText());
+        }
+        catch (Exception e)
+        {
+            log.warn("OSRM multi-waypoint failed ({} pts): {}", latlonPoints.size(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Calcula a distância real pela estrada entre dois pontos (em metros).
      * Retorna -1 em caso de falha.
      */

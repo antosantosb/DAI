@@ -12,12 +12,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dai.tub.pgu.domain.BusStop;
+import dai.tub.pgu.domain.JourneyPattern;
+import dai.tub.pgu.domain.PatternSegment;
+import dai.tub.pgu.domain.PatternStop;
 import dai.tub.pgu.domain.Route;
-import dai.tub.pgu.domain.RouteSegment;
-import dai.tub.pgu.domain.RouteStop;
 import dai.tub.pgu.repository.BusStopRepository;
+import dai.tub.pgu.repository.JourneyPatternRepository;
+import dai.tub.pgu.repository.PatternSegmentRepository;
+import dai.tub.pgu.repository.PatternStopRepository;
 import dai.tub.pgu.repository.RouteRepository;
-import dai.tub.pgu.repository.RouteSegmentRepository;
 
 /**
  * Sprint 1 (F1): export GeoJSON de rotas e paragens (R.BO.01).
@@ -25,7 +28,7 @@ import dai.tub.pgu.repository.RouteSegmentRepository;
  * <p>Constrói {@code FeatureCollection} GeoJSON 2008 compliant:
  * <ul>
  *   <li>Rotas: {@code LineString} por linha, geometria agregada dos
- *       {@code route_segments} ordenados por {@code from_stop_order}.
+ *       {@code PatternSegment} do padrao representativo (Transmodel).
  *   <li>Paragens: {@code Point} (lon, lat) com propriedades {@code code},
  *       {@code name} e {@code routeIds} (rotas que servem a paragem).
  * </ul>
@@ -37,16 +40,22 @@ import dai.tub.pgu.repository.RouteSegmentRepository;
 public class GeoJsonExportService
 {
     private final RouteRepository routeRepository;
-    private final RouteSegmentRepository segmentRepository;
+    private final JourneyPatternRepository journeyPatternRepository;
+    private final PatternStopRepository patternStopRepository;
+    private final PatternSegmentRepository patternSegmentRepository;
     private final BusStopRepository busStopRepository;
     private final ObjectMapper objectMapper;
 
     public GeoJsonExportService(RouteRepository routeRepository,
-                                RouteSegmentRepository segmentRepository,
+                                JourneyPatternRepository journeyPatternRepository,
+                                PatternStopRepository patternStopRepository,
+                                PatternSegmentRepository patternSegmentRepository,
                                 BusStopRepository busStopRepository)
     {
         this.routeRepository = routeRepository;
-        this.segmentRepository = segmentRepository;
+        this.journeyPatternRepository = journeyPatternRepository;
+        this.patternStopRepository = patternStopRepository;
+        this.patternSegmentRepository = patternSegmentRepository;
         this.busStopRepository = busStopRepository;
         this.objectMapper = new ObjectMapper();
     }
@@ -104,13 +113,13 @@ public class GeoJsonExportService
             routeIdToCode.put(r.getId(), r.getCode());
         }
 
-        // Pre-popular paragem -> rotas que a servem.
-        // Uma query mais eficiente seria via JPQL, mas com N routes < 100 e
-        // M paragens < 500, este loop é O(N*M_avg) e é claro de ler.
+        // Pre-popular paragem -> rotas que a servem, via padrao representativo
+        // de cada rota (Transmodel). Com N rotas < 100 e M paragens < 500 o
+        // custo e' aceitavel e o codigo continua claro de ler.
         Map<Long, List<String>> stopRoutes = new HashMap<>();
         for (Route r : routeRepository.findAll()) {
-            for (RouteStop rs : r.getRouteStops()) {
-                stopRoutes.computeIfAbsent(rs.getStop().getId(), k -> new ArrayList<>())
+            for (PatternStop ps : representativeStops(r.getId())) {
+                stopRoutes.computeIfAbsent(ps.getStop().getId(), k -> new ArrayList<>())
                           .add(r.getCode());
             }
         }
@@ -140,17 +149,24 @@ public class GeoJsonExportService
     }
 
     /**
-     * Agrega todos os segmentos de uma rota numa única lista de coordenadas
-     * GeoJSON ({@code [lon, lat]}). Os segmentos guardam pontos em formato
-     * {@code [[lat, lon], ...]} (legado), pelo que invertemos aqui.
+     * Constrói a {@code LineString} de uma rota a partir do seu padrao
+     * representativo (o JourneyPattern com mais paragens). Tenta primeiro
+     * concatenar os {@code PatternSegment} (geometria detalhada); se o padrao
+     * nao tiver segmentos, usa as coordenadas das proprias paragens do padrao.
+     * Devolve coordenadas GeoJSON {@code [lon, lat]} (RFC 7946).
      */
     private List<List<Double>> collectLineString(Route route)
     {
-        List<List<Double>> all = new ArrayList<>();
-        List<RouteSegment> segments = segmentRepository
-                .findByRouteIdOrderByFromStopOrder(route.getId());
+        JourneyPattern representative = representativePattern(route.getId());
+        if (representative == null) return new ArrayList<>();
 
-        for (RouteSegment seg : segments) {
+        // 1) Geometria detalhada: concatenar os pontos dos segmentos por ordem.
+        // PatternSegment.points guarda [[lat, lon], ...] (mesmo formato legado
+        // do antigo RouteSegment), pelo que invertemos para [lon, lat] (GeoJSON).
+        List<List<Double>> all = new ArrayList<>();
+        List<PatternSegment> segments =
+                patternSegmentRepository.findByPatternIdOrderByFromSequence(representative.getId());
+        for (PatternSegment seg : segments) {
             try {
                 List<List<Double>> latLonPoints = objectMapper.readValue(
                         seg.getPoints(),
@@ -164,7 +180,41 @@ public class GeoJsonExportService
                 // segmento mal-formado: salta sem rebentar o export
             }
         }
+        if (!all.isEmpty()) return all;
+
+        // 2) Fallback sem segmentos: usar as paragens do padrao representativo.
+        // JTS Point: getX()=lon, getY()=lat -> [lon, lat] (GeoJSON spec).
+        for (PatternStop ps : patternStopRepository.findByPatternIdOrderByStopSequence(representative.getId())) {
+            if (ps.getStop().getLocation() == null) continue;
+            all.add(List.of(ps.getStop().getLocation().getX(), ps.getStop().getLocation().getY()));
+        }
         return all;
+    }
+
+    /**
+     * Padrao representativo de uma rota = o JourneyPattern com MAIS PatternStops
+     * (o mais completo). {@code null} se a rota nao tiver padroes.
+     */
+    private JourneyPattern representativePattern(Long routeId)
+    {
+        JourneyPattern best = null;
+        int bestSize = -1;
+        for (JourneyPattern p : journeyPatternRepository.findByRouteIdOrderByDirectionIdAscIdAsc(routeId)) {
+            int size = patternStopRepository.findByPatternIdOrderByStopSequence(p.getId()).size();
+            if (size > bestSize) {
+                bestSize = size;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    /** Paragens do padrao representativo de uma rota (lista vazia se nao houver). */
+    private List<PatternStop> representativeStops(Long routeId)
+    {
+        JourneyPattern representative = representativePattern(routeId);
+        if (representative == null) return List.of();
+        return patternStopRepository.findByPatternIdOrderByStopSequence(representative.getId());
     }
 
     private Map<String, Object> featureCollection(List<Map<String, Object>> features)

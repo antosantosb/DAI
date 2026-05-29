@@ -28,10 +28,6 @@ public class Route
     @JoinColumn(name = "operator_id")
     private Operator operator;
 
-    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @OrderBy("stopOrder ASC")
-    private List<RouteStop> routeStops = new ArrayList<>();
-
     @OneToMany(mappedBy = "route", fetch = FetchType.LAZY)
     private List<Bus> buses = new ArrayList<>();
 
@@ -43,7 +39,6 @@ public class Route
     public String          getCode()       { return this.code; }
     public String          getColor()      { return this.color; }
     public Operator        getOperator()   { return this.operator; }
-    public List<RouteStop> getRouteStops() { return this.routeStops; }
     public List<Bus>       getBuses()      { return this.buses; }
 
     // SET
@@ -52,6 +47,5 @@ public class Route
     public void setCode(String code)                  { this.code = code; }
     public void setColor(String color)                { this.color = color; }
     public void setOperator(Operator operator)        { this.operator = operator; }
-    public void setRouteStops(List<RouteStop> stops)  { this.routeStops = stops; }
     public void setBuses(List<Bus> buses)             { this.buses = buses; }
 }

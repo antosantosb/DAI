@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
  *
  * <p>Para um intervalo de datas, calcula que servicos GTFS estao activos em
  * cada dia (a partir do service_calendar + excecoes em service_calendar_date),
- * e mapeia esses servicos para rotas e contagem de viagens (via stop_schedule).
+ * e mapeia esses servicos para rotas e contagem de viagens (via tabela trip).
  */
 @Service
 public class CalendarService
@@ -68,16 +68,17 @@ public class CalendarService
                           .put(rs.getString("service_id"), rs.getInt("exception_type"));
             }, java.sql.Date.valueOf(from), java.sql.Date.valueOf(to));
 
-        // 3. service_id -> rotas (id) e contagem de trips
+        // 3. service_id -> rotas (id) e contagem de trips (a partir da tabela trip:
+        //    cada linha de trip e' uma viagem distinta, com service_id e route_id).
         Map<String, Set<Long>> serviceRoutes = new HashMap<>();
-        jdbc.query("SELECT DISTINCT service_id, route_id FROM stop_schedule WHERE service_id IS NOT NULL",
+        jdbc.query("SELECT DISTINCT service_id, route_id FROM trip WHERE service_id IS NOT NULL",
             rs -> {
                 serviceRoutes.computeIfAbsent(rs.getString("service_id"), k -> new HashSet<>())
                              .add(rs.getLong("route_id"));
             });
 
         Map<String, Integer> serviceTrips = new HashMap<>();
-        jdbc.query("SELECT service_id, COUNT(DISTINCT trip_id) AS trips FROM stop_schedule "
+        jdbc.query("SELECT service_id, COUNT(*) AS trips FROM trip "
             + "WHERE service_id IS NOT NULL GROUP BY service_id",
             rs -> { serviceTrips.put(rs.getString("service_id"), rs.getInt("trips")); });
 

@@ -790,6 +790,385 @@
   font-weight: 500;
 }
 
+/* ─── Patterns (trajetos da rota) ─── */
+.livemap-patterns {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.livemap-patterns-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Botao "Ver horarios" no cabecalho do painel de trajetos (pill discreta). */
+.livemap-patterns-schedules {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+.livemap-patterns-schedules:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.livemap-patterns-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.livemap-patterns-clear {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.livemap-patterns-clear:hover {
+  background: var(--color-bg);
+}
+
+.livemap-patterns-empty {
+  font-size: 12px;
+  color: var(--color-text-light);
+  padding: 6px 0;
+}
+
+.livemap-pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.livemap-pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1.5px solid transparent;
+}
+
+.livemap-pattern-item:hover {
+  background: var(--color-bg);
+}
+
+.livemap-pattern-item.selected {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.livemap-pattern-dir {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Ida (direction 0) e Volta (direction 1) com cores distintas. */
+.livemap-pattern-dir--outbound {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.livemap-pattern-dir--inbound {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.livemap-pattern-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.livemap-pattern-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.livemap-pattern-meta {
+  font-size: 10px;
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+/* ─── Modal de horários do padrão (Ver horários) ─── */
+/* O .modal-dialog centra texto e limita a 420px; aqui alinhamos à esquerda
+   e damos um pouco mais de largura para a tabela respirar. */
+.livemap-sched-modal {
+  text-align: left;
+  width: 100%;
+}
+
+/* O .modal-dialog limita a ~420px; alargamos so' para o modal de horarios,
+   senao a tabela (4 colunas) transborda para fora da caixa. */
+.modal-dialog:has(.livemap-sched-modal) {
+  width: 520px;
+  max-width: 92vw;
+}
+
+.livemap-sched-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.livemap-sched-titlerow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.livemap-sched-route {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-heading);
+}
+
+.livemap-sched-pattern {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livemap-sched-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+.livemap-sched-state {
+  font-size: 13px;
+  color: var(--color-text-light);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.livemap-sched-tablewrap {
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.livemap-sched-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.livemap-sched-table th:first-child {
+  width: 48px;
+}
+
+.livemap-sched-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.livemap-sched-table tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.livemap-sched-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.livemap-sched-table tbody tr:hover td {
+  background: var(--color-bg);
+}
+
+.livemap-sched-idx {
+  color: var(--color-text-light);
+  width: 36px;
+}
+
+.livemap-sched-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.livemap-sched-stops {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 72px;
+}
+
+/* Linhas de viagem clicáveis — drill-in para o detalhe da viagem. */
+.livemap-sched-row {
+  cursor: pointer;
+}
+
+.livemap-sched-row:hover td {
+  background: var(--color-bg);
+}
+
+.livemap-sched-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* ─── Detalhe da viagem (timeline das paragens) ─── */
+.livemap-trip-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.livemap-trip-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.livemap-trip-back:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: var(--color-text-light);
+}
+
+.livemap-trip-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.livemap-trip-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+/* Linha vertical que liga os pontos da timeline. */
+.livemap-trip-timeline::before {
+  content: '';
+  position: absolute;
+  left: 64px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.livemap-trip-stop {
+  display: grid;
+  grid-template-columns: 48px 18px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+}
+
+.livemap-trip-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.livemap-trip-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  justify-self: center;
+  z-index: 1;
+}
+
+.livemap-trip-name {
+  font-size: 13px;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.livemap-trip-code {
+  font-size: 11px;
+  color: var(--color-text-light);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* ─── Reset Button ─── */
 .livemap-btn-reset {
   width: 100%;

@@ -24,6 +24,11 @@ public class Bus
     @JoinColumn(name = "route_id")
     private Route route;
 
+    // Sprint 1 (Fase 1): bloco de trips que o autocarro executa (populado na Fase 4).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "block_id")
+    private Block block;
+
     @Column(nullable = false)
     private String status = "STOPPED";
 
@@ -38,6 +43,7 @@ public class Bus
     public String  getLicensePlate() { return this.licensePlate; }
     public Integer getCapacity()     { return this.capacity; }
     public Route   getRoute()        { return this.route; }
+    public Block   getBlock()        { return this.block; }
     public String  getStatus()       { return this.status; }
     public Instant getLastSync()     { return this.lastSync; }
 
@@ -47,6 +53,7 @@ public class Bus
     public void setLicensePlate(String plate)      { this.licensePlate = plate; }
     public void setCapacity(Integer capacity)      { this.capacity = capacity; }
     public void setRoute(Route route)              { this.route = route; }
+    public void setBlock(Block block)              { this.block = block; }
     public void setStatus(String status)           { this.status = status; }
     public void setLastSync(Instant lastSync)      { this.lastSync = lastSync; }
 }
