@@ -1,4 +1,4 @@
-/* Analytics Dashboard — layout e tipografia baseados nos tokens de index.css */
+﻿/* Analytics Dashboard — layout e tipografia baseados nos tokens de index.css */
 
 .analytics-page {
   padding: 24px 32px;
@@ -27,7 +27,7 @@
   font-weight: 600;
   color: var(--color-primary);
   background: var(--color-primary-light);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(0, 155, 219, 0.2);
   border-radius: 8px;
   text-decoration: none;
   transition: all 0.15s ease;
@@ -385,7 +385,7 @@
   background: var(--color-primary-light);
   padding: 2px;
   border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(0, 155, 219, 0.1);
 }
 
 .btn-toggle {

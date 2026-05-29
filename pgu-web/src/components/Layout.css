@@ -1,4 +1,4 @@
-.layout {
+﻿.layout {
   display: flex;
   min-height: 100vh;
 }
@@ -14,7 +14,8 @@
   position: fixed;
   top: 0;
   left: 0;
-  bottom: 0;
+  /* Sprint 1 (F1): reservar 32px no fundo para o disclaimer global */
+  bottom: 32px;
   z-index: 100;
   border-right: 1px solid rgba(255,255,255,0.06);
 }
@@ -27,7 +28,8 @@
 /* Sprint 0 (F6/F7): Theme + Language switchers fixos no canto inferior direito. */
 .layout-lang {
   position: fixed;
-  bottom: 20px;
+  /* Sprint 1 (F1): empurrado acima do disclaimer global (~30px) */
+  bottom: 50px;
   right: 20px;
   z-index: 90;
   display: flex;
@@ -40,6 +42,24 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
+}
+
+/* Sprint 1 (F1): divisor vertical fino entre o logo TUB e o label "Backoffice" */
+.sidebar-brand-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+}
+
+.sidebar-brand-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .sidebar-logo {
@@ -194,7 +214,7 @@
   background: var(--color-primary);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 155, 219, 0.4);
 }
 
 .sidebar-nav a.active .nav-icon {
@@ -203,12 +223,13 @@
 
 /* ─── Footer ─── */
 .sidebar-footer {
-  padding: 12px 12px;
+  padding: 0;
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 /* Sprint 1 follow-up: footer e' agora um unico botao com menu popover.
- * O caret no fim indica que ha menu; click toggle. */
+ * Sprint 1 (F1): button edge-to-edge — toda a largura da sidebar e' hitbox,
+ * igual ao livemap. Sem border-radius (cantos a bater nas bordas). */
 .sidebar-footer-user {
   display: flex;
   align-items: center;
@@ -217,8 +238,8 @@
   min-width: 0;
   background: transparent;
   border: none;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 14px 18px;
+  border-radius: 0;
   cursor: pointer;
   color: inherit;
   font-family: inherit;
@@ -289,7 +310,7 @@
   transition: opacity var(--transition);
 }
 .sidebar-account-item:hover {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(0, 155, 219, 0.15);
   color: #fff;
 }
 .sidebar-account-item:hover svg {
@@ -328,7 +349,7 @@
   box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
 }
 .sidebar .sb-user-item { color: #cbd5e1; }
-.sidebar .sb-user-item:hover { background: rgba(99, 102, 241, 0.15); color: #fff; }
+.sidebar .sb-user-item:hover { background: rgba(0, 155, 219, 0.15); color: #fff; }
 .sidebar .sb-user-item--danger { color: #f87171; }
 .sidebar .sb-user-item--danger:hover { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
 .sidebar .sb-user-divider { background: rgba(255, 255, 255, 0.08); }
@@ -337,7 +358,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #009BDB, #0084BD);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,9 +409,9 @@
 }
 
 .sidebar-home:hover {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #818cf8;
+  background: rgba(0, 155, 219, 0.12);
+  border-color: rgba(0, 155, 219, 0.3);
+  color: #38BDF8;
 }
 
 .sidebar-logout:hover {

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import TubLogo from '../components/TubLogo';
+import ProjectDisclaimer from '../components/ProjectDisclaimer';
 import './Landing.css';
 
 export default function Landing() {
@@ -28,21 +30,8 @@ export default function Landing() {
       <div className="landing-content">
         <div className="landing-header">
           <div className="landing-logo">
-            <svg viewBox="0 0 80 44" fill="none" className="landing-logo-svg">
-              <path d="M10 12 C10 9 12 7 15 7 L60 7 C64 7 67 8 68 11 L70 16 L70 33 C70 34.5 69 35.5 67.5 35.5 L12.5 35.5 C11 35.5 10 34.5 10 33 Z" fill="white" opacity="0.9" />
-              <rect x="12" y="7" width="53" height="2.5" rx="1.2" fill="white" opacity="0.3" />
-              <rect x="15" y="13" width="9" height="9" rx="2" fill="rgba(99,102,241,0.6)" />
-              <rect x="27" y="13" width="9" height="9" rx="2" fill="rgba(99,102,241,0.6)" />
-              <rect x="39" y="13" width="9" height="9" rx="2" fill="rgba(99,102,241,0.6)" />
-              <path d="M52 13 L56 13 C58 13 60 14 60.5 15.5 L62 22 L52 22 Z" fill="rgba(99,102,241,0.4)" />
-              <rect x="10" y="24" width="60" height="1.5" rx="0.5" fill="white" opacity="0.2" />
-              <circle cx="22" cy="34" r="5" fill="#1e293b" />
-              <circle cx="22" cy="34" r="2" fill="#64748b" />
-              <circle cx="58" cy="34" r="5" fill="#1e293b" />
-              <circle cx="58" cy="34" r="2" fill="#64748b" />
-            </svg>
+            <TubLogo size={56} className="landing-logo-svg" />
           </div>
-          <h1 className="landing-title">{t('landing.title')}</h1>
           <p className="landing-subtitle">{t('landing.subtitle')}</p>
         </div>
 

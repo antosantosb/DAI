@@ -817,7 +817,7 @@ export default function Users() {
                         ? new Date(user.createdTimestamp).toLocaleDateString('pt-PT')
                         : '-'}
                     </td>
-                    <td>
+                    <td className="actions">
                       <div className="user-actions">
                         {isAdmin ? (
                           // Admin: nenhuma accao individual permitida

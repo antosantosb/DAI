@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { createStompClient } from '../services/stompClient';
@@ -334,7 +334,7 @@ export default function PainelBordo() {
     'ACTIVE': t('pages.painelBordo.status.active'),
   };
   const statusColors = {
-    'active': '#10b981', 'at-stop': '#6366f1', 'stopping': '#f59e0b',
+    'active': '#10b981', 'at-stop': '#009BDB', 'stopping': '#f59e0b',
     'delayed': '#ef4444', 'stopped': '#94a3b8', 'STOPPED': '#94a3b8', 'ACTIVE': '#10b981',
   };
 

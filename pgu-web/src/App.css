@@ -1,4 +1,4 @@
-/* ========== PAGE HEADER ========== */
+﻿/* ========== PAGE HEADER ========== */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -38,6 +38,8 @@
   line-height: 1.4;
   position: relative;
   overflow: hidden;
+  /* Sprint 1 (F1): <a> stylado como .btn nao deve ter underline */
+  text-decoration: none;
 }
 
 .btn:active {
@@ -72,11 +74,11 @@
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 155, 219, 0.3);
 }
 .btn-primary:hover {
   background: var(--color-primary-hover);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 155, 219, 0.4);
   transform: translateY(-1px);
 }
 
@@ -132,6 +134,22 @@
   color: var(--color-text);
 }
 
+/* Sprint 1 (F0): variante outline de perigo. Mais leve que .btn-danger
+ * (que e' totalmente preenchido). Usado em accoes destrutivas em tabelas
+ * (Edit/Delete row actions) para nao competir visualmente com a row. */
+.btn-ghost-danger {
+  background: transparent;
+  border: 1px solid var(--color-danger, #ef4444);
+  color: var(--color-danger, #ef4444);
+}
+.btn-ghost-danger:hover {
+  background: var(--color-danger, #ef4444);
+  color: #fff;
+}
+.btn-ghost-danger:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+}
+
 .btn-sm {
   padding: 6px 14px;
   font-size: 12px;
@@ -172,6 +190,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Sprint 1 (F0): alinhar conteudo ao meio para que rows com botoes (taller)
+   * e rows com texto/badges (shorter) fiquem visualmente alinhadas. */
+  vertical-align: middle;
 }
 
 .data-table td:first-child {
@@ -207,11 +228,15 @@
   background: var(--color-bg-subtle);
 }
 
-.data-table .actions {
-  display: flex;
-  gap: 8px;
+/* Sprint 1 (F0): a celula .actions tem que ser table-cell (default) para
+ * a row se alinhar correctamente — display:flex no td quebra o table-layout
+ * e a linha separadora fica desalinhada com as outras celulas. */
+.data-table td.actions {
   overflow: visible;
   white-space: nowrap;
+}
+.data-table td.actions > * + * {
+  margin-left: 8px;
 }
 
 .data-table .empty {
@@ -221,17 +246,34 @@
   font-size: 14px;
 }
 
+/* Sprint 1 (F0): garantir altura consistente das linhas — algumas tem
+ * botoes (32px+) outras tem so' texto/badge. Fixa min-height para evitar
+ * desalinhamento visivel quando alguma linha mostra "Protected account"
+ * em vez dos botoes. */
+.data-table .actions {
+  vertical-align: middle;
+}
+.data-table .actions > * {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .data-table .actions .btn-sm {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   transition: all var(--transition);
+  /* Sprint 1 (F0): leve elevacao para destacar os botoes da row */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
 }
 
 .data-table .actions .btn-sm:hover {
   background: var(--color-primary-light);
   border-color: var(--color-primary);
   color: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(0, 155, 219, 0.20), 0 0 0 1px rgba(0, 155, 219, 0.15) inset;
+  transform: translateY(-1px);
 }
 
 .data-table .actions .btn-sm.btn-danger {
@@ -244,6 +286,8 @@
   background: var(--color-danger-light);
   border-color: var(--color-danger);
   color: var(--color-danger);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.20), 0 0 0 1px rgba(239, 68, 68, 0.15) inset;
+  transform: translateY(-1px);
 }
 
 /* ========== FORM CARD (Modal-style) ========== */

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useAuth } from '../context/AuthProvider';
@@ -18,9 +18,23 @@ export default function Routes() {
   const [form, setForm] = useState({ name: '', code: '', color: '' });
   const [routeStops, setRouteStops] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState('');
+  // Sprint 1 (F4): pre-popular a pesquisa a partir de ?q= (deep-link do
+  // calendario — clicar numa rota leva aqui ja' filtrado).
+  const [search, setSearch] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('q') || '';
+    } catch { return ''; }
+  });
   const [modal, setModal] = useState({ open: false });
   const [dragIdx, setDragIdx] = useState(null);
+  // Sprint 1 (F0): filtro de operador. Pre-popula do query param ?operator=CODE
+  // (usado pelo link "Rotas" na pagina Operators).
+  const [operatorsList, setOperatorsList] = useState([]);
+  const [operatorFilter, setOperatorFilter] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('operator') || 'all';
+    } catch { return 'all'; }
+  });
 
   const showModalMsg = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
@@ -28,6 +42,8 @@ export default function Routes() {
   const load = () => {
     api.get('/routes').then(r => setRoutes(r.data || [])).catch(() => setRoutes([]));
     api.get('/stops').then(r => setAllStops(r.data || [])).catch(() => setAllStops([]));
+    // Sprint 1 (F0): carregar operadores para popular o filtro
+    api.get('/operators').then(r => setOperatorsList(r.data || [])).catch(() => setOperatorsList([]));
   };
 
   useEffect(load, []);
@@ -131,6 +147,10 @@ export default function Routes() {
   const availableStops = allStops.filter(s => !routeStops.find(rs => rs.id === s.id));
 
   const filtered = routes.filter(r => {
+    // Sprint 1 (F0): filtrar por operador
+    if (operatorFilter && operatorFilter !== 'all') {
+      if (r.operatorCode !== operatorFilter) return false;
+    }
     if (!search) return true;
     const q = search.toLowerCase();
     return r.name?.toLowerCase().includes(q) || r.code?.toLowerCase().includes(q);
@@ -142,7 +162,7 @@ export default function Routes() {
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, routes.length]);
+  }, [search, operatorFilter, routes.length]);
 
   useEffect(() => {
     if (visibleCount >= filtered.length) return;
@@ -176,15 +196,33 @@ export default function Routes() {
           <h1>{t('pages.routes.title')}</h1>
           <p className="page-subtitle">{t('pages.routes.registered', { count: routes.length })}</p>
         </div>
-        {isAdmin && (
-          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            {t('pages.routes.newButton')}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Sprint 1 (F1): export GeoJSON (R.BO.01) — aberto a qualquer
+              utilizador autenticado (na pratica o endpoint e' permitAll,
+              mas escondemos o botao no UI fora de admin para nao poluir). */}
+          {isAdmin && (
+            <a
+              href="/api/v1/routes/export.geojson"
+              className="btn btn-secondary"
+              download="pgu-routes.geojson"
+              title={t('pages.routes.exportGeoJsonTitle')}
+            >
+              {t('pages.routes.exportGeoJson')}
+            </a>
+          )}
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+              {t('pages.routes.newButton')}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="bus-toolbar" style={{ marginBottom: 20 }}>
-        <div className="search-bar">
+      <div
+        className="bus-toolbar routes-toolbar"
+        style={{ marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'nowrap' }}
+      >
+        <div className="search-bar" style={{ flex: '1 1 auto', minWidth: 0, maxWidth: 340 }}>
           <svg className="search-bar-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
@@ -194,6 +232,31 @@ export default function Routes() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        {/* Sprint 1 (F0): filtro por operador (R.IVT.03) */}
+        {operatorsList.length > 0 && (
+          <div
+            className="routes-operator-filter"
+            style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}
+          >
+            <label htmlFor="route-operator-filter" className="user-filter-label">
+              {t('pages.routes.filterOperatorLabel')}
+            </label>
+            <select
+              id="route-operator-filter"
+              value={operatorFilter}
+              onChange={e => setOperatorFilter(e.target.value)}
+              className="routes-operator-select"
+              style={{ maxWidth: 160 }}
+            >
+              <option value="all">{t('pages.routes.filterOperatorAll')}</option>
+              {operatorsList.map(op => (
+                <option key={op.id} value={op.code} title={op.name}>
+                  {op.code}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -214,11 +277,11 @@ export default function Routes() {
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="color"
-                    value={form.color || '#6366f1'}
+                    value={form.color || '#009BDB'}
                     onChange={e => setForm({...form, color: e.target.value})}
                     style={{ width: '44px', height: '40px', padding: '2px', cursor: 'pointer', borderRadius: '8px', border: '1.5px solid var(--color-border)' }}
                   />
-                  <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} placeholder="#6366f1" style={{ flex: 1 }} />
+                  <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} placeholder="#009BDB" style={{ flex: 1 }} />
                 </div>
               </div>
             </div>
@@ -293,6 +356,7 @@ export default function Routes() {
               <th style={{ width: '70px' }}>{t('pages.routes.headers.id')}</th>
               <th style={{ width: '110px' }}>{t('pages.routes.headers.code')}</th>
               <th>{t('pages.routes.headers.name')}</th>
+              <th style={{ width: '110px' }}>{t('pages.routes.headers.operator')}</th>
               <th style={{ width: '130px' }}>{t('pages.routes.headers.color')}</th>
               <th style={{ width: '100px' }}>{t('pages.routes.headers.stops')}</th>
               <th style={{ width: '170px' }}>{t('pages.routes.headers.actions')}</th>
@@ -304,6 +368,15 @@ export default function Routes() {
                 <td><span className="count-badge">{route.id}</span></td>
                 <td><code style={{ fontSize: 13, fontWeight: 700, color: route.color || 'var(--color-primary)' }}>{route.code}</code></td>
                 <td><strong>{route.name}</strong></td>
+                <td>
+                  {route.operatorCode ? (
+                    <span className="count-badge" title={route.operatorName || route.operatorCode}>
+                      {route.operatorCode}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-light)' }}>—</span>
+                  )}
+                </td>
                 <td>
                   {route.color && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -325,13 +398,13 @@ export default function Routes() {
             ))}
             {visibleCount < filtered.length && (
               <tr ref={loaderRef}>
-                <td colSpan="6" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
+                <td colSpan="7" className="empty" style={{ padding: '14px', color: 'var(--color-text-light)' }}>
                   {t('pages.routes.loadingMore', { current: visibleCount, total: filtered.length })}
                 </td>
               </tr>
             )}
             {filtered.length === 0 && (
-              <tr><td colSpan="6" className="empty">
+              <tr><td colSpan="7" className="empty">
                 {search ? t('pages.routes.notFound') : t('pages.routes.noRoutes')}
               </td></tr>
             )}

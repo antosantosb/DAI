@@ -1,4 +1,4 @@
-/* Sprint 1 follow-up: widget partilhado, theme-aware via tokens CSS.
+﻿/* Sprint 1 follow-up: widget partilhado, theme-aware via tokens CSS.
  * Funciona em qualquer sidebar (light ou dark theme do design system).
  * O Layout do backoffice tem sidebar com gradient hardcoded dark — override
  * dedicado em Layout.css (selector .sidebar .sb-*).
@@ -40,7 +40,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #009BDB, #0084BD);
   display: flex;
   align-items: center;
   justify-content: center;

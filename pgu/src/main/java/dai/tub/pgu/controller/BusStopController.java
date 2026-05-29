@@ -1,10 +1,13 @@
 package dai.tub.pgu.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +15,7 @@ import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.dto.BusStopDTO;
 import dai.tub.pgu.dto.StopPanelDTO;
 import dai.tub.pgu.service.BusStopService;
+import dai.tub.pgu.service.GeoJsonExportService;
 import dai.tub.pgu.service.StopPanelService;
 
 @RestController
@@ -21,11 +25,30 @@ public class BusStopController
     private static final Logger log = LoggerFactory.getLogger(BusStopController.class);
     private final BusStopService busStopService;
     private final StopPanelService stopPanelService;
+    private final GeoJsonExportService geoJsonExportService;
 
-    public BusStopController(BusStopService busStopService, StopPanelService stopPanelService)
+    public BusStopController(BusStopService busStopService,
+                             StopPanelService stopPanelService,
+                             GeoJsonExportService geoJsonExportService)
     {
         this.busStopService = busStopService;
         this.stopPanelService = stopPanelService;
+        this.geoJsonExportService = geoJsonExportService;
+    }
+
+    /**
+     * Sprint 1 (F1): export GeoJSON FeatureCollection com todas as paragens (R.BO.01).
+     * Aberto (permitAll via SecurityConfig) para integração com QGIS / dados.gov.pt.
+     */
+    @GetMapping(value = "/export.geojson", produces = "application/geo+json")
+    public ResponseEntity<Map<String, Object>> exportGeoJson()
+    {
+        Map<String, Object> fc = geoJsonExportService.exportStops();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"pgu-stops.geojson\"")
+                .contentType(MediaType.parseMediaType("application/geo+json"))
+                .body(fc);
     }
 
     @GetMapping

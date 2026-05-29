@@ -45,6 +45,21 @@ public class AnalyticsController {
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
+    /**
+     * Sprint 1 (F2): adherence stoplight por rota (R.IVT.06).
+     * Classificação verde/amarelo/vermelho com base na percentagem de
+     * telemetria com status 'delayed'.
+     */
+    @GetMapping("/route-adherence")
+    public ResponseEntity<List<dai.tub.pgu.dto.AnalyticsDTOs.RouteAdherenceData>> getRouteAdherence(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        return ResponseEntity.ok(
+                analyticsService.getRouteAdherence(startDate, endDate, startHour, endHour));
+    }
+
     @GetMapping("/heatmap")
     public ResponseEntity<List<HeatmapData>> getHeatmap(
             @RequestParam(required = false) String startDate,

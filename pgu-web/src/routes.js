@@ -18,6 +18,14 @@ export const routes = [
     access: 'public',
     layout: 'none',
   },
+  // Sprint 1 (F1): pagina publica de Open Data (R.BO.01 / R.IVT.09 / R.INT.10).
+  // URL externo divulgavel para dados.gov.pt / QGIS / devs de apps de mobilidade.
+  {
+    path: '/open-data',
+    loader: () => import('./pages/OpenData'),
+    access: 'public',
+    layout: 'none',
+  },
   {
     path: '/livemap',
     loader: () => import('./pages/Livemap'),
@@ -94,6 +102,27 @@ export const routes = [
         path: 'stops',
         loader: () => import('./pages/Stops'),
         nav: { sectionKey: 'sections.operations', labelKey: 'nav.stops', iconKey: 'IconStop' },
+      },
+      // Sprint 1 (F0): Operadores de transporte (R.IVT.03).
+      // GET aberto a qualquer autenticado; mutacoes restritas a admin/developer
+      // via SecurityConfig.
+      {
+        path: 'operators',
+        loader: () => import('./pages/Operators'),
+        access: ['admin', 'developer'],
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.operators', iconKey: 'IconOperator' },
+      },
+      // Sprint 1 (F4): Calendario operacional (R.IVT.05).
+      {
+        path: 'calendar',
+        loader: () => import('./pages/Calendar'),
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.calendar', iconKey: 'IconCalendar' },
+      },
+      // Sprint 1 (F4): Horarios planeados (trips do GTFS) (R.IVT.05).
+      {
+        path: 'schedules',
+        loader: () => import('./pages/Schedules'),
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.schedules', iconKey: 'IconSchedule' },
       },
       {
         path: 'exports',

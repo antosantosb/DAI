@@ -12,12 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dai.tub.pgu.domain.BusStop;
+import dai.tub.pgu.domain.Operator;
 import dai.tub.pgu.domain.Route;
 import dai.tub.pgu.domain.RouteSegment;
 import dai.tub.pgu.domain.RouteStop;
 import dai.tub.pgu.dto.RouteDTO;
 import dai.tub.pgu.dto.RouteStopDTO;
 import dai.tub.pgu.repository.BusStopRepository;
+import dai.tub.pgu.repository.OperatorRepository;
 import dai.tub.pgu.repository.RouteRepository;
 import dai.tub.pgu.repository.RouteSegmentRepository;
 import dai.tub.pgu.repository.RouteStopRepository;
@@ -32,17 +34,20 @@ public class RouteService
     private final BusStopRepository busStopRepository;
     private final RouteSegmentRepository segmentRepository;
     private final RouteStopRepository routeStopRepository;
+    private final OperatorRepository operatorRepository;
     private final OsrmService osrmService;
     private final EntityManager entityManager;
 
     public RouteService(RouteRepository routeRepository, BusStopRepository busStopRepository,
                         RouteSegmentRepository segmentRepository, RouteStopRepository routeStopRepository,
+                        OperatorRepository operatorRepository,
                         OsrmService osrmService, EntityManager entityManager)
     {
         this.routeRepository = routeRepository;
         this.busStopRepository = busStopRepository;
         this.segmentRepository = segmentRepository;
         this.routeStopRepository = routeStopRepository;
+        this.operatorRepository = operatorRepository;
         this.osrmService = osrmService;
         this.entityManager = entityManager;
     }
@@ -75,6 +80,7 @@ public class RouteService
         route.setName(dto.getName());
         route.setCode(dto.getCode());
         route.setColor(dto.getColor());
+        applyOperator(route, dto.getOperatorId());
 
         if (route.getId() != null)
         {
@@ -85,6 +91,7 @@ public class RouteService
             route.setName(dto.getName());
             route.setCode(dto.getCode());
             route.setColor(dto.getColor());
+            applyOperator(route, dto.getOperatorId());
         }
 
         if (dto.getStops() != null)
@@ -125,6 +132,7 @@ public class RouteService
         if (dto.getName() != null) route.setName(dto.getName());
         if (dto.getCode() != null) route.setCode(dto.getCode());
         if (dto.getColor() != null) route.setColor(dto.getColor());
+        if (dto.getOperatorId() != null) applyOperator(route, dto.getOperatorId());
 
         if (dto.getStops() != null)
         {
@@ -135,6 +143,7 @@ public class RouteService
             if (dto.getName() != null) route.setName(dto.getName());
             if (dto.getCode() != null) route.setCode(dto.getCode());
             if (dto.getColor() != null) route.setColor(dto.getColor());
+            if (dto.getOperatorId() != null) applyOperator(route, dto.getOperatorId());
             for (RouteStopDTO rsDto : dto.getStops())
             {
                 BusStop stop = busStopRepository.findById(rsDto.getStopId())
@@ -281,7 +290,25 @@ public class RouteService
         dto.setCode(entity.getCode());
         dto.setColor(entity.getColor());
         dto.setStops(entity.getRouteStops().stream().map(this::toRouteStopDTO).toList());
+        if (entity.getOperator() != null) {
+            dto.setOperatorId(entity.getOperator().getId());
+            dto.setOperatorCode(entity.getOperator().getCode());
+            dto.setOperatorName(entity.getOperator().getName());
+        }
         return dto;
+    }
+
+    /**
+     * Sprint 1 (F0): aplica o operador identificado por {@code operatorId} a uma rota.
+     * Se {@code operatorId} for {@code null}, mantem o operador anterior. Se for
+     * inexistente, lanca erro.
+     */
+    private void applyOperator(Route route, Long operatorId)
+    {
+        if (operatorId == null) return;
+        Operator op = operatorRepository.findById(operatorId)
+                .orElseThrow(() -> new RuntimeException("Operador não encontrado: " + operatorId));
+        route.setOperator(op);
     }
 
     private RouteStopDTO toRouteStopDTO(RouteStop rs)

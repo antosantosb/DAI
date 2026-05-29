@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -653,7 +653,7 @@ export default function Ocorrencias() {
                           href={`/api/v1/ocorrencias/anexos/${anexo.id}`} // Se houver endpoint de download
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}
+                          style={{ color: '#009BDB', textDecoration: 'none', fontWeight: 600 }}
                         >
                           {t('pages.ocorrencias.attach.view')}
                         </a>

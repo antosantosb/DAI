@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBusDisplayStatus } from './constants';
 
@@ -6,6 +6,13 @@ import { getBusDisplayStatus } from './constants';
 function naturalCompare(a, b) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 }
+
+// Sprint 1 (F2): cores dos pills de adherence (verde/amarelo/vermelho)
+const ADHERENCE_COLORS = {
+  green:  { bg: 'rgba(16, 185, 129, 0.15)', fg: '#10b981', label: 'A horas' },
+  yellow: { bg: 'rgba(245, 158, 11, 0.15)', fg: '#f59e0b', label: 'Ligeiro atraso' },
+  red:    { bg: 'rgba(239, 68, 68, 0.15)',  fg: '#ef4444', label: 'Atrasada' },
+};
 
 export default function RoutesTab({
   routes,
@@ -18,6 +25,7 @@ export default function RoutesTab({
   setRouteSearch,
   routeSort,
   setRouteSort,
+  adherenceMap = {},
 }) {
   const { t } = useTranslation();
   const busList = useMemo(() =>
@@ -113,12 +121,27 @@ export default function RoutesTab({
                 className={`livemap-route-item ${selectedRoute === route.id ? 'selected' : ''} ${!isActive ? 'inactive' : ''}`}
                 onClick={() => onRouteClick(route.id)}
               >
-                <div className="livemap-route-color" style={{ background: route.color || '#6366f1' }} />
+                <div className="livemap-route-color" style={{ background: route.color || '#009BDB' }} />
                 <div className="livemap-route-info">
                   <span className="livemap-route-name">{route.name}</span>
                   <span className="livemap-route-code">{route.code}</span>
                 </div>
                 <div className="livemap-route-meta">
+                  {/* Sprint 1 (F2): pill de adherence stoplight (R.IVT.06) */}
+                  {isActive && adherenceMap[route.id] && (() => {
+                    const a = adherenceMap[route.id];
+                    const c = ADHERENCE_COLORS[a.color] || ADHERENCE_COLORS.green;
+                    return (
+                      <span
+                        className="livemap-route-adherence"
+                        style={{ background: c.bg, color: c.fg }}
+                        title={`${c.label} · atraso médio ${a.avgDelayMin} min (${a.delayedCount}/${a.observations} obs)`}
+                      >
+                        <span className="livemap-route-adherence-dot" style={{ background: c.fg }} />
+                        {a.avgDelayMin > 0 ? `${a.avgDelayMin}m` : 'OK'}
+                      </span>
+                    );
+                  })()}
                   {isActive && <span className="livemap-route-bus-count">{busCount} {t('livemap.busCountSuffix')}</span>}
                   {!isActive && <span className="livemap-route-no-service">{t('livemap.noService')}</span>}
                   <span className="livemap-route-stops">{route.stops?.length || 0} {t('livemap.stopsSuffix')}</span>

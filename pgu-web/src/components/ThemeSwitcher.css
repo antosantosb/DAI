@@ -1,13 +1,14 @@
-/* Sprint 0 (F7): ThemeSwitcher — botao redondo com icone sol / lua. */
+﻿/* Sprint 0 (F7): ThemeSwitcher — botao redondo com icone sol / lua. */
 
 .theme-switcher {
   appearance: none;
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.4);
-  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* Sprint 1 (F1): opacidade alta para legibilidade over-map */
+  background: rgba(15, 23, 42, 0.92);
+  color: rgba(255, 255, 255, 0.75);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -15,6 +16,9 @@
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
   font-family: inherit;
   padding: 0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.35);
 }
 
 .theme-switcher svg {
@@ -28,6 +32,6 @@
 }
 
 .theme-switcher:focus-visible {
-  outline: 2px solid var(--color-primary, #6366f1);
+  outline: 2px solid var(--color-primary, #009BDB);
   outline-offset: 2px;
 }

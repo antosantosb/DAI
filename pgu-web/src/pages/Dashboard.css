@@ -1,4 +1,4 @@
-/* ─── Live indicator ─── */
+﻿/* ─── Live indicator ─── */
 .dash-live {
   display: flex;
   align-items: center;
@@ -255,7 +255,7 @@
 }
 
 .link-ocorrencias:hover {
-  color: var(--color-primary-hover, #4f46e5);
+  color: var(--color-primary-hover, #0084BD);
   text-decoration: underline;
 }
 

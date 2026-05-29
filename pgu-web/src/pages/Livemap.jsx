@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+﻿import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -18,6 +18,8 @@ import SidebarUserMenu from '../components/SidebarUserMenu';
 import { useAuth } from '../context/AuthProvider';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import TubLogo from '../components/TubLogo';
+import ProjectDisclaimer from '../components/ProjectDisclaimer';
 import './Livemap.css';
 
 export default function Livemap() {
@@ -41,11 +43,28 @@ export default function Livemap() {
   const prevSelectedRouteRef = useRef(null);
   const prevRouteBeforeBusRef = useRef(null);
   const backendBusesRef = useRef({});
+  // Sprint 1 (F2): ref para o telemetry state — usado no filtro
+  // "Em servico" sem adicionar o `buses` state ao dep array do polyline
+  // draw (que causaria re-render a cada tick).
+  const busesRef = useRef({});
+  // Sprint 1 (F2 fix): popup STANDALONE (na layer do mapa, nao bound ao
+  // marker). Imune ao remove/re-add que o markercluster faz aos markers a
+  // cada 'move' — que com bound popup causava o pisca-pisca. O follow e' por
+  // rAF (so' posicao, sem tocar conteudo).
+  const activePopupRef = useRef(null);
+  const activePopupBusIdRef = useRef(null);
+  const popupFollowRafRef = useRef(null);
+  const openBusPopupRef = useRef(null);
   const selectedRouteRef = useRef(null);
 
   const [stops, setStops] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [segments, setSegments] = useState({});
+  // Sprint 1 (F2): adherence stoplight por rota + toggle do overlay
+  const [adherenceMap, setAdherenceMap] = useState({});
+  const [adherenceLayerOn, setAdherenceLayerOn] = useState(false);
+  // Sprint 1 (F2): toggle "mostrar so rotas com autocarros activos"
+  const [onlyActiveRoutes, setOnlyActiveRoutes] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedBus, setSelectedBus] = useState(null);
   const [buses, setBuses] = useState({});
@@ -84,6 +103,25 @@ export default function Livemap() {
     return () => { mounted = false; };
   }, []);
 
+  // Sprint 1 (F2): adherence stoplight por rota. Refresh a cada 30s para
+  // o pill e o overlay reflectirem a telemetria recente.
+  useEffect(() => {
+    let mounted = true;
+    const fetchAdherence = () => {
+      api.get('/analytics/route-adherence')
+        .then(({ data }) => {
+          if (!mounted) return;
+          const map = {};
+          for (const row of data || []) map[row.routeId] = row;
+          setAdherenceMap(map);
+        })
+        .catch(() => { /* silencioso — sem dados nao quebra UI */ });
+    };
+    fetchAdherence();
+    const id = setInterval(fetchAdherence, 30000);
+    return () => { mounted = false; clearInterval(id); };
+  }, []);
+
   // Sincronizar com upload/remocao de avatar feitos noutras paginas.
   useEffect(() => {
     const handler = (e) => {
@@ -116,8 +154,13 @@ export default function Livemap() {
       // do card LAYERS para nao haver overlap.
       zoomControl: false,
       preferCanvas: true,
+      // Sprint 1 (F1): atribuicao "Leaflet" desactivada — mantemos so a OSM
+      // (obrigatoria por licenca ODbL). Estilizada compacta via CSS (.lm-attr).
+      attributionControl: false,
     });
     L.control.zoom({ position: 'topleft' }).addTo(mapInstance.current);
+    L.control.attribution({ position: 'bottomright', prefix: '' })
+      .addTo(mapInstance.current);
 
     tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -127,14 +170,14 @@ export default function Livemap() {
     stopLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
     routeLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
 
-    // ─── Cluster group para autocarros ───
+    // ─── Cluster group para autocarros (F8, requisito do plano) ───
     busClusterGroup.current = L.markerClusterGroup({
       disableClusteringAtZoom: 16,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       maxClusterRadius: 50,
-      // Sprint 0 (F8 follow-up): desliga animacoes do cluster — o re-cluster
-      // em cada telemetria (~1s) causava o popup do bus a piscar.
+      // Sem animacoes de cluster: o re-cluster a cada telemetria causava
+      // jank. O popup standalone (F2) ja' nao depende do estado do cluster.
       animate: false,
       animateAddingMarkers: false,
       iconCreateFunction: (cluster) => {
@@ -146,6 +189,17 @@ export default function Livemap() {
         });
       },
     }).addTo(mapInstance.current);
+
+    // Sprint 1 (F2 fix): ao mudar de zoom, re-indexar os clusters para que
+    // markers movidos via setLatLng nao "saltem" para a posicao antiga do
+    // grid. So' no zoomend (nao por tick) para evitar churn/flicker.
+    mapInstance.current.on('zoomend', () => {
+      busClusterGroup.current?.refreshClusters?.();
+    });
+
+    // Sprint 1 (F2 fix): click directo no marker → marker.on('click') abre o
+    // popup standalone (openBusPopup). O freeze no mousedown garante que o
+    // click regista mesmo com o marker em movimento.
 
     mapInstance.current.on('dragstart', () => { followingBusRef.current = null; });
 
@@ -218,39 +272,53 @@ export default function Livemap() {
       return;
     }
     const displayStatus = getBusDisplayStatus(backend?.status, telemetry.status);
-    const popup = busPopupHtml(telemetry, displayStatus);
     const newLatLng = L.latLng(telemetry.latitude, telemetry.longitude);
 
     const existing = busMarkersRef.current[telemetry.busId];
     if (existing) {
-      // Smooth slide to new position instead of jumping
-      const oldLatLng = existing.getLatLng();
-      const dist = oldLatLng.distanceTo(newLatLng);
-      // Only animate if distance is reasonable (< 2km, avoids teleport glitches)
-      if (dist > 1 && dist < 2000) {
-        animateMarker(existing, oldLatLng, newLatLng, 800);
-      } else {
-        existing.setLatLng(newLatLng);
+      // Sprint 1 (F2 fix): se o marker esta' congelado (mousedown a decorrer),
+      // NAO o movemos — deixa o click completar. A posicao apanha no proximo
+      // tick apos o freeze acabar.
+      if (!existing._clickFreeze) {
+        const oldLatLng = existing.getLatLng();
+        const dist = oldLatLng.distanceTo(newLatLng);
+        if (dist > 1 && dist < 2000) {
+          animateMarker(existing, oldLatLng, newLatLng, 800);
+        } else {
+          existing.setLatLng(newLatLng);
+        }
       }
-
       if (busStatusRef.current[telemetry.busId] !== displayStatus) {
         existing.setIcon(createBusIcon(displayStatus));
         busStatusRef.current[telemetry.busId] = displayStatus;
       }
-      // Sprint 0 (F8 follow-up): setPopupContent so' quando o popup esta aberto.
-      // Caso contrario, guardamos o popup novo na opcao do marker para ser
-      // renderizado da proxima vez que o user clicar. Sem este guard, cada
-      // tick de telemetria recriava o popup e causava flicker visivel.
-      if (existing.isPopupOpen && existing.isPopupOpen()) {
-        existing.setPopupContent(popup);
-      } else {
-        existing.unbindPopup();
-        existing.bindPopup(popup, { autoClose: false, autoPan: false, closeOnClick: false });
+      // Sprint 1 (F2 fix): se o popup standalone activo e' deste bus,
+      // actualizar conteudo (1Hz). A POSICAO e' tratada pelo follow rAF.
+      if (activePopupBusIdRef.current === telemetry.busId && activePopupRef.current) {
+        activePopupRef.current.setContent(busPopupHtml(telemetry, displayStatus));
       }
     } else {
       const marker = L.marker(newLatLng, {
         icon: createBusIcon(displayStatus),
         zIndexOffset: 1000,
+      });
+      marker.busId = telemetry.busId;
+      const thisBusId = telemetry.busId;
+      // Sprint 1 (F2 fix): abrir o popup STANDALONE no click do marker.
+      marker.on('click', () => openBusPopupRef.current?.(thisBusId));
+      // Sprint 1 (F2 fix): CONGELAR o marker no mousedown. Um click precisa de
+      // mousedown+mouseup no mesmo elemento; se a telemetria (websocket)
+      // dispara animateMarker entre os dois, o marker move-se e o mouseup
+      // falha o alvo → o click nao regista. Congelar 450ms deixa o click
+      // completar com o marker parado; depois a animacao retoma.
+      marker.on('mousedown', () => {
+        marker._clickFreeze = true;
+        if (marker._animFrame) {
+          cancelAnimationFrame(marker._animFrame);
+          marker._animFrame = null;
+        }
+        if (marker._freezeTimer) clearTimeout(marker._freezeTimer);
+        marker._freezeTimer = setTimeout(() => { marker._clickFreeze = false; }, 450);
       });
       // Só adicionar ao mapa se passar nos filtros ativos (bus focus ou route filter)
       const focusedBus = followingBusRef.current;
@@ -262,9 +330,6 @@ export default function Livemap() {
       if (shouldShow) {
         cluster.addLayer(marker);
       }
-      // Sprint 0 (F8 follow-up): popup nao fecha sozinho ao haver updates de
-      // outros markers; nao faz autoPan para evitar refluxo a cada tick.
-      marker.bindPopup(popup, { autoClose: false, autoPan: false, closeOnClick: false });
       busMarkersRef.current[telemetry.busId] = marker;
       busStatusRef.current[telemetry.busId] = displayStatus;
     }
@@ -283,6 +348,9 @@ export default function Livemap() {
   }, []);
 
   // ─── Load backend bus states ───
+  // Sprint 1 (F2): sync state -> ref para o filtro "Em servico" no draw das polylines
+  useEffect(() => { busesRef.current = buses; }, [buses]);
+
   useEffect(() => {
     const loadBackendBuses = () => {
       api.get('/buses').then(r => {
@@ -429,7 +497,7 @@ export default function Livemap() {
             max: 1.0,
             minOpacity: 0.35,
             gradient: {
-              0.2: '#6366f1',
+              0.2: '#009BDB',
               0.5: '#10b981',
               0.75: '#f59e0b',
               1.0: '#ef4444',
@@ -493,7 +561,7 @@ export default function Livemap() {
             });
             circle.bindPopup(
               `<div style="font-size:13px">
-                <strong>${c.busId}</strong>${c.routeCode ? ` · <span style="color:#6366f1">${c.routeCode}</span>` : ''}<br/>
+                <strong>${c.busId}</strong>${c.routeCode ? ` · <span style="color:#009BDB">${c.routeCode}</span>` : ''}<br/>
                 <span style="color:#ef4444;font-weight:600">${(c.speedKmh || 0).toFixed(1)} km/h</span> · ${c.passengerCount} pax<br/>
                 <span style="color:#94a3b8">${c.recordedAt}</span>
               </div>`
@@ -559,7 +627,7 @@ export default function Livemap() {
 
   const routePolylineData = useMemo(() => {
     return routes.map(route => {
-      const color = route.color || '#6366f1';
+      const color = route.color || '#009BDB';
       const routeSegments = segments[route.id];
       let latlngs = null;
 
@@ -595,13 +663,45 @@ export default function Livemap() {
     routeLayerGroup.current.clearLayers();
 
     // Draw routes
-    const routesToDraw = selectedRoute
+    // Sprint 1 (F2): se onlyActiveRoutes ON, so' desenhamos rotas com >= 1 bus
+    // activo. Identificamos rotas activas a partir dos backendBuses.
+    let routesToDraw = selectedRoute
       ? routePolylineData.filter(r => r.id === selectedRoute)
       : routePolylineData;
+    if (!selectedRoute && onlyActiveRoutes) {
+      // Sprint 1 (F2 fix): rota "em servico" = tem >= 1 autocarro NAO
+      // desativado. Um autocarro azul (at-stop) ESTA' em servico — so'
+      // parou momentaneamente numa paragem. Apenas autocarros deactivated
+      // (backend STOPPED) nao contam.
+      const activeIds = new Set();
+      Object.values(busesRef.current || {}).forEach(b => {
+        if (!b?.busId) return;
+        const backend = backendBusesRef.current[b.busId];
+        const displayStatus = getBusDisplayStatus(backend?.status, b.status);
+        if (displayStatus !== 'deactivated') {
+          const routeId = backend?.routeId;
+          if (routeId) activeIds.add(routeId);
+        }
+      });
+      routesToDraw = routesToDraw.filter(r => activeIds.has(r.id));
+    }
 
-    routesToDraw.forEach(({ name, code, color, latlngs }) => {
-      const polyline = L.polyline(latlngs, { color, weight: 4, opacity: 0.8 });
-      polyline.bindPopup(`<strong>${name}</strong><br/><code>${code}</code>`);
+    // Sprint 1 (F2): se a layer de adherence estiver ON, override a cor
+    // pela classificacao stoplight (verde/amarelo/vermelho).
+    const ADHERENCE_HEX = { green: '#10b981', yellow: '#f59e0b', red: '#ef4444' };
+    routesToDraw.forEach(({ id, name, code, color, latlngs }) => {
+      const adherenceColor = adherenceLayerOn && adherenceMap[id]
+        ? (ADHERENCE_HEX[adherenceMap[id].color] || color)
+        : color;
+      const polyline = L.polyline(latlngs, {
+        color: adherenceColor,
+        weight: adherenceLayerOn ? 5 : 4,
+        opacity: 0.85,
+      });
+      const adherenceInfo = adherenceLayerOn && adherenceMap[id]
+        ? `<br/><small>Adherence: ${adherenceMap[id].color} · atraso ${adherenceMap[id].avgDelayMin}m</small>`
+        : '';
+      polyline.bindPopup(`<strong>${name}</strong><br/><code>${code}</code>${adherenceInfo}`);
       routeLayerGroup.current.addLayer(polyline);
     });
 
@@ -618,7 +718,7 @@ export default function Livemap() {
     stopsToShow.forEach(stop => {
       if (stop.latitude == null || stop.longitude == null) return;
       const marker = L.circleMarker([stop.latitude, stop.longitude], {
-        radius: 7, fillColor: '#6366f1', color: '#fff', weight: 2, fillOpacity: 0.9,
+        radius: 7, fillColor: '#009BDB', color: '#fff', weight: 2, fillOpacity: 0.9,
       });
       const popupContent = buildPanelLoading(stop);
       marker.bindPopup(popupContent, { minWidth: 260, maxWidth: 300, className: 'stop-panel-popup' });
@@ -647,7 +747,13 @@ export default function Livemap() {
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
       }
     }
-  }, [stops, routes, routePolylineData, selectedRoute]);
+    // Sprint 1 (F2 follow-up): NOT adding `buses`/`backendBuses` to deps.
+    // Estado de telemetria muda a cada tick (~1s) — re-correr o draw das
+    // polylines a cada tick fazia o map piscar e o popup perder o anchor.
+    // Em vez disso lemos das refs (busesRef.current). O custo: ao toggle
+    // de onlyActiveRoutes pode levar um tick para reflectir mudancas de
+    // estado posteriores; aceitavel.
+  }, [stops, routes, routePolylineData, selectedRoute, adherenceMap, adherenceLayerOn, onlyActiveRoutes]);
 
   // ─── Sidebar handlers ───
   const handleRouteClick = useCallback((routeId) => {
@@ -680,6 +786,58 @@ export default function Livemap() {
     }
   }, [selectedBus, selectedRoute]);
 
+  // Sprint 1 (F2 fix): popup STANDALONE na layer do mapa (nao bound ao
+  // marker). Imune ao remove/re-add que o markercluster faz aos markers a
+  // cada move. Segue o marker por rAF (so' posicao). Troca explicita: fecha
+  // o anterior antes de abrir o novo.
+  const openBusPopup = useCallback((busId) => {
+    const map = mapInstance.current;
+    const marker = busMarkersRef.current[busId];
+    const telemetry = busesRef.current[busId];
+    if (!map || !marker || !telemetry) return;
+    if (popupFollowRafRef.current) {
+      cancelAnimationFrame(popupFollowRafRef.current);
+      popupFollowRafRef.current = null;
+    }
+    if (activePopupRef.current) {
+      map.closePopup(activePopupRef.current);
+      activePopupRef.current = null;
+      activePopupBusIdRef.current = null;
+    }
+    const backend = backendBusesRef.current[busId];
+    const status = getBusDisplayStatus(backend?.status, telemetry.status);
+    const popup = L.popup({
+      autoClose: false,
+      autoPan: false, // o popup segue o bus via rAF; autoPan faria o map jiggle
+      closeOnClick: true,
+      offset: [0, -16],
+    })
+      .setLatLng(marker.getLatLng())
+      .setContent(busPopupHtml(telemetry, status))
+      .openOn(map);
+    activePopupRef.current = popup;
+    activePopupBusIdRef.current = busId;
+    const follow = () => {
+      if (activePopupRef.current !== popup) { popupFollowRafRef.current = null; return; }
+      const m = busMarkersRef.current[busId];
+      if (m) popup.setLatLng(m.getLatLng());
+      popupFollowRafRef.current = requestAnimationFrame(follow);
+    };
+    popupFollowRafRef.current = requestAnimationFrame(follow);
+    popup.on('remove', () => {
+      if (popupFollowRafRef.current) {
+        cancelAnimationFrame(popupFollowRafRef.current);
+        popupFollowRafRef.current = null;
+      }
+      if (activePopupRef.current === popup) {
+        activePopupRef.current = null;
+        activePopupBusIdRef.current = null;
+      }
+    });
+  }, []);
+
+  useEffect(() => { openBusPopupRef.current = openBusPopup; }, [openBusPopup]);
+
   const handleBusClick = useCallback((bus) => {
     const map = mapInstance.current;
     const cluster = busClusterGroup.current;
@@ -692,6 +850,10 @@ export default function Livemap() {
       selectedRouteRef.current = prevRoute;
       followingBusRef.current = null;
       prevRouteBeforeBusRef.current = null;
+      // Sprint 1 (F2 fix): fechar o popup standalone do bus desselecionado
+      if (map && activePopupRef.current && activePopupBusIdRef.current === bus.busId) {
+        map.closePopup(activePopupRef.current);
+      }
       // Limpar trail do bus desselecionado
       if (trailLayerRef.current && map) {
         if (map.hasLayer(trailLayerRef.current)) map.removeLayer(trailLayerRef.current);
@@ -747,21 +909,23 @@ export default function Livemap() {
         const initialTrail = [[lat, lng]];
         trailsRef.current[busId] = initialTrail;
         const primaryColor =
-          getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#6366f1';
+          getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#009BDB';
         trailLayerRef.current = L.polyline(initialTrail, {
           color: primaryColor,
           weight: 4,
           opacity: 0.7,
           smoothFactor: 1,
         }).addTo(map);
-        // Smooth flyTo em vez de panTo/setView brusco
+        // Sprint 1 (F2 fix): abrir o popup (bound) APOS o flyTo terminar.
         setTimeout(() => {
           map.flyTo([lat, lng], 16, { duration: 1.2, easeLinearity: 0.25 });
-          busMarkersRef.current[busId]?.openPopup();
+          map.once('moveend', () => {
+            openBusPopup(busId);
+          });
         }, 0);
       }
     }
-  }, [selectedBus, selectedRoute, backendBuses]);
+  }, [selectedBus, selectedRoute, backendBuses, openBusPopup]);
 
 
   const subscribeToMessages = useCallback((busId, callback) => {
@@ -847,6 +1011,34 @@ export default function Livemap() {
             </svg>
             {t('livemap.route')}
           </button>
+          {/* Sprint 1 (F2): toggle "Mostrar so' rotas com autocarros activos" */}
+          <button
+            className={`livemap-overlay-btn${onlyActiveRoutes ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setOnlyActiveRoutes(v => !v)}
+            title={t('livemap.toggleActiveOnly')}
+            aria-pressed={onlyActiveRoutes}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h13" /><path d="M3 12h9" /><path d="M3 18h5" />
+              <circle cx="19" cy="18" r="3" fill="currentColor" stroke="none" />
+            </svg>
+            {t('livemap.activeOnly')}
+          </button>
+          {/* Sprint 1 (F2): toggle Adherence stoplight (R.IVT.06) */}
+          <button
+            className={`livemap-overlay-btn${adherenceLayerOn ? ' livemap-overlay-btn--active' : ''}`}
+            onClick={() => setAdherenceLayerOn(v => !v)}
+            title={t('livemap.toggleAdherence')}
+            aria-pressed={adherenceLayerOn}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="2" width="6" height="20" rx="3"/>
+              <circle cx="12" cy="7" r="1.5" fill="#10b981" stroke="none"/>
+              <circle cx="12" cy="12" r="1.5" fill="#f59e0b" stroke="none"/>
+              <circle cx="12" cy="17" r="1.5" fill="#ef4444" stroke="none"/>
+            </svg>
+            {t('livemap.adherence')}
+          </button>
           <button
             className={`livemap-overlay-btn${visibleLayers.buses ? ' livemap-overlay-btn--active' : ''}`}
             onClick={() => setVisibleLayers(v => ({ ...v, buses: !v.buses }))}
@@ -866,7 +1058,11 @@ export default function Livemap() {
 
       <div className="livemap-sidebar">
         <div className="livemap-header">
-          <h3>{t('livemap.title')}</h3>
+          <div className="livemap-brand">
+            <TubLogo size={26} />
+            <span className="livemap-brand-divider" aria-hidden="true" />
+            <span className="livemap-brand-label">{t('livemap.title')}</span>
+          </div>
           <span className={`livemap-ws-badge ${wsConnected ? 'connected' : ''}`}>
             <span className="livemap-ws-dot" />
             {wsConnected ? t('livemap.live') : t('livemap.offline')}
@@ -910,6 +1106,7 @@ export default function Livemap() {
               setRouteSearch={setRouteSearch}
               routeSort={routeSort}
               setRouteSort={setRouteSort}
+              adherenceMap={adherenceMap}
             />
           )}
         </div>
@@ -1004,6 +1201,9 @@ function buildPanelHtml(panel) {
 
 // ─── Smooth marker animation helper ───
 function animateMarker(marker, from, to, duration) {
+  // Sprint 1 (F2 fix): se o marker esta' congelado (click a decorrer), nao
+  // animar — evita que o alvo do click se mova.
+  if (marker._clickFreeze) return;
   const start = performance.now();
   const fromLat = from.lat, fromLng = from.lng;
   const dLat = to.lat - fromLat, dLng = to.lng - fromLng;
@@ -1017,6 +1217,7 @@ function animateMarker(marker, from, to, duration) {
     // Ease-out cubic for smooth deceleration
     const ease = 1 - Math.pow(1 - t, 3);
     marker.setLatLng([fromLat + dLat * ease, fromLng + dLng * ease]);
+    // O popup standalone segue por rAF proprio (openBusPopup), nao aqui.
     if (t < 1) {
       marker._animFrame = requestAnimationFrame(step);
     } else {

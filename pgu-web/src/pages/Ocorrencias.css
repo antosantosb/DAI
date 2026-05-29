@@ -1,4 +1,4 @@
-/* ─── Ocorrências Premium Styling ─── */
+﻿/* ─── Ocorrências Premium Styling ─── */
 
 :root {
   --color-critical: #ef4444;
@@ -110,7 +110,7 @@
 }
 
 .btn-open-alarm {
-  background: #6366f1;
+  background: #009BDB;
   color: white;
   border: none;
   border-radius: 6px;
@@ -122,8 +122,8 @@
 }
 
 .btn-open-alarm:hover {
-  background: #4f46e5;
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
+  background: #0084BD;
+  box-shadow: 0 4px 10px rgba(0, 155, 219, 0.35);
 }
 
 /* ─── Table Section & Filters ─── */
@@ -221,7 +221,7 @@
 }
 
 .table-row-clickable:hover {
-  background: rgba(99, 102, 241, 0.04) !important;
+  background: rgba(0, 155, 219, 0.04) !important;
 }
 
 /* ─── Pagination ─── */
@@ -394,8 +394,8 @@
 }
 
 .timeline-dot.active {
-  background: #6366f1;
-  box-shadow: 0 0 0 2px #6366f1;
+  background: #009BDB;
+  box-shadow: 0 0 0 2px #009BDB;
 }
 
 .timeline-content {
@@ -468,7 +468,7 @@
 }
 
 .btn-action-primary {
-  background: #6366f1;
+  background: #009BDB;
   color: white;
   border: none;
   border-radius: 8px;
@@ -480,8 +480,8 @@
 }
 
 .btn-action-primary:hover {
-  background: #4f46e5;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  background: #0084BD;
+  box-shadow: 0 4px 12px rgba(0, 155, 219, 0.25);
 }
 
 .btn-action-outline {
@@ -525,8 +525,8 @@
 }
 
 .dropzone-container:hover {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.02);
+  border-color: #009BDB;
+  background: rgba(0, 155, 219, 0.02);
 }
 
 .dropzone-label {

@@ -123,11 +123,24 @@ export default function Stops() {
           <h1>{t('pages.stops.title')}</h1>
           <p className="page-subtitle">{t('pages.stops.registered', { count: stops.length })}</p>
         </div>
-        {isAdmin && (
-          <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            {t('pages.stops.newButton')}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Sprint 1 (F1): export GeoJSON (R.BO.01) */}
+          {isAdmin && (
+            <a
+              href="/api/v1/stops/export.geojson"
+              className="btn btn-secondary"
+              download="pgu-stops.geojson"
+              title={t('pages.stops.exportGeoJsonTitle')}
+            >
+              {t('pages.stops.exportGeoJson')}
+            </a>
+          )}
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+              {t('pages.stops.newButton')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bus-toolbar" style={{ marginBottom: 20 }}>

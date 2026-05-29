@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════
    GTFS Manager — Importação e gestão de dados GTFS
    ═══════════════════════════════════════════════════════ */
 
@@ -45,7 +45,7 @@
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.gtfs-stat-icon--total      { background: rgba(99, 102, 241, 0.1); color: var(--color-primary); }
+.gtfs-stat-icon--total      { background: rgba(0, 155, 219, 0.1); color: var(--color-primary); }
 .gtfs-stat-icon--completed  { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
 .gtfs-stat-icon--processing { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
 .gtfs-stat-icon--failed     { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
@@ -122,7 +122,7 @@
 .gtfs-dropzone:hover,
 .gtfs-dropzone--active {
   border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.04);
+  background: rgba(0, 155, 219, 0.04);
 }
 .gtfs-dropzone--has-file {
   border-color: var(--color-success);
@@ -321,7 +321,7 @@
   display: inline-block;
   padding: 2px 6px; border-radius: 4px;
   font-size: 12px; font-weight: 500;
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(0, 155, 219, 0.1);
   color: var(--color-primary);
   margin-left: 4px;
 }
@@ -422,14 +422,14 @@
 .gtfs-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 155, 219, 0.1);
 }
 
 .gtfs-schedule-next {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 16px;
-  background: rgba(99, 102, 241, 0.05);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(0, 155, 219, 0.05);
+  border: 1px solid rgba(0, 155, 219, 0.15);
   border-radius: 8px;
   font-size: 14px;
   color: var(--color-primary);

@@ -1,4 +1,4 @@
-// Avatar reutilizavel: mostra a foto de perfil do user (presigned URL) ou um
+﻿// Avatar reutilizavel: mostra a foto de perfil do user (presigned URL) ou um
 // "letter avatar" com gradient consistente baseado em hash(name).
 //
 // Props:
@@ -14,12 +14,12 @@ import './Avatar.css';
 // Palette curada de gradients usados no fallback. Escolhido por hash do nome,
 // para que o mesmo user tenha sempre a mesma cor em todas as views.
 const GRADIENTS = [
-  ['#6366f1', '#8b5cf6'], // indigo -> violet
-  ['#0ea5e9', '#6366f1'], // sky -> indigo
+  ['#009BDB', '#0084BD'], // indigo -> violet
+  ['#0ea5e9', '#009BDB'], // sky -> indigo
   ['#10b981', '#059669'], // emerald
   ['#f59e0b', '#ef4444'], // amber -> red
   ['#ec4899', '#f43f5e'], // pink -> rose
-  ['#8b5cf6', '#ec4899'], // violet -> pink
+  ['#0084BD', '#ec4899'], // violet -> pink
   ['#14b8a6', '#0ea5e9'], // teal -> sky
   ['#f97316', '#f59e0b'], // orange -> amber
 ];

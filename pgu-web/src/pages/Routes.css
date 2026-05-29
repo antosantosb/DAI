@@ -1,3 +1,43 @@
+/* Sprint 1 (F0): filtro de operador na toolbar.
+ * Forcamos nowrap + min-width:0 na search-bar para que encolha em vez de
+ * empurrar o filtro para outra linha. Especificidade alta porque
+ * .bus-toolbar .search-bar (Buses.css) define flex:1. */
+.bus-toolbar.routes-toolbar {
+  flex-wrap: nowrap !important;
+}
+.bus-toolbar.routes-toolbar .search-bar {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 340px;
+}
+
+.routes-operator-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.routes-operator-select {
+  max-width: 160px;
+}
+.routes-operator-select {
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 200px;
+}
+.routes-operator-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
+}
+
 /* ─── Stop Assignment Section ─── */
 .route-stops-section {
   margin-bottom: 24px;

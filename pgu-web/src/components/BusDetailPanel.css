@@ -1,4 +1,4 @@
-/* ─── Backdrop ─── */
+﻿/* ─── Backdrop ─── */
 .bdp-backdrop {
   position: fixed;
   inset: 0;
@@ -140,8 +140,8 @@
 }
 
 .bdp-tab--active {
-  color: var(--color-primary, #6366f1);
-  border-bottom-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #009BDB);
+  border-bottom-color: var(--color-primary, #009BDB);
 }
 
 .bdp-tab-dot {
@@ -358,7 +358,7 @@
 
 .bdp-msg--operator {
   align-self: flex-end;
-  background: var(--color-primary, #6366f1);
+  background: var(--color-primary, #009BDB);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -411,12 +411,12 @@
 }
 
 .bdp-chat-form input:focus {
-  border-color: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #009BDB);
 }
 
 .bdp-chat-form button {
   padding: 10px 20px;
-  background: var(--color-primary, #6366f1);
+  background: var(--color-primary, #009BDB);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -428,7 +428,7 @@
 }
 
 .bdp-chat-form button:hover:not(:disabled) {
-  background: var(--color-primary-hover, #4f46e5);
+  background: var(--color-primary-hover, #0084BD);
 }
 
 .bdp-chat-form button:disabled {

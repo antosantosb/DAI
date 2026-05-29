@@ -1,4 +1,4 @@
-/* Avatar reutilizavel — usado em sidebar, tabelas (Users/Drivers), cards de
+﻿/* Avatar reutilizavel — usado em sidebar, tabelas (Users/Drivers), cards de
    autocarros e header do Painel de Bordo. Mantem proporcao circular, evita
    distorcao de imagens e tem sombra subtil para destacar contra o fundo. */
 
@@ -17,7 +17,7 @@
   user-select: none;
   /* sombra muito subtil — fica bonita em fundos claros e escuros */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  background: var(--color-primary, #6366f1);
+  background: var(--color-primary, #009BDB);
   vertical-align: middle;
 }
 

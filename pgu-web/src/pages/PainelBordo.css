@@ -1,4 +1,4 @@
-/* ══════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════
    Painel de Bordo — ecrã do motorista (tablet landscape)
    Suporta light + dark via tokens var(--color-*) do index.css.
    Default = light. Overrides em [data-theme="dark"] preservam
@@ -115,7 +115,7 @@
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #6366f1, #818cf8);
+  background: linear-gradient(135deg, #009BDB, #38BDF8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -672,11 +672,11 @@
 }
 
 [data-theme="dark"] .pb-stop--current {
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(0, 155, 219, 0.12);
 }
 
 [data-theme="dark"] .pb-stop--current::after {
-  background: #6366f1;
+  background: #009BDB;
 }
 
 [data-theme="dark"] .pb-stop--past::after {
@@ -689,9 +689,9 @@
 }
 
 [data-theme="dark"] .pb-stop--current .pb-stop-dot {
-  background: #6366f1;
-  border-color: #818cf8;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+  background: #009BDB;
+  border-color: #38BDF8;
+  box-shadow: 0 0 12px rgba(0, 155, 219, 0.5);
 }
 
 [data-theme="dark"] .pb-stop--past .pb-stop-dot {
@@ -738,7 +738,7 @@
   border-color: #4338ca;
 }
 
-[data-theme="dark"] .pb-message--received .pb-message-sender { color: #6366f1; }
+[data-theme="dark"] .pb-message--received .pb-message-sender { color: #009BDB; }
 [data-theme="dark"] .pb-message--sent .pb-message-sender { color: #a5b4fc; }
 
 [data-theme="dark"] .pb-message-content {
@@ -750,7 +750,7 @@
 }
 
 [data-theme="dark"] .pb-message-state--lida { color: #10b981; }
-[data-theme="dark"] .pb-message-state--entregue { color: #6366f1; }
+[data-theme="dark"] .pb-message-state--entregue { color: #009BDB; }
 [data-theme="dark"] .pb-message-state--enviada { color: #f59e0b; }
 [data-theme="dark"] .pb-message-state--falhou { color: #ef4444; }
 [data-theme="dark"] .pb-message-state--cancelada { color: #94a3b8; }
@@ -762,7 +762,7 @@
 }
 
 [data-theme="dark"] .pb-chat-input:focus {
-  border-color: #6366f1;
+  border-color: #009BDB;
 }
 
 [data-theme="dark"] .pb-chat-input::placeholder {
@@ -770,11 +770,11 @@
 }
 
 [data-theme="dark"] .pb-chat-send {
-  background: #6366f1;
+  background: #009BDB;
 }
 
 [data-theme="dark"] .pb-chat-send:hover:not(:disabled) {
-  background: #4f46e5;
+  background: #0084BD;
 }
 
 [data-theme="dark"] .pb-alert-btn--avaria {

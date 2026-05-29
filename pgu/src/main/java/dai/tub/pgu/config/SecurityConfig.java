@@ -59,6 +59,13 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
+                // Sprint 1 (F1): GeoJSON export aberto (R.BO.01) — tem que vir
+                // ANTES do catch-all GET /api/v1/** autenticado abaixo.
+                .requestMatchers(HttpMethod.GET, "/api/v1/routes/export.geojson").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/stops/export.geojson").permitAll()
+                // Sprint 1 (F3): catalogo DCAT-AP aberto (R.IVT.09, R.INT.10)
+                // para harvest pelo dados.gov.pt / Catalogo Nacional.
+                .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Ocorrências — Gestão e Escritas
@@ -96,6 +103,11 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/routes/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/routes/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/routes/**").hasAnyRole("admin", "developer")
+                // Sprint 1 (F0): Operadores de transporte (R.IVT.03)
+                .requestMatchers(HttpMethod.POST, "/api/v1/operators/**").hasAnyRole("admin", "developer")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/operators/**").hasAnyRole("admin", "developer")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/operators/**").hasAnyRole("admin", "developer")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/operators/**").hasAnyRole("admin", "developer")
                 // Apagar exportações — apenas admin
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/exports/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/config/**").hasAnyRole("admin", "developer")

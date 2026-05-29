@@ -1,4 +1,4 @@
-/* drivers.css - Driver management specific styles */
+﻿/* drivers.css - Driver management specific styles */
 
 /* Status badge for driver state */
 .driver-status {
@@ -155,7 +155,7 @@
 }
 
 .assign-bus-item:hover {
-  border-color: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #009BDB);
   background: var(--color-primary-light, #eef2ff);
   transform: translateY(-1px);
 }
@@ -181,10 +181,10 @@
   font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
-  background: var(--color-primary-light, rgba(99, 102, 241, 0.10));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: var(--color-primary-light, rgba(0, 155, 219, 0.10));
+  border: 1px solid rgba(0, 155, 219, 0.2);
   border-radius: 6px;
-  color: var(--color-primary-hover, #4f46e5);
+  color: var(--color-primary-hover, #0084BD);
 }
 .assign-bus-route-name {
   color: var(--color-text, #1f2937);
@@ -216,7 +216,7 @@
   line-height: 1.5;
 }
 .assign-bus-empty a {
-  color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #009BDB);
   text-decoration: none;
   font-weight: 600;
 }
@@ -316,8 +316,8 @@
 }
 .assign-bus-search-input:focus {
   outline: none;
-  border-color: var(--color-primary, #6366f1);
-  box-shadow: 0 0 0 3px var(--color-primary-light, rgba(99, 102, 241, 0.15));
+  border-color: var(--color-primary, #009BDB);
+  box-shadow: 0 0 0 3px var(--color-primary-light, rgba(0, 155, 219, 0.15));
 }
 
 /* ─── Modal assign-bus: grid 2-col de cards ─── */
@@ -350,10 +350,10 @@
   position: relative;
 }
 .assign-bus-card:hover {
-  border-color: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #009BDB);
   background: var(--color-primary-light, #eef2ff);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 155, 219, 0.15);
 }
 .assign-bus-card--no-route {
   border-style: dashed;
@@ -367,7 +367,7 @@
   font-size: 17px;
   color: var(--color-text-heading, var(--color-text, #0f172a));
   letter-spacing: -0.01em;
-  background: var(--color-bg-subtle, rgba(99, 102, 241, 0.08));
+  background: var(--color-bg-subtle, rgba(0, 155, 219, 0.08));
   padding: 4px 10px;
   border-radius: 6px;
 }
@@ -388,10 +388,10 @@
   font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
-  background: var(--color-primary-light, rgba(99, 102, 241, 0.10));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: var(--color-primary-light, rgba(0, 155, 219, 0.10));
+  border: 1px solid rgba(0, 155, 219, 0.2);
   border-radius: 5px;
-  color: var(--color-primary-hover, #4f46e5);
+  color: var(--color-primary-hover, #0084BD);
 }
 .assign-bus-card .assign-bus-route-name {
   color: var(--color-text, #1f2937);
@@ -454,7 +454,7 @@ a.btn-primary {
 a.btn:focus,
 a.btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 0 3px rgba(0, 155, 219, 0.25);
 }
 
 /* Sprint 0 (follow-up): coluna 'Nome' nos Drivers — avatar + nome com gap

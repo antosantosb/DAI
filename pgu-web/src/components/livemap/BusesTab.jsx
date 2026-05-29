@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import BusCard from './BusCard';
 import { getBusDisplayStatus } from './constants';
@@ -85,7 +85,7 @@ export default function BusesTab({
           route,
           routeName: route ? route.name : t('livemap.noRouteFallback'),
           routeCode: route ? route.code : '—',
-          routeColor: route ? (route.color || '#6366f1') : '#94a3b8',
+          routeColor: route ? (route.color || '#009BDB') : '#94a3b8',
           buses: [],
         };
       }

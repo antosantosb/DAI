@@ -2,10 +2,18 @@
 
 :root {
   --sidebar-w: 260px;
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-primary-light: rgba(99, 102, 241, 0.10);
-  --color-primary-glow: rgba(99, 102, 241, 0.25);
+  /* Sprint 1 (F1): rebrand para a paleta TUB.
+     Azul institucional como primary (#009BDB), vermelho como accent (#E2231A).
+     Mantemos o mesmo nome "primary" — todos os componentes seguem o token. */
+  --color-primary: #009BDB;
+  --color-primary-hover: #0084BD;
+  --color-primary-light: rgba(0, 155, 219, 0.10);
+  --color-primary-glow: rgba(0, 155, 219, 0.25);
+  /* Accent vermelho TUB — usar com moderacao (alertas brand, destaques, CTAs criticos) */
+  --color-accent: #E2231A;
+  --color-accent-hover: #C81E15;
+  --color-accent-light: rgba(226, 35, 26, 0.10);
+  --color-accent-glow: rgba(226, 35, 26, 0.25);
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
   --color-danger-light: rgba(239, 68, 68, 0.10);
@@ -49,10 +57,17 @@
    pelo ThemeProvider. CSS variables fazem todo o trabalho — qualquer
    componente que use var(--color-*) muda automaticamente. */
 [data-theme="dark"] {
-  --color-primary: #818cf8;
-  --color-primary-hover: #6366f1;
-  --color-primary-light: rgba(129, 140, 248, 0.18);
-  --color-primary-glow: rgba(129, 140, 248, 0.30);
+  /* Sprint 1 (F1): dark mode usa um azul mais claro (sky-400) para
+     manter contraste 4.5:1 com fundos escuros. */
+  --color-primary: #38BDF8;
+  --color-primary-hover: #0EA5E9;
+  --color-primary-light: rgba(56, 189, 248, 0.18);
+  --color-primary-glow: rgba(56, 189, 248, 0.30);
+  /* Vermelho TUB ligeiramente mais claro em dark para legibilidade */
+  --color-accent: #F87171;
+  --color-accent-hover: #EF4444;
+  --color-accent-light: rgba(248, 113, 113, 0.18);
+  --color-accent-glow: rgba(248, 113, 113, 0.30);
   --color-danger: #f87171;
   --color-danger-hover: #ef4444;
   --color-danger-light: rgba(248, 113, 113, 0.18);
@@ -62,12 +77,14 @@
   --color-success: #34d399;
   --color-success-hover: #10b981;
   --color-success-light: rgba(52, 211, 153, 0.18);
-  --color-bg: #0b1020;
-  --color-bg-subtle: #111a2e;
-  --color-surface: #1a2238;
-  --color-border: #2a3147;
-  --color-border-medium: #3a4262;
-  --color-border-light: #232a40;
+  /* Sprint 1 (F1): paleta navy-teal alinhada com tub.pt (header escuro
+     da operadora). Menos roxo, mais cyan. */
+  --color-bg: #0C1B2A;
+  --color-bg-subtle: #122637;
+  --color-surface: #18324A;
+  --color-border: #25405A;
+  --color-border-medium: #355478;
+  --color-border-light: #1F3A56;
   --color-text: #e2e8f0;
   --color-text-secondary: #94a3b8;
   --color-text-light: #64748b;
@@ -92,6 +109,19 @@ html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Sprint 1 (F1): scroll deslocado para #root para a scrollbar terminar
+ * acima do disclaimer global (32px no rodape). Sem isto a scrollbar nativa
+ * passa por baixo do disclaimer. */
+html, body {
+  height: 100vh;
+  overflow: hidden;
+}
+#root {
+  height: calc(100vh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 body {

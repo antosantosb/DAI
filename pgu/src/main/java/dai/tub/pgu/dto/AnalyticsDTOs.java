@@ -2,6 +2,25 @@ package dai.tub.pgu.dto;
 
 public class AnalyticsDTOs {
 
+    /**
+     * Sprint 1 (F2): adherence stoplight por rota.
+     *   - GREEN  : delayedShare < 0.10  (avgDelayMin proxy < 2)
+     *   - YELLOW : 0.10 <= delayedShare < 0.30  (proxy 2..5)
+     *   - RED    : delayedShare >= 0.30  (proxy >= 5)
+     */
+    public record RouteAdherenceData(
+            Long routeId,
+            String routeCode,
+            String routeName,
+            String color,
+            String operatorCode,
+            double delayedShare,
+            double avgDelayMin,
+            long observations,
+            long delayedCount
+    ) {}
+
+
     public record FleetOccupancyData(
             String minute,
             long totalPassengers,

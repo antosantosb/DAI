@@ -1,0 +1,54 @@
+/* Sprint 1 (F1): banner global de disclaimer academico.
+ *
+ * Padrao: fixed-bottom, full-width, fundo subtil escuro + texto pequeno.
+ * Sempre visivel (mesmo com scroll), igual em todas as paginas, fora do caminho
+ * de conteudo operacional.
+ *
+ * Variantes:
+ *   - inline (default): renderiza como linha discreta sem posicionamento. Usar
+ *                       em footers de paginas que tenham layout proprio.
+ *   - fixed:            posicao fixed no fundo do viewport (banner global).
+ */
+
+.project-disclaimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-light);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.project-disclaimer-icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.project-disclaimer-text {
+  /* sem max-width — em mobile pode quebrar para 2 linhas dentro do banner fixed */
+}
+
+/* Variante "fixed": footer fixo global. Aparece em todas as paginas via
+ * mount no App.jsx, fica sempre na tela mesmo com scroll. Igual ao banner
+ * do topo do Landing mas no fundo. Tema dark-friendly por defeito. */
+.project-disclaimer--fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 90; /* abaixo dos toasts (1000+) mas acima de conteudo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 16px;
+  background: rgba(15, 23, 42, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-align: center;
+}
+.project-disclaimer--fixed .project-disclaimer-text {
+  font-weight: 500;
+}

@@ -9,8 +9,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
 import dai.tub.pgu.audit.LogActivity;
 import dai.tub.pgu.dto.RouteDTO;
+import dai.tub.pgu.service.GeoJsonExportService;
 import dai.tub.pgu.service.RouteService;
 
 @RestController
@@ -19,10 +25,27 @@ public class RouteController
 {
     private static final Logger log = LoggerFactory.getLogger(RouteController.class);
     private final RouteService routeService;
+    private final GeoJsonExportService geoJsonExportService;
 
-    public RouteController(RouteService routeService)
+    public RouteController(RouteService routeService, GeoJsonExportService geoJsonExportService)
     {
         this.routeService = routeService;
+        this.geoJsonExportService = geoJsonExportService;
+    }
+
+    /**
+     * Sprint 1 (F1): export GeoJSON FeatureCollection com todas as rotas (R.BO.01).
+     * Aberto (permitAll via SecurityConfig) para integração com QGIS / dados.gov.pt.
+     */
+    @GetMapping(value = "/export.geojson", produces = "application/geo+json")
+    public ResponseEntity<Map<String, Object>> exportGeoJson()
+    {
+        Map<String, Object> fc = geoJsonExportService.exportRoutes();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"pgu-routes.geojson\"")
+                .contentType(MediaType.parseMediaType("application/geo+json"))
+                .body(fc);
     }
 
     @GetMapping

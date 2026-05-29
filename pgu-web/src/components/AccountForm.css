@@ -1,4 +1,4 @@
-/* Sprint 0 (F7 follow-up): tokens corretos do design system (var(--color-*))
+﻿/* Sprint 0 (F7 follow-up): tokens corretos do design system (var(--color-*))
    em vez de --surface/--text-primary/etc. que nao existem. Sem este fix a
    pagina ficava sempre em white porque caia para os fallbacks hex. */
 
@@ -222,7 +222,7 @@
 }
 
 .account-btn--secondary:hover:not(:disabled) {
-  background: var(--color-bg-subtle, rgba(99, 102, 241, 0.06));
+  background: var(--color-bg-subtle, rgba(0, 155, 219, 0.06));
   border-color: var(--color-primary);
   color: var(--color-primary);
 }

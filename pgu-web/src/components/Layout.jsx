@@ -12,11 +12,13 @@ import {
   IconDashboard, IconAnalytics, IconBus, IconHealth,
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
   IconSettings, IconDataSource, IconDriver, IconAccount,
-  IconChatbot, IconAiMonitoring, IconDevTools,
+  IconChatbot, IconAiMonitoring, IconDevTools, IconOperator, IconCalendar, IconSchedule,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
 import Avatar from './Avatar';
+import TubLogo from './TubLogo';
+import ProjectDisclaimer from './ProjectDisclaimer';
 import api from '../services/api';
 import { getOcorrencias } from '../services/ocorrenciasApi';
 import { routes, hasAccess } from '../routes';
@@ -42,6 +44,9 @@ const ICON_COMPONENTS = {
   IconChatbot,
   IconAiMonitoring,
   IconDevTools,
+  IconOperator,
+  IconCalendar,
+  IconSchedule,
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
@@ -201,11 +206,9 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-brand">
-            <div className="sidebar-logo">T</div>
-            <div>
-              <h2>TUB</h2>
-              <small>Backoffice</small>
-            </div>
+            <TubLogo size={28} className="sidebar-logo-svg" />
+            <span className="sidebar-brand-divider" aria-hidden="true" />
+            <span className="sidebar-brand-label">Backoffice</span>
           </div>
         </div>
         <nav className="sidebar-nav">

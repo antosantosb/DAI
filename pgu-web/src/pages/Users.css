@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════
    Users Page — Gestao de contas
    UI/UX Pro Max audit applied
    ═══════════════════════════════════════════════════════ */
@@ -60,7 +60,7 @@
 }
 
 .user-stat-icon--total {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(0, 155, 219, 0.1);
   color: var(--color-primary);
 }
 
@@ -155,7 +155,7 @@
 }
 
 .user-avatar.user-role--func {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #009BDB, #0084BD);
 }
 
 .user-avatar.user-role--none {
@@ -212,9 +212,9 @@
 }
 
 .user-role-badge.user-role--func {
-  background: rgba(99, 102, 241, 0.08);
-  color: #6366f1;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(0, 155, 219, 0.08);
+  color: #009BDB;
+  border: 1px solid rgba(0, 155, 219, 0.15);
 }
 
 .user-role-badge.user-role--none {
@@ -272,6 +272,9 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  /* Sprint 1 (F0): manter altura consistente quando a celula tem so' o
+   * badge "Protected account" em vez dos botoes. Evita rows tortas. */
+  min-height: 32px;
 }
 
 .user-actions .btn {
@@ -284,8 +287,8 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(0, 155, 219, 0.08);
+  border: 1px solid rgba(0, 155, 219, 0.15);
   padding: 1px 6px;
   border-radius: 4px;
   margin-left: 6px;
@@ -389,7 +392,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), #8b5cf6);
+  background: linear-gradient(90deg, var(--color-primary), #0084BD);
 }
 
 @keyframes modalSlideUp {
@@ -429,7 +432,7 @@
 }
 
 .user-modal-badge--edit {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(0, 155, 219, 0.1);
   color: var(--color-primary);
 }
 
@@ -624,10 +627,10 @@
 
 /* ─── Sprint 1 follow-up: bulk select estilo Exports ─── */
 .user-row--selected {
-  background: rgba(99, 102, 241, 0.04) !important;
+  background: rgba(0, 155, 219, 0.04) !important;
 }
 [data-theme="dark"] .user-row--selected {
-  background: rgba(129, 140, 248, 0.08) !important;
+  background: rgba(56, 189, 248, 0.08) !important;
 }
 
 .user-checkbox-cell {

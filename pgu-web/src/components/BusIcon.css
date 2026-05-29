@@ -1,4 +1,4 @@
-/* ─── Container ─── */
+﻿/* ─── Container ─── */
 .bus-icon-wrap {
   position: relative;
   width: 76px;
@@ -17,7 +17,7 @@
 
 .bus-icon-wrap--at-stop {
   background: linear-gradient(180deg, #eef2ff 60%, #e0e7ff 100%);
-  border-color: rgba(99, 102, 241, 0.25);
+  border-color: rgba(0, 155, 219, 0.25);
 }
 
 .bus-icon-wrap--stopping {
@@ -204,7 +204,7 @@
   justify-content: center;
   z-index: 3;
   line-height: 1;
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 155, 219, 0.4);
 }
 
 .bus-icon-wrap--stopping-at-stop .bus-icon-stop-sign {

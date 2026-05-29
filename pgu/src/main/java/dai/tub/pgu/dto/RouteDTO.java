@@ -11,6 +11,11 @@ public class RouteDTO
     private List<RouteStopDTO> stops;
     private List<List<Double>> shapePoints;
 
+    // Sprint 1 (F0): operador associado (R.IVT.03)
+    private Long operatorId;
+    private String operatorCode;
+    private String operatorName;
+
     public RouteDTO() {}
 
     // GET
@@ -20,6 +25,9 @@ public class RouteDTO
     public String            getColor() { return this.color; }
     public List<RouteStopDTO> getStops() { return this.stops; }
     public List<List<Double>> getShapePoints() { return this.shapePoints; }
+    public Long              getOperatorId()   { return this.operatorId; }
+    public String            getOperatorCode() { return this.operatorCode; }
+    public String            getOperatorName() { return this.operatorName; }
 
     // SET
     public void setId(Long id)                      { this.id = id; }
@@ -28,4 +36,7 @@ public class RouteDTO
     public void setColor(String color)              { this.color = color; }
     public void setStops(List<RouteStopDTO> stops)  { this.stops = stops; }
     public void setShapePoints(List<List<Double>> shapePoints) { this.shapePoints = shapePoints; }
+    public void setOperatorId(Long operatorId)         { this.operatorId = operatorId; }
+    public void setOperatorCode(String operatorCode)   { this.operatorCode = operatorCode; }
+    public void setOperatorName(String operatorName)   { this.operatorName = operatorName; }
 }

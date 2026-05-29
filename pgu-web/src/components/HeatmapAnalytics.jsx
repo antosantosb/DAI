@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -65,7 +65,7 @@ export default function HeatmapAnalytics() {
             max: 1.0,              // intensidades já normalizadas
             minOpacity: 0.35,
             gradient: {
-              0.2: '#6366f1',      // primary — baixa densidade
+              0.2: '#009BDB',      // primary — baixa densidade
               0.5: '#10b981',      // success — média
               0.75: '#f59e0b',     // warning — alta
               1.0: '#ef4444',      // danger — saturado

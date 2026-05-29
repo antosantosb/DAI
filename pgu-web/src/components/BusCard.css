@@ -1,4 +1,4 @@
-/* ─── Card minimalista de autocarro ──────────────────────────── */
+﻿/* ─── Card minimalista de autocarro ──────────────────────────── */
 .buscard {
   position: relative;
   display: flex;
@@ -108,7 +108,7 @@
   min-width: 26px;
   height: 24px;
   padding: 0 8px;
-  background: var(--color-primary, #6366f1);
+  background: var(--color-primary, #009BDB);
   color: #fff;
   border-radius: 6px;
   font-weight: 700;

@@ -8,6 +8,15 @@
     <link rel="stylesheet" href="${url.resourcesPath}/css/login.css">
 </head>
 <body class="kc-login">
+
+    <#-- Sprint 1 (F1): banner topo a indicar projeto academico -->
+    <div class="pgu-academic-banner" role="note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <span>${msg("projectDisclaimer")}</span>
+    </div>
+
     <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
 
         <#-- Sprint 0 (F6): language switcher no canto inferior esquerdo.
@@ -27,7 +36,9 @@
         </#if>
 
         <div id="kc-header">
-            <div id="kc-header-wrapper">TUB</div>
+            <div id="kc-header-wrapper">
+                <img src="${url.resourcesPath}/img/tub-logo.svg" alt="TUB - Transportes Urbanos de Braga" class="kc-brand-logo" />
+            </div>
             <div id="kc-header-subtitle">${msg("loginSubtitle")}</div>
         </div>
         <div style="width:100%;max-width:420px;margin-top:32px;">

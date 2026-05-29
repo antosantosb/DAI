@@ -1,4 +1,4 @@
-// Sprint 0 (F4): Fontes de Dados — backoffice (R.ID.01-09).
+﻿// Sprint 0 (F4): Fontes de Dados — backoffice (R.ID.01-09).
 // Layout: tabela tradicional bem feita (estilo Stripe Dashboard).
 
 import { useEffect, useMemo, useState } from 'react';
@@ -13,7 +13,7 @@ import { createStompClient } from '../services/stompClient';
 import Modal from '../components/Modal';
 import './DataSources.css';
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9'];
+const CHART_COLORS = ['#009BDB', '#10b981', '#f59e0b', '#ef4444', '#0084BD', '#0ea5e9'];
 
 function formatBucketTs(iso, range) {
   if (!iso) return '';

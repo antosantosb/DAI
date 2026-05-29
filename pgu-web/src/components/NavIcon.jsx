@@ -162,6 +162,35 @@ export const IconDevTools = () => (
   </svg>
 );
 
+// Sprint 1 (F0): icone para Operadores de transporte (R.IVT.03).
+// Edificio / sede empresarial — comunica entidade corporativa.
+export const IconOperator = () => (
+  <svg {...common} aria-hidden="true">
+    <path d="M3 21h18" />
+    <path d="M5 21V7l8-4v18" />
+    <path d="M19 21V11l-6-4" />
+    <path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01" />
+  </svg>
+);
+
+// Sprint 1 (F4): icone para Calendario operacional (R.IVT.05).
+export const IconCalendar = () => (
+  <svg {...common} aria-hidden="true">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M3 10h18M8 2v4M16 2v4" />
+    <path d="M7 14h.01M11 14h.01M15 14h.01M7 18h.01M11 18h.01" />
+  </svg>
+);
+
+// Sprint 1 (F4): icone para Horarios (relogio + linhas de horario).
+export const IconSchedule = () => (
+  <svg {...common} aria-hidden="true">
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2.5 1.5" />
+    <path d="M5 3l3 2M19 3l-3 2" />
+  </svg>
+);
+
 // Sprint 0 (F1): icone para Parametros, substitui o emoji ⚙️ que estava
 // no Layout original (em conflito com a regra no-emoji-icons).
 export const IconSettings = () => (

@@ -13,6 +13,7 @@ import { ToastContainer, Slide } from 'react-toastify';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalToastListener from './components/GlobalToastListener';
+import ProjectDisclaimer from './components/ProjectDisclaimer';
 import { routes } from './routes';
 
 import 'react-toastify/dist/ReactToastify.css';
@@ -110,6 +111,7 @@ export default function App() {
         progressClassName="pgu-toast-progress"
       />
       <GlobalToastListener />
+      <ProjectDisclaimer variant="fixed" />
       <Suspense fallback={<PageLoading />}>
         <Routes>
           {routes.map((route) => {

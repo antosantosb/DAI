@@ -9,6 +9,7 @@ import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
 import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
+import dai.tub.pgu.dto.AnalyticsDTOs.RouteAdherenceData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
 import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
 
@@ -136,6 +137,65 @@ public class AnalyticsService {
                 rs.getLong("delayed_count"),
                 rs.getLong("stopped_count")
         ), args.toArray());
+    }
+
+    /**
+     * Sprint 1 (F2): adherence stoplight por rota (R.IVT.06).
+     *
+     * <p>Classifica cada rota como verde/amarelo/vermelho com base na proporção
+     * de observações de telemetria com status {@code delayed} sobre o total
+     * observado. Útil para o overlay do Livemap e para a sidebar Rotas.
+     *
+     * <p>O avgDelayMin é um proxy derivado (delayedShare * 15) — a TUB nao
+     * publica horários planeados num formato comparável com os actuais, pelo
+     * que esta é a aproximação mais honesta que os dados existentes permitem.
+     */
+    public List<RouteAdherenceData> getRouteAdherence(String startDate, String endDate,
+                                                     String startHour, String endHour) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    r.id   AS route_id,
+                    r.code AS route_code,
+                    r.name AS route_name,
+                    r.color AS route_color,
+                    o.code AS operator_code,
+                    COUNT(*) AS total_obs,
+                    COUNT(*) FILTER (WHERE t.status = 'delayed') AS delayed_obs
+                FROM routes r
+                LEFT JOIN operators o ON r.operator_id = o.id
+                LEFT JOIN buses b ON b.route_id = r.id
+                LEFT JOIN vehicle_telemetry t ON t.bus_id = b.bus_code
+                WHERE 1=1
+                """);
+        List<Object> args = new java.util.ArrayList<>();
+        appendFilters(sql, args, startDate, endDate, startHour, endHour, "t.recorded_at >= CURRENT_DATE");
+
+        sql.append("""
+                GROUP BY r.id, r.code, r.name, r.color, o.code
+                ORDER BY r.code
+                """);
+
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
+            long obs = rs.getLong("total_obs");
+            long delayed = rs.getLong("delayed_obs");
+            double share = obs > 0 ? (double) delayed / obs : 0.0;
+            double avgDelayMin = share * 15.0;
+            String color;
+            if (share < 0.10)      color = "green";
+            else if (share < 0.30) color = "yellow";
+            else                   color = "red";
+            return new RouteAdherenceData(
+                    rs.getLong("route_id"),
+                    rs.getString("route_code"),
+                    rs.getString("route_name"),
+                    color,
+                    rs.getString("operator_code"),
+                    Math.round(share * 1000.0) / 1000.0,
+                    Math.round(avgDelayMin * 10.0) / 10.0,
+                    obs,
+                    delayed
+            );
+        }, args.toArray());
     }
 
     public List<RouteDelayData> getRouteDelays() {

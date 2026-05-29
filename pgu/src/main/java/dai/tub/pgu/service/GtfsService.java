@@ -55,6 +55,8 @@ public class GtfsService
     private final RouteSegmentRepository segmentRepository;
     private final StopScheduleRepository scheduleRepository;
     private final BusRepository busRepository;
+    // Sprint 1 (F0): mapear agency.txt -> Operator e popular Route.operator
+    private final OperatorRepository operatorRepository;
     private final SimpMessagingTemplate ws;
     private final GeometryFactory geometryFactory;
     private final ObjectMapper objectMapper;
@@ -66,6 +68,8 @@ public class GtfsService
     // RouteService) apos o import GTFS. Sem isto, o backoffice continua a ver
     // as rotas antigas (cache TTL 10min).
     private final org.springframework.cache.CacheManager cacheManager;
+    // Sprint 1 (F4): bulk insert do calendar.txt / calendar_dates.txt
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public GtfsService(GtfsImportRepository importRepository,
                        GtfsImportEntityRepository importEntityRepository,
@@ -76,9 +80,11 @@ public class GtfsService
                        RouteSegmentRepository segmentRepository,
                        StopScheduleRepository scheduleRepository,
                        BusRepository busRepository,
+                       OperatorRepository operatorRepository,
                        SimpMessagingTemplate ws,
                        @org.springframework.context.annotation.Lazy GtfsService self,
-                       org.springframework.cache.CacheManager cacheManager)
+                       org.springframework.cache.CacheManager cacheManager,
+                       org.springframework.jdbc.core.JdbcTemplate jdbcTemplate)
     {
         this.importRepository = importRepository;
         this.importEntityRepository = importEntityRepository;
@@ -89,11 +95,83 @@ public class GtfsService
         this.segmentRepository = segmentRepository;
         this.scheduleRepository = scheduleRepository;
         this.busRepository = busRepository;
+        this.operatorRepository = operatorRepository;
         this.ws = ws;
         this.self = self;
         this.cacheManager = cacheManager;
+        this.jdbcTemplate = jdbcTemplate;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         this.objectMapper = new ObjectMapper();
+    }
+
+    /**
+     * Sprint 1 (F4): importa calendar.txt + calendar_dates.txt (R.IVT.05).
+     * O calendario e' global (nao por rota), por isso limpamos as tabelas e
+     * reinserimos a cada import completo. Falha silenciosa por ficheiro em
+     * falta — feeds GTFS podem ter so' calendar OU so' calendar_dates.
+     */
+    private void importCalendars(Map<String, byte[]> files, GtfsImport imp)
+    {
+        try {
+            // Limpar calendario anterior (substituido por este import)
+            jdbcTemplate.update("DELETE FROM service_calendar");
+            jdbcTemplate.update("DELETE FROM service_calendar_date");
+
+            int cal = 0, calDates = 0;
+
+            if (files.containsKey("calendar.txt")) {
+                List<Map<String, String>> rows = parseCsv(files.get("calendar.txt"));
+                for (Map<String, String> r : rows) {
+                    String serviceId = r.getOrDefault("service_id", "").trim();
+                    if (serviceId.isEmpty()) continue;
+                    jdbcTemplate.update(
+                        "INSERT INTO service_calendar (service_id, monday, tuesday, wednesday, "
+                        + "thursday, friday, saturday, sunday, start_date, end_date, gtfs_import_id) "
+                        + "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        serviceId,
+                        "1".equals(r.get("monday")), "1".equals(r.get("tuesday")),
+                        "1".equals(r.get("wednesday")), "1".equals(r.get("thursday")),
+                        "1".equals(r.get("friday")), "1".equals(r.get("saturday")),
+                        "1".equals(r.get("sunday")),
+                        parseGtfsDate(r.get("start_date")), parseGtfsDate(r.get("end_date")),
+                        imp.getId());
+                    cal++;
+                }
+            }
+
+            if (files.containsKey("calendar_dates.txt")) {
+                List<Map<String, String>> rows = parseCsv(files.get("calendar_dates.txt"));
+                for (Map<String, String> r : rows) {
+                    String serviceId = r.getOrDefault("service_id", "").trim();
+                    java.sql.Date d = parseGtfsDate(r.get("date"));
+                    if (serviceId.isEmpty() || d == null) continue;
+                    int type = "2".equals(r.getOrDefault("exception_type", "1").trim()) ? 2 : 1;
+                    jdbcTemplate.update(
+                        "INSERT INTO service_calendar_date (service_id, exception_date, "
+                        + "exception_type, gtfs_import_id) VALUES (?,?,?,?)",
+                        serviceId, d, type, imp.getId());
+                    calDates++;
+                }
+            }
+            log.info("[GTFS] #{}: calendario importado — {} servicos, {} excecoes",
+                    imp.getId(), cal, calDates);
+        } catch (Exception e) {
+            log.warn("[GTFS] #{}: falha a importar calendario: {}", imp.getId(), e.getMessage());
+        }
+    }
+
+    /** Converte data GTFS (YYYYMMDD) para java.sql.Date. Devolve null se invalida. */
+    private java.sql.Date parseGtfsDate(String yyyymmdd)
+    {
+        if (yyyymmdd == null) return null;
+        String s = yyyymmdd.trim();
+        if (s.length() != 8) return null;
+        try {
+            return java.sql.Date.valueOf(
+                s.substring(0, 4) + "-" + s.substring(4, 6) + "-" + s.substring(6, 8));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Sprint 0 (F4 follow-up): invalida caches afetadas por um import GTFS. */
@@ -667,6 +745,45 @@ public class GtfsService
                 log.info("[GTFS] #{}: {} shapes carregados", imp.getId(), shapesLoaded);
             }
 
+            // Sprint 1 (F0): processar agency.txt -> Operators (R.IVT.03).
+            // GTFS standard: agency_id e' opcional, agency_name obrigatorio.
+            // Mapeamos por agency_id (chave em routes.txt) ou pelo unico agency
+            // quando o campo nao existe. Fallback para o operador 'TUB' do seed.
+            Map<String, Operator> agencyByGtfsId = new HashMap<>();
+            Operator defaultOperator = operatorRepository.findByCode("TUB").orElse(null);
+            if (files.containsKey("agency.txt"))
+            {
+                List<Map<String, String>> agencies = parseCsv(files.get("agency.txt"));
+                log.info("[GTFS] #{}: {} operadores em agency.txt", imp.getId(), agencies.size());
+                for (Map<String, String> row : agencies)
+                {
+                    String gtfsAgencyId = row.getOrDefault("agency_id", "").trim();
+                    String agencyName = row.getOrDefault("agency_name", "").trim();
+                    String agencyEmail = row.getOrDefault("agency_email", "").trim();
+                    if (agencyName.isEmpty()) continue;
+
+                    // Code: usar agency_id se disponivel; senao derivar de agency_name.
+                    String code = !gtfsAgencyId.isEmpty()
+                            ? gtfsAgencyId.toUpperCase()
+                            : agencyName.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+                    if (code.length() > 32) code = code.substring(0, 32);
+
+                    Operator op = operatorRepository.findByCode(code).orElseGet(Operator::new);
+                    op.setCode(code);
+                    op.setName(agencyName);
+                    if (!agencyEmail.isEmpty()) op.setContactEmail(agencyEmail);
+                    if (op.getCountry() == null || op.getCountry().isBlank()) op.setCountry("PT");
+                    op = operatorRepository.save(op);
+
+                    String mapKey = !gtfsAgencyId.isEmpty() ? gtfsAgencyId : "_default";
+                    agencyByGtfsId.put(mapKey, op);
+                    if (defaultOperator == null) defaultOperator = op;
+                }
+            }
+
+            // Sprint 1 (F4): importar calendar.txt + calendar_dates.txt (R.IVT.05)
+            importCalendars(files, imp);
+
             broadcastProgress(imp.getId(), "PROCESSING_ROUTES", "A importar rotas…", 60);
 
             // 4. CARREGAR ROTAS
@@ -685,6 +802,7 @@ public class GtfsService
                     String code = !shortName.isEmpty() ? shortName : ("R" + gtfsRouteId);
                     String gtfsColor = route.getOrDefault("route_color", "").trim();
                     String color = !gtfsColor.isEmpty() ? "#" + gtfsColor : ROUTE_COLORS[colorIdx % ROUTE_COLORS.length];
+                    String routeAgencyId = route.getOrDefault("agency_id", "").trim();
                     colorIdx++;
 
                     Optional<Route> existing = routeRepository.findByCode(code);

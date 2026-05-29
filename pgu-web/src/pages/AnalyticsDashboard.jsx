@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -10,14 +10,14 @@ import './Buses.css';
 import './AnalyticsDashboard.css';
 
 const CHART = {
-  passengers:  '#4f46e5',
+  passengers:  '#0084BD',
   buses:       '#10b981',
   active:      '#10b981',
-  atStop:      '#6366f1',
+  atStop:      '#009BDB',
   stopping:    '#f59e0b',
   delayed:     '#ef4444',
   stopped:     '#94a3b8',
-  avgPax:      '#6366f1',
+  avgPax:      '#009BDB',
   maxPax:      '#cbd5e1',
   speed:       '#f59e0b',
   congestion:  '#ef4444',

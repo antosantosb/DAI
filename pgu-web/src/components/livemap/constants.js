@@ -1,4 +1,4 @@
-import L from 'leaflet';
+﻿import L from 'leaflet';
 
 export const DEFAULT_CENTER = [41.5517605, -8.42299034]; // Braga
 export const DEFAULT_ZOOM = 14;
@@ -7,7 +7,7 @@ export const WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}:/
 
 export const STATUS_CONFIG = {
   active:      { color: '#22c55e', label: 'Em Viagem',   ring: 'rgba(34,197,94,0.3)' },
-  'at-stop':   { color: '#6366f1', label: 'Em Paragem',  ring: 'rgba(99,102,241,0.3)' },
+  'at-stop':   { color: '#009BDB', label: 'Em Paragem',  ring: 'rgba(0, 155, 219,0.3)' },
   stopping:    { color: '#f59e0b', label: 'A Parar',     ring: 'rgba(245,158,11,0.3)' },
   deactivated: { color: '#94a3b8', label: 'Desativado',  ring: 'rgba(148,163,184,0.3)' },
 };
