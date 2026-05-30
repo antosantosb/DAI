@@ -14,6 +14,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
@@ -105,6 +106,13 @@ public class DataSourceHealthService {
      * registo falhar, regista warning e segue. Nunca propaga excecao para nao
      * partir a resposta do feed que o invocou.
      */
+    // REQUIRES_NEW: o pulse e' uma escrita (INSERT em data_source_pulse) e tem de
+    // correr na sua propria transacao read-write, para nunca participar nem
+    // envenenar a transacao do chamador, que pode ser @Transactional(readOnly=true)
+    // (ex.: o NeTEx export). Sem isto, o INSERT falha "cannot execute INSERT in a
+    // read-only transaction" e a transacao externa rebenta no commit com
+    // UnexpectedRollbackException. E' chamada cross-bean, logo o proxy aplica.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordPulseByName(String nome, String detalhes) {
         try {
             repo.findByNome(nome).ifPresentOrElse(
