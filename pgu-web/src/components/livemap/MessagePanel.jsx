@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { enviarMensagem, reenviarMensagem, cancelarMensagem, getMensagens } from '../../services/despachoApi';
+import MessageStatusIcon from '../MessageStatusIcon';
 
 export default function MessagePanel({ bus, isOnline, onClose, subscribeToMessages }) {
   const [content, setContent] = useState('');
@@ -135,13 +136,13 @@ export default function MessagePanel({ bus, isOnline, onClose, subscribeToMessag
 
       {errorMsg && (
         <div style={{ color: 'var(--color-danger)', fontSize: '11px', fontWeight: '600', padding: '2px 4px' }}>
-          ⚠️ {errorMsg}
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: '-2px', marginRight: '4px' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>{errorMsg}
         </div>
       )}
 
       {validationError && (
         <div style={{ color: 'var(--color-danger)', fontSize: '11px', fontWeight: '600', padding: '2px 4px' }}>
-          ⚠️ {validationError}
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: '-2px', marginRight: '4px' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>{validationError}
         </div>
       )}
 
@@ -179,11 +180,12 @@ export default function MessagePanel({ bus, isOnline, onClose, subscribeToMessag
       {activeMsg && (
         <div className={`livemap-msg-status ${activeMsg.estado.toLowerCase()}`}>
           <span>
-            {activeMsg.estado === 'ENVIADA' && '⏳ A enviar...'}
-            {activeMsg.estado === 'ENTREGUE' && '✓ Entregue'}
-            {activeMsg.estado === 'LIDA' && '✓✓ Lida'}
-            {activeMsg.estado === 'FALHOU' && '✗ Falha na entrega'}
-            {activeMsg.estado === 'CANCELADA' && '⚪ Cancelada'}
+            <MessageStatusIcon estado={activeMsg.estado} />
+            {activeMsg.estado === 'ENVIADA' && ' A enviar...'}
+            {activeMsg.estado === 'ENTREGUE' && ' Entregue'}
+            {activeMsg.estado === 'LIDA' && ' Lida'}
+            {activeMsg.estado === 'FALHOU' && ' Falha na entrega'}
+            {activeMsg.estado === 'CANCELADA' && ' Cancelada'}
           </span>
           
           <div className="livemap-msg-status-actions">

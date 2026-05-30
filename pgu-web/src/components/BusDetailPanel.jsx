@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { getMensagens, enviarMensagem } from '../services/despachoApi';
 import { createStompClient } from '../services/stompClient';
+import MessageStatusIcon from './MessageStatusIcon';
 import './BusDetailPanel.css';
 
 /**
@@ -97,7 +98,7 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
           <div>
             <div className="bdp-header-code">{bus.busCode}</div>
             <div className="bdp-header-route">
-              {bus.routeCode ? `${bus.routeCode} — ${bus.routeName || ''}` : 'Sem rota'}
+              {bus.routeCode ? `${bus.routeCode} · ${bus.routeName || ''}` : 'Sem linha'}
             </div>
           </div>
           <div className="bdp-header-right">
@@ -194,7 +195,7 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                 <dl className="bdp-info-grid">
                   <div><dt>Matrícula</dt><dd>{bus.licensePlate || '—'}</dd></div>
                   <div><dt>Capacidade</dt><dd>{bus.capacity || '—'} lugares</dd></div>
-                  <div><dt>Rota</dt><dd>{bus.routeName || 'Sem rota'}</dd></div>
+                  <div><dt>Linha</dt><dd>{bus.routeName || 'Sem linha'}</dd></div>
                 </dl>
               </section>
 
@@ -252,10 +253,11 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                           <span>{new Date(msg.timestampEnvio).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
                           {!fromDriver && (
                             <span className={`bdp-msg-state bdp-msg-state--${msg.estado?.toLowerCase()}`}>
-                              {msg.estado === 'LIDA' && '✓✓ Lida'}
-                              {msg.estado === 'ENTREGUE' && '✓✓ Entregue'}
-                              {msg.estado === 'ENVIADA' && '✓ Enviada'}
-                              {msg.estado === 'FALHOU' && '! Falhou'}
+                              <MessageStatusIcon estado={msg.estado} />
+                              {msg.estado === 'LIDA' && ' Lida'}
+                              {msg.estado === 'ENTREGUE' && ' Entregue'}
+                              {msg.estado === 'ENVIADA' && ' Enviada'}
+                              {msg.estado === 'FALHOU' && ' Falhou'}
                             </span>
                           )}
                         </div>

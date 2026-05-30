@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import './Modal.css';
 
@@ -65,7 +66,10 @@ export default function Modal({ open, onClose, onConfirm, title, message, type =
   // Quando há `children` (conteúdo livre), suprime ícone e ações padrão — fica um container limpo.
   const hasChildren = children != null;
 
-  return (
+  // Portal para o body: garante que o backdrop (position: fixed) e' relativo a'
+  // viewport e nao fica preso dentro de um ancestral com backdrop-filter/
+  // transform (ex.: a sidebar do livemap em vidro), que o centrava la' dentro.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal-dialog"
@@ -97,6 +101,7 @@ export default function Modal({ open, onClose, onConfirm, title, message, type =
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

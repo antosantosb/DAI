@@ -99,6 +99,18 @@ export const routes = [
         nav: { sectionKey: 'sections.operations', labelKey: 'nav.routes', iconKey: 'IconRoute' },
       },
       {
+        // Sprint 2 (redesign): editor manual de padrao (sem nav; deep link da aba Linhas).
+        path: 'routes/:id/patterns/new',
+        loader: () => import('./pages/PatternEditor'),
+        access: ['admin', 'developer'],
+      },
+      {
+        // Editar um padrao existente (carrega a sequencia de autoria guardada).
+        path: 'routes/:id/patterns/:patternId/edit',
+        loader: () => import('./pages/PatternEditor'),
+        access: ['admin', 'developer'],
+      },
+      {
         path: 'stops',
         loader: () => import('./pages/Stops'),
         nav: { sectionKey: 'sections.operations', labelKey: 'nav.stops', iconKey: 'IconStop' },
@@ -145,13 +157,13 @@ export const routes = [
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.dataSources', iconKey: 'IconDataSource' },
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.dataSources', iconKey: 'IconDataSource' },
       },
       {
         path: 'gtfs',
         loader: () => import('./pages/GtfsManager'),
         access: ['admin', 'developer'],
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.gtfs', iconKey: 'IconGtfs' },
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.gtfs', iconKey: 'IconGtfs' },
       },
       {
         path: 'audit',
@@ -165,13 +177,13 @@ export const routes = [
       // `nav.to` redireciona o NavLink para a rota standalone.
       {
         sidebarOnly: true,
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.chatbot', iconKey: 'IconChatbot', to: '/chatbot' },
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.chatbot', iconKey: 'IconChatbot', to: '/chatbot' },
       },
       {
         path: 'ai-monitoring',
         loader: () => import('./pages/AiMonitoring'),
         access: ['admin', 'developer'],
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.aiMonitoring', iconKey: 'IconAiMonitoring' },
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.aiMonitoring', iconKey: 'IconAiMonitoring' },
       },
       {
         path: 'configuracoes',

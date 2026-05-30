@@ -1,6 +1,8 @@
 package dai.tub.pgu.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -43,14 +45,34 @@ public class RouteService
     @Cacheable("routes")
     public List<RouteDTO> getAll()
     {
-        return routeRepository.findAll().stream().map(this::toDTO).toList();
+        // Sprint 1 (Fase 2): uma unica query agregada conta os JourneyPattern de
+        // TODAS as rotas (GROUP BY route_id), evitando N+1 na listagem. O mapa
+        // routeId -> patternCount alimenta depois cada DTO.
+        Map<Long, Long> patternCounts = patternCountsByRoute();
+        return routeRepository.findAll().stream()
+                .map(route -> toDTO(route, patternCounts.getOrDefault(route.getId(), 0L)))
+                .toList();
     }
 
     public RouteDTO getById(Long id)
     {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rota não encontrada: " + id));
-        return toDTO(route);
+        return toDTO(route, journeyPatternRepository.countByRouteId(id));
+    }
+
+    /**
+     * Sprint 1 (Fase 2): le a contagem de padroes por rota numa unica query
+     * agregada e devolve-a como mapa routeId -> nº de padroes.
+     */
+    private Map<Long, Long> patternCountsByRoute()
+    {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : journeyPatternRepository.countGroupedByRouteId())
+        {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     @Transactional
@@ -73,7 +95,7 @@ public class RouteService
         // nao sao persistidos a partir deste endpoint; mantemos a assinatura
         // publica intacta para o frontend.
         Route saved = routeRepository.save(route);
-        return toDTO(saved);
+        return toDTO(saved, journeyPatternRepository.countByRouteId(saved.getId()));
     }
 
     @Transactional
@@ -91,7 +113,7 @@ public class RouteService
         // Transmodel (Fase 1): paragens/geometria gerem-se via import GTFS (patterns).
         // dto.getStops()/getShapePoints() nao sao persistidos aqui.
         Route saved = routeRepository.save(route);
-        return toDTO(saved);
+        return toDTO(saved, journeyPatternRepository.countByRouteId(saved.getId()));
     }
 
     @Transactional
@@ -104,7 +126,7 @@ public class RouteService
         routeRepository.deleteById(id);
     }
 
-    private RouteDTO toDTO(Route entity)
+    private RouteDTO toDTO(Route entity, long patternCount)
     {
         RouteDTO dto = new RouteDTO();
         dto.setId(entity.getId());
@@ -117,6 +139,8 @@ public class RouteService
             dto.setOperatorCode(entity.getOperator().getCode());
             dto.setOperatorName(entity.getOperator().getName());
         }
+        // Sprint 1 (Fase 2): nº de padroes (trajetorias) da linha.
+        dto.setPatternCount(patternCount);
         return dto;
     }
 

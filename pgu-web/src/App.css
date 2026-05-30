@@ -3,8 +3,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 28px;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
   min-height: 40px;
+  /* Sprint 2 (redesign): cabecalho limpo. O painel de vidro aqui ficava um
+     banner vazio em paginas sem accoes; so' uma hairline a separar. */
+  border-bottom: 1px solid var(--glass-hairline);
 }
 
 .page-header h1 {
@@ -498,9 +503,15 @@
 }
 
 .empty-state-icon {
-  font-size: 48px;
   margin-bottom: 16px;
   opacity: 0.4;
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: center;
+}
+.empty-state-icon svg {
+  width: 48px;
+  height: 48px;
 }
 
 .empty-state-text {

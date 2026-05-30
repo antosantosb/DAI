@@ -31,6 +31,15 @@ public class JourneyPattern
     @Column
     private String name;
 
+    /**
+     * Sprint 1 (Fase 2): sequencia de autoria manual (JSON da lista ordenada de
+     * pontos STOP/WAYPOINT com type/stopId/lat/lon), para reabrir o padrao no
+     * editor com as ancoras originais. Anulavel: padroes importados de GTFS ficam
+     * a null (o editor reconstroi a partir das paragens em sequencia).
+     */
+    @Column(name = "authoring_points", columnDefinition = "text")
+    private String authoringPoints;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "gtfs_import_id")
     private GtfsImport gtfsImport;
@@ -45,9 +54,10 @@ public class JourneyPattern
     public Route      getRoute()       { return this.route; }
     public Integer    getDirectionId() { return this.directionId; }
     public String     getSignature()   { return this.signature; }
-    public String     getName()        { return this.name; }
-    public GtfsImport getGtfsImport()  { return this.gtfsImport; }
-    public Instant    getCreatedAt()   { return this.createdAt; }
+    public String     getName()            { return this.name; }
+    public String     getAuthoringPoints() { return this.authoringPoints; }
+    public GtfsImport getGtfsImport()      { return this.gtfsImport; }
+    public Instant    getCreatedAt()       { return this.createdAt; }
 
     // SET
     public void setId(Long id)                 { this.id = id; }
@@ -55,6 +65,7 @@ public class JourneyPattern
     public void setDirectionId(Integer dir)    { this.directionId = dir; }
     public void setSignature(String signature) { this.signature = signature; }
     public void setName(String name)           { this.name = name; }
+    public void setAuthoringPoints(String pts) { this.authoringPoints = pts; }
     public void setGtfsImport(GtfsImport imp)  { this.gtfsImport = imp; }
     public void setCreatedAt(Instant createdAt){ this.createdAt = createdAt; }
 }

@@ -298,6 +298,17 @@ export default function RoutesTab({
           const trip = scheduleModal.trip;
           return (
             <div className="livemap-sched-modal">
+              {/* Botão de fecho (X) sempre visível no canto superior direito.
+                  Reutiliza o mesmo reset de estado que o onClose do <Modal>. */}
+              <button
+                type="button"
+                className="livemap-sched-close"
+                onClick={() => setScheduleModal(closedSchedule)}
+                aria-label={t('common.close')}
+                title={t('common.close')}
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
               <div className="livemap-sched-head">
                 <div className="livemap-sched-titlerow">
                   {route?.code && <span className="livemap-sched-route">{route.code}</span>}

@@ -6,18 +6,25 @@
 /* ─── Sidebar ─── */
 .sidebar {
   width: var(--sidebar-w);
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  /* Sprint 2 (redesign): painel de vidro escuro FLUTUANTE (sheen no topo). */
+  background: var(--glass-sheen), var(--sidebar-glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   color: #cbd5e1;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   position: fixed;
-  top: 0;
-  left: 0;
-  /* Sprint 1 (F1): reservar 32px no fundo para o disclaimer global */
-  bottom: 32px;
+  /* Afastada dos bordos para flutuar sobre o fundo com textura. */
+  top: 14px;
+  left: 14px;
+  /* Sprint 1 (F1): 32px disclaimer + 14px de folga. */
+  bottom: 46px;
   z-index: 100;
-  border-right: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--sidebar-glass-border);
+  border-radius: 22px;
+  box-shadow: var(--sidebar-glass-shadow);
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -34,6 +41,7 @@
   z-index: 90;
   display: flex;
   align-items: center;
+  /* Os switchers ja sao pills de vidro autonomas — so' os agrupamos. */
   gap: 8px;
 }
 
@@ -117,11 +125,11 @@
   justify-content: space-between;
   width: 100%;
   font-size: 10px;
-  font-weight: 600;
-  color: #475569;
+  font-weight: 700;
+  color: #7e8da4;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 16px 12px 6px;
+  letter-spacing: 1px;
+  padding: 20px 14px 8px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -168,12 +176,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 11px 14px;
   color: #94a3b8;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all var(--transition);
   white-space: nowrap;
   overflow: hidden;
@@ -211,10 +219,11 @@
 }
 
 .sidebar-nav a.active {
-  background: var(--color-primary);
+  /* Sprint 2 (redesign): pill de vidro luminosa em vez do bloco solido. */
+  background: var(--sidebar-item-active-bg);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 155, 219, 0.4);
+  box-shadow: var(--sidebar-item-active-glow);
 }
 
 .sidebar-nav a.active .nav-icon {
@@ -272,11 +281,14 @@
   bottom: calc(100% + 8px);
   left: 12px;
   right: 12px;
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
-  padding: 4px;
+  /* Sprint 2 (redesign): popover em vidro escuro (mais glassy). */
+  background: var(--glass-sheen), rgba(20, 32, 48, 0.62);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55);
+  padding: 5px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -423,7 +435,8 @@
 /* ─── Main ─── */
 .main-content {
   flex: 1;
-  margin-left: var(--sidebar-w);
+  /* Sidebar flutuante: 14px (left) + largura + 14px de folga. */
+  margin-left: calc(var(--sidebar-w) + 28px);
   padding: 32px 40px;
   min-width: 0;
   max-width: 100%;

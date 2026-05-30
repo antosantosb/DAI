@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState, useRef, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
@@ -11,14 +13,14 @@ const PAGE_SIZE = 50;
 
 export default function Routes() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { hasRole } = useAuth();
   // Sprint 1 follow-up: dev tem os mesmos privilégios de gestão que admin.
   const isAdmin = hasRole('admin') || hasRole('developer');
   const [routes, setRoutes] = useState([]);
   const [allStops, setAllStops] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', code: '', color: '' });
-  const [routeStops, setRouteStops] = useState([]);
+  const [form, setForm] = useState({ name: '', code: '', color: '', operatorId: '' });
   const [showForm, setShowForm] = useState(false);
   // Sprint 1 (F4): pre-popular a pesquisa a partir de ?q= (deep-link do
   // calendario — clicar numa rota leva aqui ja' filtrado).
@@ -28,7 +30,6 @@ export default function Routes() {
     } catch { return ''; }
   });
   const [modal, setModal] = useState({ open: false });
-  const [dragIdx, setDragIdx] = useState(null);
   // Sprint 1 (F0): filtro de operador. Pre-popula do query param ?operator=CODE
   // (usado pelo link "Rotas" na pagina Operators).
   const [operatorsList, setOperatorsList] = useState([]);
@@ -69,6 +70,31 @@ export default function Routes() {
   const showModalMsg = (opts) => setModal({ open: true, ...opts });
   const closeModal = () => setModal({ open: false });
 
+  // Apagar um padrao de uma linha (otimista: tira da lista e decrementa a
+  // contagem logo; reverte se o backend falhar).
+  const handlePatternDelete = (route, p) => {
+    showModalMsg({
+      type: 'danger',
+      title: t('pages.routes.patterns.deleteTitle'),
+      message: t('pages.routes.patterns.deleteMessage'),
+      confirmText: t('pages.routes.deleteConfirm'),
+      onConfirm: () => {
+        closeModal();
+        setPatternsCache(c => ({ ...c, [route.id]: (c[route.id] || []).filter(x => x.id !== p.id) }));
+        setRoutes(prev => prev.map(r => r.id === route.id ? { ...r, patternCount: Math.max(0, (r.patternCount || 0) - 1) } : r));
+        api.delete(`/routes/${route.id}/patterns/${p.id}`)
+          .then(() => toast.success(t('pages.routes.patterns.deleteSuccess')))
+          .catch(err => {
+            api.get(`/routes/${route.id}/patterns`)
+              .then(r => setPatternsCache(c => ({ ...c, [route.id]: r.data || [] })))
+              .catch(() => {});
+            load();
+            toast.error(err.response?.data?.message || t('pages.routes.errorTitle'));
+          });
+      },
+    });
+  };
+
   // Sprint 1: modal com mapa do padrão (trajetória + paragens).
   // patternModal guarda o padrão clicado (id, directionId, name) + a rota-pai
   // (code, color) para o titulo e a cor da linha. mapDivRef aponta para o
@@ -93,31 +119,30 @@ export default function Routes() {
   useEffect(load, []);
 
   const resetForm = () => {
-    setForm({ name: '', code: '', color: '' });
-    setRouteStops([]);
-    setOriginalStops([]);
+    setForm({ name: '', code: '', color: '', operatorId: '' });
     setEditing(null);
     setShowForm(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const stops = routeStops.map((s, i) => ({ stopId: s.id, stopOrder: i + 1 }));
-
-    // Check if stops changed compared to original
-    const currentStopIds = routeStops.map(s => s.id);
-    const stopsChanged = !editing ||
-      currentStopIds.length !== originalStops.length ||
-      currentStopIds.some((id, i) => id !== originalStops[i]);
-
+    // Sprint 2 (redesign): editar Linha = so' identidade (nome, codigo, cor).
+    // As paragens vivem nos Padroes (JourneyPattern), nao na Linha.
     const payload = editing
       ? {
           ...(form.name ? { name: form.name } : {}),
           ...(form.code ? { code: form.code } : {}),
           ...(form.color ? { color: form.color } : {}),
-          ...(stopsChanged ? { stops } : {}),
+          ...(form.operatorId ? { operatorId: Number(form.operatorId) } : {}),
         }
-      : { name: form.name, code: form.code, color: form.color || null, stops };
+      : {
+          name: form.name,
+          code: form.code,
+          // Cor por defeito (azul TUB) se o utilizador nao mexer no seletor —
+          // antes ficava null e a coluna nao mostrava cor ate' editar.
+          color: form.color || '#009BDB',
+          operatorId: form.operatorId ? Number(form.operatorId) : null,
+        };
 
     const req = editing
       ? api.patch(`/routes/${editing}`, payload)
@@ -132,18 +157,8 @@ export default function Routes() {
     });
   };
 
-  const [originalStops, setOriginalStops] = useState([]);
-
   const startEdit = (route) => {
-    setForm({ name: route.name, code: route.code, color: route.color || '' });
-    const sorted = (route.stops || [])
-      .sort((a, b) => a.stopOrder - b.stopOrder)
-      .map(rs => {
-        const full = allStops.find(s => s.id === rs.stopId);
-        return full || { id: rs.stopId, name: rs.stopName || '?', code: rs.stopCode || '?' };
-      });
-    setRouteStops(sorted);
-    setOriginalStops(sorted.map(s => s.id));
+    setForm({ name: route.name, code: route.code, color: route.color || '', operatorId: route.operatorId || '' });
     setEditing(route.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -155,40 +170,20 @@ export default function Routes() {
       title: t('pages.routes.deleteTitle'),
       message: t('pages.routes.deleteMessage'),
       confirmText: t('pages.routes.deleteConfirm'),
-      onConfirm: () => { closeModal(); api.delete(`/routes/${id}`).then(load); },
+      onConfirm: () => {
+        closeModal();
+        // Otimista: tira a linha da lista logo (resposta instantanea); o delete
+        // corre em fundo. Se falhar, recarrega para reverter ao estado real.
+        setRoutes(prev => prev.filter(r => r.id !== id));
+        api.delete(`/routes/${id}`)
+          .then(() => toast.success(t('pages.routes.deleteSuccess')))
+          .catch(err => {
+            load();
+            toast.error(err.response?.data?.message || t('pages.routes.errorTitle'));
+          });
+      },
     });
   };
-
-  // Stop management
-  const addStop = (stopId) => {
-    const stop = allStops.find(s => s.id === parseInt(stopId));
-    if (!stop) return;
-    setRouteStops([...routeStops, stop]);
-  };
-
-  const removeStop = (idx) => {
-    setRouteStops(routeStops.filter((_, i) => i !== idx));
-  };
-
-  const moveStop = (from, to) => {
-    if (to < 0 || to >= routeStops.length) return;
-    const arr = [...routeStops];
-    const [item] = arr.splice(from, 1);
-    arr.splice(to, 0, item);
-    setRouteStops(arr);
-  };
-
-  // Drag & drop
-  const handleDragStart = (idx) => setDragIdx(idx);
-  const handleDragOver = (e) => e.preventDefault();
-  const handleDrop = (idx) => {
-    if (dragIdx !== null && dragIdx !== idx) {
-      moveStop(dragIdx, idx);
-    }
-    setDragIdx(null);
-  };
-
-  const availableStops = allStops.filter(s => !routeStops.find(rs => rs.id === s.id));
 
   const filtered = routes.filter(r => {
     // Sprint 1 (F0): filtrar por operador
@@ -429,61 +424,15 @@ export default function Routes() {
                   <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} placeholder="#009BDB" style={{ flex: 1 }} />
                 </div>
               </div>
-            </div>
-
-            {/* Stop assignment */}
-            <div className="route-stops-section">
-              <div className="route-stops-header">
-                <label>{t('pages.routes.stopsOfRoute')}</label>
-                <span className="form-hint">{t('pages.routes.stopsAddedHint', { count: routeStops.length })}</span>
-              </div>
-
-              <div className="route-stops-add">
-                <select
-                  value=""
-                  onChange={e => { addStop(e.target.value); e.target.value = ''; }}
-                  disabled={availableStops.length === 0}
-                >
-                  <option value="">
-                    {availableStops.length === 0 ? t('pages.routes.allStopsAdded') : t('pages.routes.addStopPlaceholder')}
-                  </option>
-                  {availableStops.map(s => (
-                    <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>{t('pages.routes.fieldOperator')}</label>
+                <select value={form.operatorId} onChange={e => setForm({...form, operatorId: e.target.value})}>
+                  <option value="">{t('pages.routes.noOperator')}</option>
+                  {operatorsList.map(op => (
+                    <option key={op.id} value={op.id}>{op.code} - {op.name}</option>
                   ))}
                 </select>
               </div>
-
-              {routeStops.length === 0 ? (
-                <div className="route-stops-empty">
-                  {t('pages.routes.emptyStops')}
-                </div>
-              ) : (
-                <div className="route-stops-list">
-                  {routeStops.map((stop, idx) => (
-                    <div
-                      key={`${stop.id}-${idx}`}
-                      className={`route-stop-item ${dragIdx === idx ? 'route-stop-item--dragging' : ''}`}
-                      draggable
-                      onDragStart={() => handleDragStart(idx)}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(idx)}
-                      onDragEnd={() => setDragIdx(null)}
-                    >
-                      <span className="route-stop-grip">&#8942;&#8942;</span>
-                      <span className="route-stop-order">{idx + 1}</span>
-                      <div className="route-stop-info">
-                        <span className="route-stop-name">{stop.name}</span>
-                        <span className="route-stop-code">{stop.code}</span>
-                      </div>
-                      <div className="route-stop-actions">
-                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx - 1)} disabled={idx === 0} title={t('pages.routes.moveUp')}>&#9650;</button>
-                        <button type="button" className="route-stop-btn" onClick={() => moveStop(idx, idx + 1)} disabled={idx === routeStops.length - 1} title={t('pages.routes.moveDown')}>&#9660;</button>
-                        <button type="button" className="route-stop-btn route-stop-btn--remove" onClick={() => removeStop(idx)} title={t('pages.routes.removeStop')}>&#10005;</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="form-actions">
@@ -504,8 +453,8 @@ export default function Routes() {
               <th>{t('pages.routes.headers.name')}</th>
               <th style={{ width: '110px' }}>{t('pages.routes.headers.operator')}</th>
               <th style={{ width: '130px' }}>{t('pages.routes.headers.color')}</th>
-              <th style={{ width: '100px' }}>{t('pages.routes.headers.stops')}</th>
-              <th style={{ width: '170px' }}>{t('pages.routes.headers.actions')}</th>
+              <th style={{ width: '110px' }}>{t('pages.routes.headers.patterns')}</th>
+              <th style={{ width: '300px' }}>{t('pages.routes.headers.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -549,11 +498,12 @@ export default function Routes() {
                     </span>
                   )}
                 </td>
-                <td><span className="count-badge">{route.stops?.length || 0}</span></td>
+                <td><span className="count-badge">{route.patternCount ?? 0}</span></td>
                 <td className="actions">
                   {isAdmin && (
                     <>
                       <button className="btn btn-sm" onClick={() => startEdit(route)}>{t('common.edit')}</button>
+                      <button className="btn btn-sm" onClick={() => navigate(`/backoffice/routes/${route.id}/patterns/new`)}>{t('pages.routes.addPattern')}</button>
                       <button className="btn btn-sm btn-danger" onClick={() => handleDelete(route.id)}>{t('common.delete')}</button>
                     </>
                   )}
@@ -592,6 +542,37 @@ export default function Routes() {
                               <span className="route-pattern-meta">{t('pages.routes.patterns.stopCount', { count: p.stopCount ?? 0 })}</span>
                               <span className="route-pattern-sep" aria-hidden="true">·</span>
                               <span className="route-pattern-meta">{t('pages.routes.patterns.tripCount', { count: p.tripCount ?? 0 })}</span>
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  className="route-pattern-edit"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/backoffice/routes/${route.id}/patterns/${p.id}/edit`); }}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  title={t('common.edit')}
+                                  aria-label={t('common.edit')}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                  </svg>
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  className="route-pattern-delete"
+                                  onClick={(e) => { e.stopPropagation(); handlePatternDelete(route, p); }}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  title={t('common.delete')}
+                                  aria-label={t('common.delete')}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M3 6h18" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              )}
                               <svg className="route-pattern-map-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
                                 <line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" />

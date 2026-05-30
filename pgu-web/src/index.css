@@ -51,6 +51,34 @@
   --color-on-primary: #ffffff;
   --color-card-shadow: rgba(15, 23, 42, 0.08);
   --color-overlay: rgba(15, 23, 42, 0.4);
+
+  /* ─── Sprint 2 (redesign): Liquid glass ───────────────────────────────
+     Vidro APENAS na chrome (sidebar, topo, cards-chrome, modais, popovers).
+     O conteudo denso (tabelas, texto, forms) fica opaco e nitido. */
+  --glass-blur: 28px;
+  --glass-saturate: 190%;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.64);
+  --glass-border: rgba(255, 255, 255, 0.70);
+  --glass-hairline: rgba(15, 23, 42, 0.08);
+  --glass-shadow: 0 10px 34px -12px rgba(15, 23, 42, 0.22);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-hover: rgba(15, 23, 42, 0.045);
+  /* Brilho especular no topo do vidro (luz a bater). */
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 22%, rgba(255, 255, 255, 0) 55%);
+  /* Sidebar = vidro escuro flutuante. Em claro fica mais opaca (legibilidade
+     do texto claro); o tema escuro torna-a mais translucida (ver override). */
+  --sidebar-glass-bg: linear-gradient(180deg, rgba(13, 22, 38, 0.93) 0%, rgba(17, 31, 48, 0.91) 100%);
+  --sidebar-glass-border: rgba(255, 255, 255, 0.16);
+  --sidebar-glass-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --sidebar-item-active-bg: linear-gradient(135deg, rgba(56, 189, 248, 0.30), rgba(0, 155, 219, 0.15));
+  --sidebar-item-active-glow: inset 0 0 0 1px rgba(125, 211, 252, 0.45), 0 6px 20px -6px rgba(0, 155, 219, 0.5);
+  /* Fundo da app: mesh de cor da marca (visivel) para o vidro refractar. */
+  --app-bg:
+    radial-gradient(900px 520px at -5% -10%, rgba(0, 155, 219, 0.20), transparent 60%),
+    radial-gradient(820px 620px at 108% 0%, rgba(226, 35, 26, 0.09), transparent 55%),
+    radial-gradient(760px 760px at 55% 118%, rgba(0, 155, 219, 0.13), transparent 60%),
+    linear-gradient(180deg, #eef2f7 0%, #e3e9f1 100%);
 }
 
 /* Sprint 0 (F7): tema escuro. Aplicado via [data-theme="dark"] no <html>
@@ -92,6 +120,23 @@
   --color-on-primary: #ffffff;
   --color-card-shadow: rgba(0, 0, 0, 0.4);
   --color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Liquid glass — variante escura. */
+  --glass-bg: rgba(18, 38, 55, 0.55);
+  --glass-bg-strong: rgba(18, 38, 55, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-hairline: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 10px 34px -12px rgba(0, 0, 0, 0.55);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --glass-hover: rgba(255, 255, 255, 0.05);
+  /* Em escuro a sidebar fica mais translucida — o frost capta os glows. */
+  --sidebar-glass-bg: linear-gradient(180deg, rgba(13, 23, 39, 0.50) 0%, rgba(17, 30, 48, 0.44) 100%);
+  --sidebar-glass-border: rgba(255, 255, 255, 0.14);
+  --app-bg:
+    radial-gradient(900px 520px at -5% -10%, rgba(56, 189, 248, 0.30), transparent 60%),
+    radial-gradient(820px 620px at 108% 0%, rgba(0, 155, 219, 0.22), transparent 55%),
+    radial-gradient(760px 760px at 55% 118%, rgba(99, 102, 241, 0.16), transparent 60%),
+    linear-gradient(180deg, #0b1825 0%, #081320 100%);
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
   --shadow: 0 4px 6px -1px rgba(0,0,0,0.5), 0 2px 4px -2px rgba(0,0,0,0.3);
@@ -129,9 +174,21 @@ body {
   font-size: 14px;
   line-height: 1.6;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--app-bg, var(--color-bg));
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Grao subtil sobre o fundo — dá "textura" ao vidro (Sprint 2 redesign). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 h1, h2, h3, h4 {
@@ -213,6 +270,33 @@ input, select, button, textarea {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Acessibilidade: respeita prefers-reduced-transparency (vidro -> opaco). */
+@media (prefers-reduced-transparency: reduce) {
+  :root, [data-theme="dark"] {
+    --glass-bg: var(--color-surface);
+    --glass-bg-strong: var(--color-surface);
+    --sidebar-glass-bg: linear-gradient(180deg, #0d1626, #111f30);
+  }
+  .sidebar, .layout-lang, .sidebar-account-menu,
+  [class*="glass"],
+  /* Livemap: superficies flutuantes sobre o mapa (controlos Leaflet e
+   * popups) tambem perdem o blur quando o utilizador pede menos
+   * transparencia. As classes destas nao contem "glass", por isso sao
+   * listadas explicitamente. */
+  .livemap-overlay-controls,
+  .leaflet-bar a, .leaflet-control-attribution,
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Fills opacos de recurso para os popups/controlos do Livemap. */
+  .livemap-overlay-controls { background: var(--color-surface) !important; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip,
+  .stop-panel-popup .leaflet-popup-content-wrapper,
+  .stop-panel-popup .leaflet-popup-tip { background: var(--color-surface) !important; }
+  .leaflet-bar a { background: var(--color-surface) !important; }
 }
 
 /* Foco acessível global (fallback) */

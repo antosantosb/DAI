@@ -72,7 +72,7 @@ export default function BusCard({
             <span className="buscard-route-name">{bus.routeName || 'Sem nome'}</span>
           </>
         ) : (
-          <span className="buscard-route-empty">— Sem rota —</span>
+          <span className="buscard-route-empty">Sem linha</span>
         )}
       </div>
 

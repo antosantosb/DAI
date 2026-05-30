@@ -34,9 +34,24 @@ Plataforma de centralização, monitorização e gestão de dados de mobilidade 
 
 ## Estado do projeto
 
-Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. A plataforma está pronta para entrar no Sprint 1 (Vertical 3.1 Transportes Públicos). Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
+Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. O **Sprint 1** (Vertical 3.1 Transportes Públicos) está **em curso (~60%)**: entregues a entidade `Operator`, export GeoJSON, portal Open Data (DCAT-AP), calendário e horários, uma **re-arquitetura Transmodel** do modelo (Linha → Padrão → Trip), um **editor manual de padrões/trajetos** (waypoints + OSRM) e um **redesign visual liquid-glass** transversal; faltam GTFS-RT, NeTEx, schedule adherence stoplight e correlações. Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
 
 ### Principais funcionalidades já entregues
+
+**Transportes públicos e modelo Transmodel (Sprint 1, em curso):**
+
+- Modelo **Transmodel**: **Linha** (`Route`) → **Padrão de viagem** (`JourneyPattern`: paragens ordenadas + geometria) → **Trip** (com `TripStopTime`). Migrações V40 a V42.
+- **Editor manual de padrões/trajetos** (`/backoffice/routes/:id/patterns/new`): clicar numa paragem adiciona-a ao padrão, clicar no mapa cria um ponto âncora (waypoint), o OSRM encaixa a linha por estrada; os waypoints ficam guardados (V43) para re-edição. Suporta Ctrl+Z, drag-n-drop e arrasto de waypoints.
+- **Entidade `Operator`** (V38) com CRUD em `/backoffice/operators`; cada linha tem operador.
+- **Calendário operacional** (`/backoffice/calendar`, V39) e **Horários** planeados (`/backoffice/schedules`: Linha → Padrão → Trip → tempos).
+- **Portal Open Data público** em `/open-data`: export **GeoJSON** de linhas e paragens e **catálogo DCAT-AP** (`/api/v1/catalog/datasets`) para indexação por dados.gov.pt.
+- Naming consistente **"Linha/Line"** em todo o UI (o backend mantém "route", interno ao GTFS).
+
+**Redesign visual liquid-glass (Sprint 1):**
+
+- Linguagem **liquid-glass** (vidro fosco, blur, profundidade) na chrome do backoffice (sidebar flutuante) e no Livemap (sidebar e cartões em vidro, modal de horários centrado via portal).
+- **Zero emojis** no UI: todos substituídos por ícones SVG (incluindo os estados de mensagem).
+- Páginas repolidas: Dashboard, Ocorrências, Hub pós-login, Landing e login Keycloak.
 
 **Autenticação e segurança (Sprint -1 + Sprint 0 F4/F5):**
 
@@ -325,10 +340,16 @@ SMTP_STARTTLS=true
 | Rota | Acesso | Descrição |
 |---|---|---|
 | `/` | Público | Landing page (apresentação) |
+| `/open-data` | Público | Portal Open Data (GeoJSON + catálogo DCAT-AP) |
 | `/livemap` | Autenticado | Mapa em tempo real (Leaflet + STOMP, com cluster e trail) |
 | `/backoffice` | `admin`, `funcionario` | Dashboard de gestão |
 | `/backoffice/buses` | `admin`, `funcionario` | CRUD de autocarros e chat de despacho |
-| `/backoffice/routes` | `admin`, `funcionario` | CRUD de rotas (recalcula segmentos OSRM) |
+| `/backoffice/routes` | `admin`, `funcionario` | Linhas (identidade) e os seus padrões/trajetos |
+| `/backoffice/routes/:id/patterns/new` | `admin` | Editor manual de padrão (waypoints + paragens + OSRM) |
+| `/backoffice/operators` | `admin` | CRUD de operadores de transporte |
+| `/backoffice/analytics` | `admin`, `funcionario` | Dashboards analíticos (Recharts) |
+| `/backoffice/calendar` | `admin`, `funcionario` | Calendário operacional (serviço por dia) |
+| `/backoffice/schedules` | `admin`, `funcionario` | Horários planeados (Linha → Padrão → Trip) |
 | `/backoffice/stops` | `admin`, `funcionario` | CRUD de paragens |
 | `/backoffice/drivers` | `admin` | Gestão de motoristas (Keycloak Admin API) |
 | `/backoffice/users` | `admin` | Gestão de utilizadores (funcionários) |
@@ -336,6 +357,7 @@ SMTP_STARTTLS=true
 | `/backoffice/exports` | `admin`, `funcionario` | Exportações CSV / JSON (MinIO + presigned URLs) |
 | `/backoffice/conta` | `admin`, `funcionario` | Self-service de conta (dados, password, avatar) |
 | `/backoffice/dev` | `developer` | **Ferramentas Dev**: geração em batch + simulações stub |
+| `/chatbot` | `admin`, `funcionario` | Assistente IA (Llama on-premises, ecrã inteiro) |
 | `/bordo` | `motorista` | **Painel de Bordo** (auto-deteta o autocarro atribuído) |
 
 ### LiveMap
@@ -373,6 +395,16 @@ Interface dedicada ao motorista, em `/bordo`:
 | `GET/POST` | `/api/v1/stops` | `admin`, `funcionario` | CRUD de paragens |
 | `GET/POST` | `/api/v1/routes` | `admin`, `funcionario` | CRUD de rotas (calcula segmentos OSRM) |
 | `GET` | `/api/v1/route-segments/route/{id}` | `admin`, `funcionario` | Segmentos OSRM de uma rota |
+| `GET` | `/api/v1/routes/{id}/patterns` | `admin`, `funcionario` | Padrões (trajetos) de uma linha |
+| `POST` | `/api/v1/routes/preview-geometry` | `admin` | Preview OSRM de uma sequência de pontos |
+| `POST/PUT/DELETE` | `/api/v1/routes/{id}/patterns[/{patternId}]` | `admin` | Criar / editar / apagar padrão (editor) |
+| `GET` | `/api/v1/patterns/{id}/{geometry,stops,trips,authoring}` | `admin`, `funcionario` | Geometria, paragens, trips e pontos de autoria de um padrão |
+| `GET` | `/api/v1/routes/export.geojson` | Público | FeatureCollection de linhas |
+| `GET` | `/api/v1/stops/export.geojson` | Público | FeatureCollection de paragens |
+| `GET/POST/DELETE` | `/api/v1/operators` | `admin` | CRUD de operadores de transporte |
+| `GET` | `/api/v1/catalog/datasets` | Público | Catálogo DCAT-AP (JSON-LD) |
+| `GET` | `/api/v1/calendar?from&to` | `admin`, `funcionario` | Calendário operacional por dia |
+| `GET` | `/api/v1/schedules/{trips,coverage}` | `admin`, `funcionario` | Horários planeados e indicadores de cobertura |
 | `GET/POST` | `/api/v1/buses` | `admin`, `funcionario` | CRUD de autocarros |
 | `POST` | `/api/v1/buses/batch?count=N` | `developer` | Criar 1 a 50 autocarros aleatórios |
 | `PUT` | `/api/v1/buses/{id}/activate` | `admin`, `funcionario` | Ativa o autocarro |
@@ -461,6 +493,11 @@ Localização: `pgu/src/main/resources/db/migration/`. As migrações executam a
 | `V30` a `V34` | `data_source` + cleanup de owners e descrições |
 | `V35` | Estado `CANCELED` em `export_job` |
 | `V36` | Campos MinIO em `export_job` (chave do objeto, presigned URL) |
+| `V37` | `ai_interaction_log` (auditoria do chatbot IA) |
+| `V38` | `operator` (operadores de transporte) + `route.operator_id` |
+| `V39` | `service_calendar` (calendário operacional GTFS) |
+| `V40` a `V42` | Modelo **Transmodel**: `journey_pattern`, `pattern_stop`, `pattern_segment`, `trip`, `trip_stop_time`, blocks; drop do schedule legado |
+| `V43` | Pontos de autoria dos padrões (waypoints do editor) |
 
 ---
 
@@ -491,7 +528,7 @@ DAI/
 │       └── resources/
 │           ├── application.properties
 │           ├── application-prod.properties
-│           └── db/migration/       # Flyway V1 a V36
+│           └── db/migration/       # Flyway V1 a V43
 │
 ├── pgu-web/                        # Frontend React + Vite
 │   ├── nginx.conf.template         # Reverse proxy e security headers (prod)
@@ -571,7 +608,7 @@ Plano completo, com critérios de aceitação por fase, em [`PLANO_ITERACAO.md`]
 | Sprint -1 | **Concluído** | Hardening (segurança, CORS, JWT, audit, índices) |
 | Sprint 0 | **Concluído** | Fundações e polish: MFA TOTP, i18n PT/EN, tema escuro, DataSources, self-service de conta, avatares, batch de drivers/buses, exports em MinIO, GTFS toast, proxy NGSI-LD, LiveMap polido |
 | Pré-Sprint 1 | **Concluído** | 8 follow-ups do backlog (motoristas password demo, chatbot AI funcional com stubs Spring Boot 4, password loop, i18n EN Ocorrências + PainelBordo, modal MinhaConta no bordo, deep-link a alarmes, conta `developer` + Ferramentas Dev) |
-| Sprint 1 | **Em curso** | Vertical 3.1 Transportes Públicos (10 fases F0 a F9): entidade `Operator`, GeoJSON, schedule adherence stoplight, DCAT-AP, Calendar, cobertura/frequência, GTFS-RT, NeTEx |
+| Sprint 1 | **Em curso (~60%)** | Vertical 3.1: feitos `Operator`, GeoJSON, DCAT-AP/Open Data, Calendário+Horários, re-arquitetura **Transmodel** (Linha→Padrão→Trip), editor de padrões e redesign liquid-glass; faltam schedule adherence stoplight, correlações, GTFS-RT e NeTEx |
 | Sprint 2 a 8b | Planeados | Verticais adicionais (consultar `PLANO_ITERACAO.md`) |
 
 > **Nota:** o termo "operadores de transportes" mencionado a partir do Sprint 1 refere-se à entidade de domínio `Operator` (TUB, Carris, etc.) e não a uma role do sistema. As roles do sistema são `admin`, `funcionario`, `motorista` e `developer`.

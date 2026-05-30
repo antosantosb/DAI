@@ -108,7 +108,7 @@ export default function Dashboard() {
             <div className="alarmes-widget">
               <div className="alarmes-status-row">
                 <span>{t('pages.dashboard.openOcorrencias')}</span>
-                <span className="alarmes-count-badge">{activeAlarms.length}</span>
+                <span className="alarmes-count-badge" style={{ color: activeAlarms.length > 0 ? 'var(--color-danger)' : undefined }}>{activeAlarms.length}</span>
               </div>
               <div className="alarmes-status-row">
                 <span>{t('pages.dashboard.criticalAlarms')}</span>

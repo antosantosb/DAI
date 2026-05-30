@@ -10,6 +10,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import Modal from '../components/Modal';
 import AccountForm from '../components/AccountForm';
 import Avatar from '../components/Avatar';
+import MessageStatusIcon from '../components/MessageStatusIcon';
 import './PainelBordo.css';
 
 export default function PainelBordo() {
@@ -423,11 +424,7 @@ export default function PainelBordo() {
               )}
               {messages.map(msg => {
                 const sent = isFromDriver(msg);
-                const stateIcon =
-                  msg.estado === 'LIDA' ? '✓✓' :
-                  msg.estado === 'ENTREGUE' ? '✓✓' :
-                  msg.estado === 'ENVIADA' ? '✓' :
-                  msg.estado === 'FALHOU' ? '!' : '';
+                const stateIcon = <MessageStatusIcon estado={msg.estado} />;
                 return (
                   <div key={msg.id} className={`pb-message ${sent ? 'pb-message--sent' : 'pb-message--received'}`}>
                     {!sent && <div className="pb-message-sender">{t('pages.painelBordo.chat.dispatchSender')}</div>}

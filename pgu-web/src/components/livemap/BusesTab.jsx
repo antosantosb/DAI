@@ -44,11 +44,6 @@ export default function BusesTab({
     [busList]
   );
 
-  const totalPassengers = useMemo(() =>
-    busList.reduce((sum, b) => sum + (b.passengers ?? 0), 0),
-    [busList]
-  );
-
   const filteredBusList = useMemo(() =>
     busSearch
       ? busList.filter(bus => {
@@ -115,10 +110,6 @@ export default function BusesTab({
         <div className="livemap-stat">
           <div className="livemap-stat-value">{activeRouteIds.size}</div>
           <div className="livemap-stat-label">{t('livemap.statsActiveRoutes')}</div>
-        </div>
-        <div className="livemap-stat">
-          <div className="livemap-stat-value">{totalPassengers}</div>
-          <div className="livemap-stat-label">{t('livemap.statsPassengers')}</div>
         </div>
       </div>
 

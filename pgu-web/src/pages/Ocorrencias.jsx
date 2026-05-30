@@ -270,7 +270,7 @@ export default function Ocorrencias() {
       <section className="active-alarms-panel">
         <div className="active-alarms-header">
           <h2>
-            <span>🚨</span> {t('pages.ocorrencias.activeAlarms.title', { count: activeAlarms.length })}
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: '-4px', marginRight: '6px' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>{t('pages.ocorrencias.activeAlarms.title', { count: activeAlarms.length })}
           </h2>
         </div>
         {activeAlarms.length === 0 ? (
@@ -338,8 +338,8 @@ export default function Ocorrencias() {
         <p className="analytics-loading">{t('pages.ocorrencias.loading')}</p>
       ) : (
         <section className="bus-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="congestion-table-wrap" style={{ maxHeight: 'none' }}>
-            <table className="congestion-table">
+          <div className="ocorrencias-table-wrap" style={{ maxHeight: 'none' }}>
+            <table className="ocorrencias-table">
               <thead>
                 <tr>
                   <th>{t('pages.ocorrencias.headers.id')}</th>
@@ -377,7 +377,7 @@ export default function Ocorrencias() {
                           {o.estado.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="congestion-time">{formatTime(o.timestampAbertura)}</td>
+                      <td className="ocorrencias-time">{formatTime(o.timestampAbertura)}</td>
                       <td>{o.responsavel || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('pages.ocorrencias.unassigned')}</span>}</td>
                       <td>
                         {o.reincidencia && (
@@ -645,7 +645,7 @@ export default function Ocorrencias() {
                     attachments.map(anexo => (
                       <div key={anexo.id} className="attachment-item">
                         <div className="attachment-info">
-                          <span>📎</span>
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, opacity: 0.7 }}><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
                           <span>{anexo.nomeFicheiro}</span>
                           <span className="attachment-size">({(anexo.tamanhoBytes / 1024 / 1024).toFixed(2)} MB)</span>
                         </div>

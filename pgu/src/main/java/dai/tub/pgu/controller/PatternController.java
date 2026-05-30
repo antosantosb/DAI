@@ -52,4 +52,17 @@ public class PatternController
     {
         return patternService.getTrips(patternId);
     }
+
+    /**
+     * Sprint 1 (F2): sequência de autoria de um padrão, para reabrir no editor do
+     * mapa. Devolve { directionId, name, points: [ {type, stopId?, lat, lon}, ... ] }.
+     * Se o padrão foi criado/editado manualmente, devolve a sequência guardada
+     * (STOPs + WAYPOINTs); se foi importado de GTFS, reconstrói os pontos a partir
+     * das paragens em sequência (sem âncoras). 404 se o padrão não existir.
+     */
+    @GetMapping("/patterns/{patternId}/authoring")
+    public Map<String, Object> authoring(@PathVariable Long patternId)
+    {
+        return patternService.getAuthoring(patternId);
+    }
 }

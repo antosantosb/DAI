@@ -16,6 +16,10 @@ public class RouteDTO
     private String operatorCode;
     private String operatorName;
 
+    // Sprint 1 (Fase 2): nº de JourneyPattern (padroes/trajetorias) da linha.
+    // Preenchido na listagem (getAll) por uma unica query agregada; null no detalhe.
+    private Long patternCount;
+
     public RouteDTO() {}
 
     // GET
@@ -28,6 +32,7 @@ public class RouteDTO
     public Long              getOperatorId()   { return this.operatorId; }
     public String            getOperatorCode() { return this.operatorCode; }
     public String            getOperatorName() { return this.operatorName; }
+    public Long              getPatternCount() { return this.patternCount; }
 
     // SET
     public void setId(Long id)                      { this.id = id; }
@@ -39,4 +44,5 @@ public class RouteDTO
     public void setOperatorId(Long operatorId)         { this.operatorId = operatorId; }
     public void setOperatorCode(String operatorCode)   { this.operatorCode = operatorCode; }
     public void setOperatorName(String operatorName)   { this.operatorName = operatorName; }
+    public void setPatternCount(Long patternCount)     { this.patternCount = patternCount; }
 }

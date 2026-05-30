@@ -20,6 +20,14 @@ public interface JourneyPatternRepository extends JpaRepository<JourneyPattern, 
 
     long countByRouteId(Long routeId);
 
+    /**
+     * Sprint 1 (Fase 2): contagem de padroes por rota numa unica query agregada
+     * (SELECT route_id, COUNT(*) ... GROUP BY route_id), para preencher o
+     * patternCount na listagem sem incorrer em N+1. Cada Object[] e' [routeId, count].
+     */
+    @Query("SELECT p.route.id, COUNT(p) FROM JourneyPattern p GROUP BY p.route.id")
+    List<Object[]> countGroupedByRouteId();
+
     /** Apagar todos os padroes de uma importacao GTFS (cascade DB apaga stops/segments/trips). */
     @Modifying
     @Query("DELETE FROM JourneyPattern p WHERE p.gtfsImport.id = :importId")

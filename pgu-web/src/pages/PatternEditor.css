@@ -1,0 +1,291 @@
+/* Sprint 2 (redesign): editor manual de Padrao (trajeto). */
+.pe {
+  display: flex;
+  flex-direction: column;
+}
+
+.pe-body {
+  display: flex;
+  gap: 16px;
+  height: calc(100vh - 210px);
+  min-height: 460px;
+}
+
+.pe-map-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.pe-map {
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+/* Legenda flutuante em vidro. */
+.pe-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  box-shadow: var(--glass-shadow);
+  font-size: 12px;
+  color: var(--color-text);
+}
+.pe-legend-item { display: flex; align-items: center; gap: 8px; }
+.pe-legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.pe-legend-dot--stop { border: 2px solid #fff; }
+.pe-legend-dot--wp { background: var(--color-surface); border: 2px solid var(--color-primary); }
+
+/* Painel lateral da sequencia. */
+.pe-panel {
+  width: 330px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow-y: auto;
+}
+
+.pe-meta { display: flex; flex-direction: column; gap: 12px; }
+.pe-meta .form-group { display: flex; flex-direction: column; gap: 6px; }
+.pe-meta label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.pe-meta select,
+.pe-meta input {
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.pe-meta select:focus,
+.pe-meta input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.pe-seq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 14px;
+}
+.pe-seq-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-heading);
+}
+.pe-seq-count { font-size: 12px; color: var(--color-text-secondary); }
+
+.pe-seq-empty {
+  font-size: 13px;
+  color: var(--color-text-light);
+  line-height: 1.55;
+}
+
+.pe-seq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+.pe-seq-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+}
+.pe-seq-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.pe-seq-item--waypoint .pe-seq-badge {
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  border: 2px solid var(--color-text-light);
+}
+.pe-seq-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pe-seq-item--waypoint .pe-seq-label {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+.pe-seq-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.pe-seq-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition);
+}
+.pe-seq-btn:hover:not(:disabled) { background: var(--color-border-light); color: var(--color-text-heading); }
+.pe-seq-btn:disabled { opacity: 0.3; cursor: default; }
+.pe-seq-btn--remove:hover { background: var(--color-danger-light); color: var(--color-danger); }
+
+.pe-clear {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.pe-clear:hover { text-decoration: underline; }
+
+.pe-hint {
+  font-size: 11.5px;
+  color: var(--color-text-light);
+  line-height: 1.55;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+/* Marcador de paragem na sequencia (Leaflet divIcon, classe global). */
+.pe-stop-divicon { background: transparent; border: none; }
+.pe-stop-marker {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Pesquisa de paragens (voa ate' a paragem escolhida). */
+.pe-search { position: relative; }
+.pe-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-light);
+  pointer-events: none;
+}
+.pe-search-input {
+  width: 100%;
+  padding: 9px 12px 9px 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.pe-search-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+.pe-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.pe-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.pe-search-item:hover { background: var(--color-primary-light); }
+.pe-search-code {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.pe-search-name {
+  font-size: 13px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reordenar a sequencia por arrasto (alem das setas). */
+.pe-seq-item { cursor: grab; }
+.pe-seq-item:active { cursor: grabbing; }
+.pe-seq-item--dragging { opacity: 0.45; }
+/* Os botoes da direita mantem o cursor normal. */
+.pe-seq-actions, .pe-seq-btn { cursor: pointer; }
+
+/* Ancora arrastavel no mapa (reposicionar depois de colocada). */
+.pe-wp-divicon { background: transparent; border: none; cursor: move; }
+.pe-wp-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}

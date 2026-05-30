@@ -3,6 +3,7 @@ package dai.tub.pgu.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -35,4 +36,13 @@ public interface TripStopTimeRepository extends JpaRepository<TripStopTime, Long
     /** Contar passing-times de uma importacao GTFS. */
     @Query("SELECT COUNT(t) FROM TripStopTime t WHERE t.trip.gtfsImport.id = :importId")
     long countByImportId(@Param("importId") Long importId);
+
+    /**
+     * Apagar todos os passing-times das trips de um padrao (ao apagar o
+     * JourneyPattern). Tem de correr ANTES de apagar as trips, para satisfazer a
+     * FK trip_id.
+     */
+    @Modifying
+    @Query("DELETE FROM TripStopTime tst WHERE tst.trip.pattern.id = :patternId")
+    void deleteByPatternId(@Param("patternId") Long patternId);
 }

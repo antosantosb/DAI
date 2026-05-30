@@ -374,6 +374,51 @@
   color: var(--color-primary);
 }
 
+/* Botao Editar do padrao (so' admin): icone a direita, antes do icone do mapa. */
+.route-pattern-edit {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.route-pattern-edit:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+.route-pattern-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.route-pattern-delete:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+/* O icone do mapa nao adiciona espaco extra (o gap do item trata disso). */
+.route-pattern-edit ~ .route-pattern-map-icon {
+  margin-left: 0;
+}
+
 /* ─── Modal com mapa do padrão ─── */
 /* O modal partilhado tem max-width:420px e text-align:center (bom para
  * mensagens). Para o mapa precisamos de mais largura e alinhamento normal —

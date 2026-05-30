@@ -25,4 +25,13 @@ public interface TripRepository extends JpaRepository<Trip, Long>
     @Modifying
     @Query("DELETE FROM Trip t WHERE t.gtfsImport.id = :importId")
     void deleteByImportId(@Param("importId") Long importId);
+
+    /**
+     * Apagar todas as trips de um padrao (ao apagar o JourneyPattern). Os
+     * trip_stop_time devem ser apagados ANTES (ver TripStopTimeRepository), senao
+     * a FK trip_id impede a remocao das trips.
+     */
+    @Modifying
+    @Query("DELETE FROM Trip t WHERE t.pattern.id = :patternId")
+    void deleteByPatternId(@Param("patternId") Long patternId);
 }

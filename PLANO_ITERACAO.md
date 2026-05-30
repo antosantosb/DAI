@@ -758,7 +758,7 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 
 ---
 
-### Sprint 1 — Vertical 3.1 Completo (Transportes Públicos)
+### Sprint 1 — Vertical 3.1 (Transportes Públicos) (EM CURSO, ~60%)
 
 **Duração estimada:** 2 semanas (~41h).
 
@@ -769,24 +769,51 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 - R.AN.04 — exportação Excel (Apache POI).
 - R.BO.01 — export GeoJSON.
 
+> **ESTADO (EM CURSO).** Entregue: **F0** (Operator), **F1** (GeoJSON), **F3** (DCAT-AP, portal Open Data público em `/open-data`), **F4** (Calendário + Horários) e o endpoint de cobertura do **F5**. Para lá do plano original de 10 fases entregaram-se ainda três blocos grandes: uma **re-arquitetura Transmodel** do modelo (Linha, Padrão, Trip), um **editor manual de padrões/trajetos** (waypoints + paragens + OSRM) e um **redesign visual liquid-glass** transversal. Detalhe na subsecção "Estado atual" abaixo. **Pendente:** F2 (stoplight), F6 (correlação), F7 (GTFS-RT), F8 (NeTEx), F9 (cross-cutting).
+
 #### Estrutura por fases (10 fases, 1 commit cada)
 
 Sequência por dependências (F0 base, F9 wrap-up) e por importância dentro de cada nível. Ordem: features sem deps → features dependentes de F0 → integrações complexas → cross-cutting final.
 
-| # | Fase | Esforço | Depende de | R.cobertos |
-|---|---|---|---|---|
-| F0 | **Entidade `Operator` + relação `Route.operator`** | ~2h | nenhuma | R.IVT.03 |
-| F1 | **Export GeoJSON** de rotas e paragens | ~2h | nenhuma | R.BO.01 |
-| F2 | **Schedule adherence stoplight** no Livemap (verde/amarelo/vermelho por linha) | ~2h | telemetria existente | extensão R.IVT.06 |
-| F3 | **API Catálogo Nacional (DCAT-AP)** — `GET /api/v1/catalog/datasets` | ~3h | F0 | R.IVT.09, R.INT.10 |
-| F4 | **Calendário operacional** — `Calendar.jsx` semanal/diária | ~6h | F0 (operadores no header) | R.IVT.05 |
-| F5 | **Indicadores cobertura/frequência** — endpoint + secção `AnalyticsDashboard` | ~6h | GTFS interno | R.IVT.06 |
-| F6 | **Cruzamento dados mobilidade real** — atrasos + correlação com eventos | ~2h | telemetria + GTFS | R.IVT.10 |
-| F7 | **GTFS-RT Publisher** — protobuf `vehicle-positions.pb` + `trip-updates.pb` | ~8h | F0, GTFS interno, telemetria | R.IVT.01, R.IVT.04, R.IVT.07 |
-| F8 | **NeTEx Exporter** — `GET /api/v1/netex/export.xml` (subset essencial) | ~8h | F0, F4 | R.IVT.02, R.IVT.08, R.IVT.11 |
-| F9 | **Cross-cutting** — pulses DataSource + métricas Micrometer | ~2h | F7 | observabilidade |
+| # | Estado | Fase | Esforço | Depende de | R.cobertos |
+|---|---|---|---|---|---|
+| F0 | ✅ | **Entidade `Operator` + relação `Route.operator`** | ~2h | nenhuma | R.IVT.03 |
+| F1 | ✅ | **Export GeoJSON** de rotas e paragens | ~2h | nenhuma | R.BO.01 |
+| F2 | ⏳ | **Schedule adherence stoplight** no Livemap (verde/amarelo/vermelho por linha) | ~2h | telemetria existente | extensão R.IVT.06 |
+| F3 | ✅ | **API Catálogo Nacional (DCAT-AP)** — `GET /api/v1/catalog/datasets` | ~3h | F0 | R.IVT.09, R.INT.10 |
+| F4 | ✅ | **Calendário operacional** — `Calendar.jsx` semanal/diária | ~6h | F0 (operadores no header) | R.IVT.05 |
+| F5 | 🟡 | **Indicadores cobertura/frequência** — endpoint + secção `AnalyticsDashboard` | ~6h | GTFS interno | R.IVT.06 |
+| F6 | ⏳ | **Cruzamento dados mobilidade real** — atrasos + correlação com eventos | ~2h | telemetria + GTFS | R.IVT.10 |
+| F7 | ⏳ | **GTFS-RT Publisher** — protobuf `vehicle-positions.pb` + `trip-updates.pb` | ~8h | F0, GTFS interno, telemetria | R.IVT.01, R.IVT.04, R.IVT.07 |
+| F8 | ⏳ | **NeTEx Exporter** — `GET /api/v1/netex/export.xml` (subset essencial) | ~8h | F0, F4 | R.IVT.02, R.IVT.08, R.IVT.11 |
+| F9 | ⏳ | **Cross-cutting** — pulses DataSource + métricas Micrometer | ~2h | F7 | observabilidade |
+
+> Legenda: ✅ feito · 🟡 parcial · ⏳ pendente.
 
 **Esforço total:** ~41h.
+
+#### Estado atual do Sprint 1 (entregue para lá do plano F0–F9)
+
+O trabalho real extravasou o plano original de 10 fases. Além de F0, F1, F3 e F4, entregaram-se três blocos grandes:
+
+**1. Re-arquitetura Transmodel do modelo de dados (V40–V42).**
+- O modelo plano GTFS foi substituído por um modelo Transmodel: **Linha** (`Route`, identidade) → **Padrão de viagem** (`JourneyPattern`, o trajeto = `PatternStop` ordenadas + `PatternSegment` com a geometria) → **Trip** (passagem concreta, com `TripStopTime`).
+- Migrações `V40__journey_pattern_trip.sql`, `V41__block_structure.sql`, `V42__drop_legacy_route_schedule.sql`.
+- `GtfsService` reescrito para gerar padrões/trips/geometria a partir do import; `ScheduleService`, `CalendarService` e as AI tools re-apontados ao novo modelo.
+- Assinatura de padrão = SHA-256 de `directionId:stopId1,stopId2,...` (deduplica padrões idênticos).
+
+**2. Editor manual de padrões/trajetos (`PatternEditor.jsx` + V43).**
+- Página inteira para desenhar um padrão: clicar numa **paragem** adiciona-a ao padrão; clicar no **mapa vazio** cria um **ponto âncora (waypoint)** que só molda a geometria; o **OSRM** encaixa a linha por estrada através de todos os pontos; no fim os waypoints ficam guardados como pontos de autoria (`V43__pattern_authoring_points.sql`) para o padrão poder ser reaberto e re-editado.
+- Pesquisa de paragens (flyTo), Ctrl+Z remove o último ponto, drag-n-drop para reordenar, arrastar waypoints já colocados, basemap CARTO Voyager.
+- Endpoints: `POST /routes/preview-geometry`, `POST /routes/{id}/patterns`, `PUT`/`DELETE /routes/{id}/patterns/{patternId}`, `GET /patterns/{id}/authoring`. Cache `routes` invalidada nas mutações (corrige a coluna "Padrões").
+
+**3. Redesign visual liquid-glass + naming.**
+- Linguagem liquid-glass (tokens em `index.css`) aplicada à chrome do backoffice (sidebar flutuante) e ao Livemap (sidebar e cartões em vidro, controlos de zoom, modal de horários centrado via portal React).
+- Remoção de **todos os emojis** do UI, substituídos por SVG (incl. ícones de estado de mensagem).
+- Naming consistente **"Linha/Line"** em todo o UI (o backend mantém "route", interno ao GTFS).
+- Páginas repolidas: Dashboard, Ocorrências, Hub pós-login, Landing e login Keycloak. Aba Linhas reestruturada (edição = identidade: nome/código/cor/operador; coluna "Padrões" com `patternCount`). Página de Horários reescrita (Linha → Padrão → Trip → tempos, com etiquetas amigáveis).
+
+> **Por commitar.** Os blocos 2 e 3 e o endpoint de cobertura estão na working tree (ainda não commitados à data desta atualização). O bloco 1 está em `0b24d28`; F0/F1/F3/F4 em `6df8a29`.
 
 #### Entregáveis por fase
 
@@ -886,7 +913,7 @@ Sequência por dependências (F0 base, F9 wrap-up) e por importância dentro de 
 - **Cobertura geográfica em F5** assume polygon de Braga. Se não existir, usar `ST_ConvexHull` de todas as paragens (aproximação).
 - **DCAT-AP** validação SHACL pode falhar em campos opcionais — testar cedo no validador oficial.
 
-#### Saída do Sprint 1
+#### Saída esperada do Sprint 1 (alvo; F2 e F6 a F9 ainda pendentes)
 
 - ✅ Conformidade FIWARE GTFS-RT (standard real-time de facto da indústria).
 - ✅ Conformidade NeTEx (compliance europeu para autoridades de transporte).
@@ -1638,13 +1665,11 @@ Para o relatório do trabalho (caderno seção 4 — Entregáveis e Documentaç�
 
 ## 10. Próximos Passos Imediatos
 
-1. **Validar este plano com o orientador** — confirmar prioridades e disponibilidade de equipa.
-2. **Confirmar UC6/ e UC7/** (pastas vazias) — verificar se são placeholders para entregáveis específicos.
-3. **Limpar `AUDITORIA_FEATURES.md`** (todo o conteúdo está agora aqui — pode ser apagado ou substituído por stub que redireciona para este documento).
-4. **Começar Sprint -1** pelo item de menor risco: **fix CORS + credentials** (0.5h, desbloqueia JWT POST imediatamente) seguido de **role consistency `operator`/`operador`** (1.5h, desbloqueia bug funcional).
-5. **Configurar `PGU_TICKET_SALT` em env vars** (preparação para S5, antes de qualquer ingestão).
-6. **Estabelecer convention de naming** para NiFi processGroups antes de S2 começar a adicionar pipelines.
-7. **Painel de bordo + role `motorista` + `driver_bus_assignment` já implementado** (pre-Sprint -1, 2026-05-24). Endpoints: `GET /drivers/me/bus`, `POST /despacho/{busId}/mensagens/motorista`, `POST /ocorrencias/motorista`. Migrações V25 (`keycloak_user_id` em drivers) + V26 (fix tipo `bus_id`). Sprint -1 ao aplicar SEC-5 deve **manter** este modelo (Keycloak no tablet) e apenas endurecer auto-logout + token TTL.
+1. **Fechar o Sprint 1.** Falta F2 (schedule adherence stoplight no Livemap), F6 (correlação atrasos/eventos), F7 (GTFS-RT publisher), F8 (NeTEx exporter) e F9 (cross-cutting: pulses + métricas). O F5 (cobertura/frequência) já tem o endpoint `GET /api/v1/schedules/coverage`; falta a secção no AnalyticsDashboard.
+2. **Commitar a working tree do redesign.** O editor de padrões, o redesign liquid-glass e o rework de Horários estão por commitar. Rebuild do backend (`docker compose up -d --build spring-boot_backend`) necessário para ativar a V43, os endpoints de padrões e o `patternCount`.
+3. **Configurar `PGU_TICKET_SALT` em env vars** (preparação para S5, antes de qualquer ingestão de bilhética).
+4. **Estabelecer convention de naming** para NiFi processGroups antes de S2 começar a adicionar pipelines.
+5. **Manter o modelo do Painel de Bordo** (role `motorista` + `driver_bus_assignment`, Keycloak no tablet) já implementado: endpoints `GET /drivers/me/bus`, `POST /despacho/{busId}/mensagens/motorista`, `POST /ocorrencias/motorista`.
 
 ---
 

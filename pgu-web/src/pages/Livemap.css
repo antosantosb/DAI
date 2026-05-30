@@ -25,15 +25,19 @@
  * Mantida pequena no canto inferior direito — cumpre licenca ODbL sem
  * competir visualmente. */
 .leaflet-control-attribution {
-  background: rgba(15, 23, 42, 0.78) !important;
-  color: rgba(255, 255, 255, 0.7) !important;
+  /* Sprint 2 (redesign): pill de atribuicao em vidro escuro, alinhada com o
+   * popover de conta do backoffice (rgba(20,32,48,...)) para legibilidade
+   * sobre tiles variados. Blur reforcado com os tokens de vidro. */
+  background: rgba(20, 32, 48, 0.62) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
   border-radius: var(--radius-pill) !important;
   font-size: 10.5px !important;
   padding: 3px 10px !important;
   margin: 8px !important;
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(18px) saturate(var(--glass-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--glass-shadow);
 }
 .leaflet-control-attribution a {
   color: var(--color-primary, #009BDB) !important;
@@ -48,6 +52,36 @@
 .leaflet-control-attribution > a[href*="leaflet"]:not([href*="openstreetmap"]),
 .leaflet-attribution-flag {
   display: none !important;
+}
+
+/* Sprint 2 (redesign): controlos de zoom (+/-) do Leaflet em vidro fosco.
+ * Flutuam sobre o mapa, por isso recebem a mesma linguagem do card LAYERS:
+ * preenchimento translucido, blur+saturate e cantos mais arredondados. */
+.leaflet-bar {
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: var(--glass-shadow), var(--glass-highlight) !important;
+  overflow: hidden;
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  color: var(--color-text);
+  border-bottom: 1px solid var(--glass-hairline);
+}
+.leaflet-bar a:hover {
+  background: var(--glass-bg);
+}
+.leaflet-bar a:first-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.leaflet-bar a:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-bottom: none;
 }
 
 .livemap-wrapper {
@@ -84,11 +118,30 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
+  /* Sprint 2 (redesign): vidro fosco coerente com o backoffice. Camada de
+   * sheen especular sobre o preenchimento translucido forte; o blur+saturate
+   * deixa o mapa transparecer sem prejudicar a legibilidade dos botoes. */
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  /* Fix "barra preta" (robusto): o vidro (preenchimento + backdrop-filter) vai
+     num ::before que preenche o card com os cantos arredondados, em vez de ir
+     direto no elemento. Evita o bug do Chromium em que backdrop-filter +
+     border-radius (mesmo com overflow:hidden) deixava uma faixa escura no topo.
+     'isolation: isolate' garante que o ::before (z-index:-1) fica dentro do card,
+     sobre o mapa, e nao atras dele. */
+  isolation: isolate;
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
   min-width: 140px;
+}
+.livemap-overlay-controls::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 /* Sprint 1 follow-up: header agora e' um botao que collapse/expand os items. */
 .livemap-overlay-header {
@@ -110,7 +163,8 @@
   transition: background var(--transition), color var(--transition);
 }
 .livemap-overlay-header:hover {
-  background: var(--color-bg-subtle);
+  /* Hover translucido para nao tapar o vidro por baixo. */
+  background: var(--glass-hover);
   color: var(--color-text);
 }
 .livemap-overlay-header:focus-visible {
@@ -162,15 +216,15 @@
   min-width: 0;
 }
 
-/* Sprint 1 follow-up: empurrar os zoom controls do Leaflet (topleft) para
- * baixo do card LAYERS. Posicao adapta ao estado collapsed/expanded via
- * :has() no map-wrap. */
-.livemap-map-wrap .leaflet-top.leaflet-left {
-  top: 260px;
-  transition: top 220ms ease;
-}
-.livemap-map-wrap:has(.livemap-overlay-controls--collapsed) .leaflet-top.leaflet-left {
-  top: 60px;
+/* Sprint 2 (fix overlap): o zoom (+/-) foi movido para o canto SUPERIOR
+ * DIREITO (L.control.zoom position topright) — o unico canto livre do mapa.
+ * Top-esquerda tem o card CAMADAS, baixo-esquerda os switchers tema/idioma e
+ * baixo-direita a atribuicao; so' o topo-direita estava vazio. Damos folga ao
+ * topo e a direita para nao colar a aresta e para alinhar opticamente com o
+ * card CAMADAS do lado oposto. */
+.livemap-map-wrap .leaflet-top.leaflet-right .leaflet-control-zoom {
+  margin-top: 10px;
+  margin-right: 10px;
 }
 
 .livemap-overlay-btn {
@@ -194,7 +248,7 @@
   transition: opacity var(--transition);
 }
 .livemap-overlay-btn:hover {
-  background: var(--color-bg-subtle);
+  background: var(--glass-hover);
   color: var(--color-text);
 }
 .livemap-overlay-btn:hover svg {
@@ -264,27 +318,168 @@
 .livemap-sidebar {
   width: 360px;
   height: 100%;
-  background: var(--color-surface);
+  /* Sprint 2 (redesign): vidro escuro coerente com a sidebar do backoffice
+     (.sidebar em Layout.css). Mesma linguagem: camada de sheen sobre o
+     preenchimento de vidro escuro, blur+saturate com os tokens partilhados. O
+     conteudo denso (tabs, cards, pesquisa) recebe overrides legiveis mais
+     abaixo, tal como a nav do backoffice. */
+  background: var(--glass-sheen), var(--sidebar-glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   /* Sprint 1 follow-up: border-right porque sidebar ficou na esquerda. */
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--sidebar-glass-border);
+  box-shadow: var(--sidebar-glass-shadow);
+  /* Sprint 2 (fix anim): clip OBRIGATORIO. A largura do wrapper anima ate 0,
+     mas o body por dentro mantem 360px fixos (ver .livemap-sidebar-body). E'
+     este overflow:hidden que faz o conteudo "deslizar para fora" com a aresta,
+     sem espremer/refluir o texto. O toggle ja' nao assoma para fora (fica
+     ancorado dentro da aresta) por isso o clip nao o corta. */
   overflow: hidden;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  /* Sprint 2 (fix anim): easing material (decelerate) e duracao ~260ms,
+     casada com o setTimeout do invalidateSize() no JSX. */
+  transition: width 260ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-right-color 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Conteudo da sidebar — largura FIXA (360px). Nunca encolhe: ao recolher, o
+   wrapper (overflow:hidden) corta-o progressivamente em vez de o espremer, por
+   isso o texto/controlos nao refluem durante a animacao. */
+.livemap-sidebar-body {
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
+  height: 100%;
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex-shrink: 0;
   box-sizing: border-box;
+  overflow: hidden;
+  /* Fade do conteudo em sintonia com o slide (um pouco mais rapido para
+     desaparecer antes do fim do encolhimento — colapso mais limpo). */
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Sprint 1 follow-up: footer do sidebar do Livemap (widget user). */
+.livemap-sidebar--collapsed {
+  width: 0;
+  border-right-color: transparent;
+}
+
+.livemap-sidebar--collapsed .livemap-sidebar-body {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Botao de toggle — assoma na costura sidebar/mapa (aresta esquerda do mapa).
+   Sprint 2 (fix anim): agora vive dentro de .livemap-map-wrap, ancorado a' sua
+   aresta esquerda (left:-14px → meio sobre a sidebar, meio sobre o mapa). Fica
+   sempre visivel (a sidebar tem overflow:hidden) e na mesma costura quer
+   expandida quer recolhida. Vidro fosco coerente com os controlos do mapa. */
+.livemap-sidebar-toggle {
+  position: absolute;
+  /* A meio da altura (em vez do topo, onde tapava o card CAMADAS). */
+  top: 50%;
+  left: -14px;
+  transform: translateY(-50%);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  transition: background var(--transition), color var(--transition),
+              transform var(--transition);
+}
+.livemap-sidebar-toggle:hover {
+  color: var(--color-primary);
+  background: var(--glass-sheen), var(--glass-bg);
+}
+.livemap-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.livemap-sidebar-toggle svg {
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Recolhida: o chevron inverte para apontar "abrir". A posicao nao muda — a
+   costura fica no mesmo sitio porque o mapa expande para a esquerda. */
+.livemap-sidebar-toggle--collapsed svg {
+  transform: rotate(180deg);
+}
+
+/* Sprint 1 follow-up: footer do sidebar do Livemap (widget user).
+   Sprint 2 (redesign): sobre o vidro escuro, o footer fica translucido (sem
+   bloco solido) com uma hairline clara, tal como o footer do backoffice. */
 .livemap-sidebar-footer {
   margin-top: auto;
   margin-left: -16px;
   margin-right: -16px;
   margin-bottom: -20px;
   padding: 12px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-subtle);
+  border-top: 1px solid var(--glass-hairline);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Sprint 2 (redesign): override do widget partilhado SidebarUserMenu quando
+ * vive na sidebar de vidro escuro do Livemap. Espelha .sidebar .sb-* do
+ * backoffice (Layout.css) para a UI ficar consistente: trigger/nome/role
+ * legiveis sobre o vidro escuro e popover de conta em vidro fosco escuro
+ * (preenchimento translucido + blur + hairline clara + sombra de profundidade),
+ * tal como o popover de conta do backoffice. */
+.livemap-sidebar .sb-user-trigger:hover,
+.livemap-sidebar .sb-user-trigger--open {
+  background: rgba(255, 255, 255, 0.06);
+}
+.livemap-sidebar .sb-user-name { color: #e2e8f0; }
+.livemap-sidebar .sb-user-role { color: #94a3b8; }
+.livemap-sidebar .sb-user-caret { color: #94a3b8; }
+.livemap-sidebar .sb-user-menu {
+  /* Popover em vidro fosco escuro (igual ao .sidebar-account-menu). */
+  background: var(--glass-sheen), rgba(20, 32, 48, 0.62);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.55);
+}
+.livemap-sidebar .sb-user-item { color: #cbd5e1; }
+.livemap-sidebar .sb-user-item:hover { background: rgba(0, 155, 219, 0.15); color: #fff; }
+.livemap-sidebar .sb-user-item--danger { color: #f87171; }
+.livemap-sidebar .sb-user-item--danger:hover { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.livemap-sidebar .sb-user-divider { background: rgba(255, 255, 255, 0.08); }
+
+/* Sprint 2 (redesign): legibilidade do conteudo denso sobre o vidro escuro.
+ * A sidebar e' sempre vidro escuro (como a do backoffice), por isso remapeamos
+ * localmente os tokens de texto/superficie para valores claros-sobre-escuro.
+ * Assim tabs, stats, pesquisa, cards de autocarro, lista de rotas e padroes
+ * herdam cores legiveis em AMBOS os temas, sem reescrever cada seletor. Os
+ * tokens de acento (primary/success/danger/warning) ja' funcionam no escuro e
+ * sao mantidos. Escopo no -body para nao afetar o footer/popover (que ja' tem
+ * cores explicitas) nem os overlays do mapa. */
+.livemap-sidebar-body {
+  --color-text: #e2e8f0;
+  --color-text-heading: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-light: #64748b;
+  /* Superficies internas: peliculas translucidas claras sobre o vidro, em vez
+     de fills solidos, para o vidro continuar a transparecer. */
+  --color-bg: rgba(255, 255, 255, 0.04);
+  --color-bg-subtle: rgba(255, 255, 255, 0.03);
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.10);
+  --color-border-light: rgba(255, 255, 255, 0.07);
+  --color-border-medium: rgba(255, 255, 255, 0.14);
 }
 
 .livemap-header {
@@ -937,11 +1132,72 @@
   width: 100%;
 }
 
-/* O .modal-dialog limita a ~420px; alargamos so' para o modal de horarios,
-   senao a tabela (4 colunas) transborda para fora da caixa. */
+/* O .modal-dialog (Modal.jsx) ja' nos da' o overlay centrado: .modal-backdrop
+   e' position:fixed; inset:0 com blur, flex-center e z-index 2000 (acima do
+   mapa e dos paineis laterais). Aqui so' damos ao painel o aspeto de vidro
+   fosco ESCURO da livemap (mesmo tratamento dos popovers: glass-sheen +
+   rgba(20,32,48) + blur/saturate) e alargamos para a tabela respirar.
+   Remapeamos localmente os tokens de texto/superficie para claro-sobre-escuro
+   (como em .livemap-sidebar-body), para a tabela densa ficar legivel em vidro
+   escuro nos DOIS temas, sem reescrever cada seletor .livemap-sched-*. */
 .modal-dialog:has(.livemap-sched-modal) {
+  position: relative;
   width: 520px;
   max-width: 92vw;
+  padding: 22px;
+  background: var(--glass-sheen), rgba(20, 32, 48, 0.82);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6), var(--glass-highlight);
+  /* Tokens claros-sobre-escuro para o conteudo do modal. */
+  --color-text: #e2e8f0;
+  --color-text-heading: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-light: #94a3b8;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-light: rgba(255, 255, 255, 0.08);
+  /* Superficies internas: para a tabela densa, um fill quase opaco escuro
+     (legibilidade) em vez de pelicula translucida; o vidro do painel mantem-se
+     no resto. */
+  --color-bg: rgba(15, 23, 42, 0.55);
+  --color-surface: rgba(20, 32, 48, 0.82);
+}
+
+/* Botão de fecho (X) no canto superior direito do modal de horarios. */
+.livemap-sched-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.livemap-sched-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.livemap-sched-close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Dar margem ao cabeçalho para nao colidir com o X. */
+.livemap-sched-modal .livemap-sched-head {
+  padding-right: 34px;
 }
 
 .livemap-sched-head {
@@ -1066,6 +1322,27 @@
 .livemap-sched-row:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
+}
+
+/* ─── Legibilidade do conteudo denso sobre o vidro fosco escuro ───
+   A tabela e a timeline ficam num cartao quase opaco (fill escuro) para os
+   dados densos serem legiveis; o vidro do painel transparece so' nas margens.
+   O cabeçalho sticky tem de ser TOTALMENTE opaco, senao as linhas passam por
+   baixo ao fazer scroll. Escopo no .livemap-sched-modal para nao afetar nada
+   fora deste modal. */
+.livemap-sched-modal .livemap-sched-tablewrap,
+.livemap-sched-modal .livemap-trip-timeline {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.livemap-sched-modal .livemap-sched-table thead th {
+  /* Opaco: vidro escuro do painel + fill, para tapar as linhas em scroll. */
+  background: rgb(23, 36, 54);
+}
+
+.livemap-sched-modal .livemap-sched-table tbody tr:hover td,
+.livemap-sched-modal .livemap-sched-row:hover td {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ─── Detalhe da viagem (timeline das paragens) ─── */
@@ -1222,6 +1499,19 @@
 
 .bus-marker-pin:hover {
   transform: scale(1.15);
+}
+
+/* Sprint 2 (redesign): popup default do Leaflet (usado pelo marcador de
+ * autocarro) em vidro fosco. Conteudo denso, por isso fill mais opaco (0.9). */
+.leaflet-popup-content-wrapper {
+  background: var(--glass-sheen), rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+}
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* ─── Bus Popup ─── */
@@ -1395,6 +1685,20 @@
     max-height: 45vh;
   }
 
+  /* Em mobile o layout e' column-reverse; o body ocupa toda a largura e o
+     toggle horizontal (libertar espaco de mapa) deixa de fazer sentido.
+     Repor min-width:0 — no desktop e' 360px fixo (clip da animacao), aqui
+     deixaria a sidebar transbordar em ecras estreitos. */
+  .livemap-sidebar-body {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .livemap-sidebar-toggle {
+    display: none;
+  }
+
   .livemap-stats {
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
@@ -1415,10 +1719,16 @@
 }
 
 /* ─── Stop Panel Popup ─── */
+/* Sprint 2 (redesign): popover de paragem em vidro fosco. Conteudo denso
+ * (tabela de ETAs), por isso o preenchimento e' mais opaco (0.9) para manter
+ * o texto nitido, mas mantem blur+saturate para ler como vidro sobre o mapa. */
 .stop-panel-popup .leaflet-popup-content-wrapper {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  background: var(--glass-sheen), rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
   padding: 0;
   overflow: hidden;
 }
@@ -1430,7 +1740,7 @@
 }
 
 .stop-panel-popup .leaflet-popup-tip {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 /* Header */
@@ -1540,7 +1850,8 @@
   color: #64748b;
   text-align: center;
   border-top: 1px solid #f1f5f9;
-  background: #f8fafc;
+  /* Rodape translucido para nao criar um bloco solido sobre o vidro. */
+  background: rgba(248, 250, 252, 0.6);
 }
 
 /* Coordinates */
@@ -1931,14 +2242,17 @@
   background: var(--color-danger-hover);
 }
 
-/* Stop panel popup (Leaflet) — fundo e separadores */
-[data-theme="dark"] .stop-panel-popup .leaflet-popup-content-wrapper,
+/* Stop panel popup (Leaflet), vidro escuro em dark, mantendo o blur da base */
+[data-theme="dark"] .stop-panel-popup .leaflet-popup-content-wrapper {
+  background: var(--glass-sheen), rgba(20, 32, 48, 0.9);
+  color: var(--color-text);
+}
 [data-theme="dark"] .stop-panel-popup .leaflet-popup-tip {
-  background: var(--color-surface);
+  background: rgba(20, 32, 48, 0.9);
   color: var(--color-text);
 }
 [data-theme="dark"] .stop-panel-popup .leaflet-popup-content-wrapper {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
 }
 [data-theme="dark"] .sp-header {
   border-bottom-color: var(--color-border);
@@ -1961,7 +2275,7 @@
 [data-theme="dark"] .sp-row-soon { color: var(--color-success); }
 [data-theme="dark"] .sp-message {
   color: var(--color-text-secondary);
-  background: var(--color-bg-subtle);
+  background: rgba(15, 23, 42, 0.32);
   border-top-color: var(--color-border-light);
 }
 
@@ -1974,11 +2288,14 @@
 [data-theme="dark"] .bus-popup-label { color: var(--color-text-light); }
 
 /* Leaflet popup default wrapper em dark — quando nao tem classe stop-panel */
-[data-theme="dark"] .leaflet-popup-content-wrapper,
-[data-theme="dark"] .leaflet-popup-tip {
-  background: var(--color-surface);
+[data-theme="dark"] .leaflet-popup-content-wrapper {
+  background: var(--glass-sheen), rgba(20, 32, 48, 0.9);
   color: var(--color-text);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+}
+[data-theme="dark"] .leaflet-popup-tip {
+  background: rgba(20, 32, 48, 0.9);
+  color: var(--color-text);
 }
 [data-theme="dark"] .leaflet-container a.leaflet-popup-close-button {
   color: var(--color-text-light);
@@ -1987,15 +2304,17 @@
 /* Leaflet controls (zoom +/-, attribution) */
 [data-theme="dark"] .leaflet-bar a,
 [data-theme="dark"] .leaflet-bar a:hover {
-  background: var(--color-surface);
+  /* Mantem o vidro tambem em dark (tokens ja' sao theme-aware). */
+  background: var(--glass-bg-strong);
   color: var(--color-text);
-  border-bottom-color: var(--color-border);
+  border-bottom-color: var(--glass-hairline);
 }
 [data-theme="dark"] .leaflet-bar a:hover {
-  background: var(--color-bg-subtle);
+  background: var(--glass-bg);
 }
 [data-theme="dark"] .leaflet-control-attribution {
-  background: rgba(26, 34, 56, 0.85) !important;
+  /* Mantem o vidro escuro tambem em dark; a base ja' usa rgba(20,32,48). */
+  background: rgba(20, 32, 48, 0.58) !important;
   color: var(--color-text-secondary) !important;
 }
 [data-theme="dark"] .leaflet-control-attribution a {

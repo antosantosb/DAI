@@ -50,10 +50,10 @@ const ICON_COMPONENTS = {
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
-// Sprint 1 follow-up: 'sections.dev' fica em primeiro lugar (so' visivel
-// para role developer, com items access:['developer']). Destaca as
-// ferramentas internas de demo sem as misturar com Administracao.
-const SECTION_ORDER = ['sections.dev', 'sections.main', 'sections.operations', 'sections.administration', 'sections.personal'];
+// Sprint 2 (redesign): MAIN no topo (cockpit do dia-a-dia), depois Operacoes,
+// Dados e IA, Administracao, e DEV no fundo (so' role developer, menos usada).
+// 'sections.personal' fica como catch-all no fim.
+const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.data', 'sections.administration', 'sections.dev', 'sections.personal'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.

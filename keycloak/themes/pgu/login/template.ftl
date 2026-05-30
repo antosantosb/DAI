@@ -9,6 +9,11 @@
 </head>
 <body class="kc-login">
 
+    <#-- Sprint 2 (redesign): camada de fundo da marca (glows radiais TUB + grao
+         subtil), identica a .landing-bg-gradient + .landing-bg::after do React.
+         E puramente decorativa (aria-hidden) e fica atras de todo o conteudo. -->
+    <div class="pgu-bg" aria-hidden="true"></div>
+
     <#-- Sprint 1 (F1): banner topo a indicar projeto academico -->
     <div class="pgu-academic-banner" role="note">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -17,7 +22,9 @@
         <span>${msg("projectDisclaimer")}</span>
     </div>
 
-    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+    <#-- Sprint 2 (redesign): contentor central. Estilos movidos para .pgu-shell
+         no login.css para manter coerencia com a landing. -->
+    <div class="pgu-shell">
 
         <#-- Sprint 0 (F6): language switcher no canto inferior esquerdo.
              Ordem fixa PT -> EN para coincidir com o switcher do backoffice. -->
@@ -39,9 +46,10 @@
             <div id="kc-header-wrapper">
                 <img src="${url.resourcesPath}/img/tub-logo.svg" alt="TUB - Transportes Urbanos de Braga" class="kc-brand-logo" />
             </div>
+            <#-- Tagline em maiusculas espacadas, igual a .landing-subtitle do React -->
             <div id="kc-header-subtitle">${msg("loginSubtitle")}</div>
         </div>
-        <div style="width:100%;max-width:420px;margin-top:32px;">
+        <div class="pgu-card-wrap">
             <div class="login-pf-page">
                 <div class="card-pf">
                     <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
@@ -57,7 +65,7 @@
                 </div>
             </div>
         </div>
-        <p style="margin-top:40px;font-size:12px;color:rgba(255,255,255,0.25);font-weight:500;letter-spacing:0.5px;">
+        <p class="pgu-footer">
             ${msg("footerText")}
         </p>
     </div>

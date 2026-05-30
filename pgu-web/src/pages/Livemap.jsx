@@ -102,6 +102,25 @@ export default function Livemap() {
       return nv;
     });
   };
+  // Sprint 2 (feature): recolher/expandir o painel lateral para libertar
+  // espaco de mapa. Estado persistido em localStorage. Apos a transicao CSS
+  // (260ms, ver .livemap-sidebar) chamamos invalidateSize() para o Leaflet
+  // recalcular o tamanho e re-renderizar os tiles na nova largura.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('pgu:livemap-sidebar-collapsed') === '1'; }
+    catch { return false; }
+  });
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((v) => {
+      const nv = !v;
+      try { localStorage.setItem('pgu:livemap-sidebar-collapsed', nv ? '1' : '0'); } catch { /* noop */ }
+      // O mapa muda de largura quando a sidebar desliza; invalidamos APOS a
+      // transicao (260ms + folga) para os tiles preencherem o espaco novo sem
+      // ficar cinza nem deixar um vao residual.
+      setTimeout(() => { mapInstance.current?.invalidateSize({ animate: false }); }, 300);
+      return nv;
+    });
+  };
   const heatLayerRef = useRef(null);
   const congestionLayerRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -162,21 +181,28 @@ export default function Livemap() {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       // Sprint 1 follow-up: desativamos o zoomControl default (top-left) e
-      // criamos um manualmente abaixo, posicionado deliberadamente debaixo
-      // do card LAYERS para nao haver overlap.
+      // criamos um manualmente (ver L.control.zoom). Sprint 2 (fix overlap):
+      // movido para o canto SUPERIOR DIREITO — o unico livre. Em baixo a
+      // esquerda ficam os switchers de tema/idioma e em baixo a direita a
+      // atribuicao, por isso o zoom (+/-) ai sobrepunha-se aos switchers.
       zoomControl: false,
       preferCanvas: true,
       // Sprint 1 (F1): atribuicao "Leaflet" desactivada — mantemos so a OSM
       // (obrigatoria por licenca ODbL). Estilizada compacta via CSS (.lm-attr).
       attributionControl: false,
     });
-    L.control.zoom({ position: 'topleft' }).addTo(mapInstance.current);
+    L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
     L.control.attribution({ position: 'bottomright', prefix: '' })
       .addTo(mapInstance.current);
 
-    tileLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
+    // Basemap CARTO Voyager (igual ao editor de padroes): claro e limpo mas
+    // com contexto suave. Sempre claro, mesmo em tema escuro (o escuro ficava
+    // duro com tantas paragens/rotas sobrepostas).
+    tileLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20,
+      detectRetina: true,
     }).addTo(mapInstance.current);
 
     stopLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
@@ -1179,9 +1205,29 @@ export default function Livemap() {
           <ThemeSwitcher />
           <LanguageSwitcher />
         </div>
+        {/* Sprint 2 (feature): toggle para recolher/expandir o painel lateral.
+            Sprint 2 (fix anim): movido para dentro de .livemap-map-wrap (era
+            filho da sidebar). A sidebar passou a ter overflow:hidden para
+            cortar o body de largura fixa durante o slide; se o toggle ficasse
+            la' dentro seria cortado tambem. Ancorado a aresta esquerda do mapa
+            (= a costura sidebar/mapa) fica sempre visivel e no mesmo sitio. O
+            chevron roda consoante o estado. */}
+        <button
+          type="button"
+          className={`livemap-sidebar-toggle${sidebarCollapsed ? ' livemap-sidebar-toggle--collapsed' : ''}`}
+          onClick={toggleSidebarCollapsed}
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="livemap-sidebar-body"
+          title={sidebarCollapsed ? t('livemap.sidebarExpand') : t('livemap.sidebarCollapse')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
       </div>
 
-      <div className="livemap-sidebar">
+      <div className={`livemap-sidebar${sidebarCollapsed ? ' livemap-sidebar--collapsed' : ''}`}>
+        <div id="livemap-sidebar-body" className="livemap-sidebar-body">
         <div className="livemap-header">
           <div className="livemap-brand">
             <TubLogo size={26} />
@@ -1251,6 +1297,7 @@ export default function Livemap() {
             displayRole={displayRole}
             onLogout={logout}
           />
+        </div>
         </div>
       </div>
     </div>
