@@ -102,179 +102,166 @@ Detalhados em §6. Resumo: ~50% dos requisitos do caderno cobertos.
 
 ### 5.1 Sistema de Bilhética
 
-#### Análise das abordagens possíveis
+#### O sistema real da TUB (coroas + tempo)
 
-| Modelo | Como funciona | Hardware | UX idosos | UX jovens | Dados | Complexidade |
-|---|---|---|---|---|---|---|
-| **Mobile ticketing** (convencional) | Compra prévia no app, QR/passe ao validador | Smartphone obrigatório | Mau | Bom | Compra + validação (1 evento) | Baixa |
-| **CiCo** (Check-in / Check-out) | Tap-in + Tap-out | Validador físico ou app BLE | Médio (2 ações) | Bom | Origem + destino reais | Média |
-| **CiBo** (Check-in / Be-out) | Tap-in, sistema deteta saída via beacons BLE | Beacons + smartphone/cartão BLE | Mau (smartphone BLE) | Bom | Origem + destino estimado | Alta |
-| **BiBo** (Be-in / Be-out) | Totalmente passivo | Beacons + smartphone com app ativa | Inviável | Médio (drena bateria) | Origem + destino estimado | Muito alta |
-| **Bilhete a bordo (papel)** | Venda direta pelo motorista, ETM imprime bilhete | Validador/impressora a bordo + gestão troco | Bom (familiar) | Bom (turistas) | Sale + serial sequencial | Baixa (mas exige reconciliação + anti-fraude) |
+A TUB (Transportes Urbanos de Braga) opera um modelo de bilhética simples, assente em **duas variáveis**: a **coroa** (zona geográfica) e o **tempo** (validade horária com transbordo). A PGU é um projeto académico feito **para** a TUB, pelo que a plataforma adapta-se a este sistema, não o reinventa.
 
-#### Decisão: **Tri-modal — Cartão TUB + Mobile QR + Bilhete a bordo (papel)**
+**Coroas (zonas tarifárias).** Existem apenas **2 coroas**:
 
-A plataforma suporta três formas de validação/venda, cada uma servindo um perfil de utilizador. **Aprendizagens de operadores reais influenciaram a escolha:**
+- **Coroa 1** (centro alargado de Braga): centro histórico, polo universitário, estádio, estação, principais centros comerciais.
+- **Coroa 2** (periferia do concelho).
 
-| Operador | Modelo | Lição |
-|---|---|---|
-| **CARRIS, STCP, TUB** (Portugal) | Cartão + mobile + papel a bordo | Bilhete avulso a bordo é expectativa cultural; é o que aplicamos |
-| **TfL London** (pré-2014 vs hoje) | Removeu cash a bordo em 2014 por **fraude** + dwell time | Cautionary tale — sem deteção robusta, fraude obriga a remover canal inteiro |
-| **Berlin BVG** | Cash + cartão + fiscalização aleatória (Schwarzfahrer-Kontrolle) | Validar com camada extra de auditoria humana |
-| **RATP Paris** | Cross-check vendas ETM vs APC (automatic passenger counters) | Adoptamos: cruzar com `PassengerSensor` (S2) |
-| **MTA NYC pre-MetroCard** | Driver cash + tear-off tickets | Documentou os 5 padrões clássicos de fraude que tratamos abaixo |
-| **Singapore EZ-Link** | Cartão primário, cash backup | Hierarquia (cartão > mobile > papel) por preferência operacional |
+O preço depende do número de coroas atravessadas no percurso (uma coroa = tarifa reduzida; rede geral = tarifa cheia).
 
-#### Os três métodos suportados
+**Validade temporal.** Um título é válido durante **1 hora**, com **transbordo livre** entre linhas dentro dessa janela. Várias validações do mesmo título na mesma hora contam como **uma única viagem com transbordos**, não como viagens separadas.
 
-1. **Cartão TUB físico** (`PASSE_MENSAL`, `PASSE_SENIOR`, `PASSE_ESTUDANTE`) — tap no validador embarcado. Captura: `cardPseudoId`, linha, timestamp, paragem estimada (via posição do bus). **Volume esperado: ~70% das validações** (utilizadores habituais).
+**Validação (tap-in) vs Check-in/Check-out.** No cartão recarregável e no bilhete de bordo há apenas **tap-in** (não há check-out, logo a TUB não captura o destino por estes canais). A app **TUBmobile** (lançada em dezembro de 2025) introduz **check-in e check-out reais**, permitindo conhecer o trajeto efetivo.
 
-2. **Mobile ticketing** (`BILHETE_AVULSO_MOBILE`) — utilizador compra avulso no app TUB → QR temporário → leitura no validador. **Volume esperado: ~15-20%** (utilizadores jovens, urbanos).
+| Canal | Suporte | Validação | Preço | Captura |
+|---|---|---|---|---|
+| **Cartão recarregável TUB** | Pré-pago (5/10 viagens) | Tap-in no validador | ~0,74 €/viagem pré-comprada | Cartão (pseudo), linha, hora, paragem estimada |
+| **Bilhete de bordo** | Venda pelo motorista, em dinheiro | Tap-in (bilhete válido 1h, com transbordo) | 1,50 € (rede geral) | Venda, linha, hora |
+| **Passe mensal** | Por coroa, com categorias sociais | Tap-in no validador | 14 € (1 coroa) / 28 € (2 coroas) | Cartão (pseudo), linha, hora |
+| **App TUBmobile** | Smartphone (lançada dez. 2025) | Check-in + Check-out (QR junto ao motorista) | 0,75 € / 1,50 € (calculado pelo trajeto real) | Origem + destino reais, transbordos, recibo |
 
-3. **Bilhete avulso a bordo** (`BILHETE_AVULSO_PAPEL`) — venda diretamente pelo motorista usando **ETM (Electronic Ticket Machine)** que imprime bilhete com serial sequencial, timestamp, linha, ID do motorista. Pagamento em numerário ou TPA. **Volume esperado: ~10-15%** (turistas, ocasionais, falhas técnicas, idosos não-titulares de passe).
+Fonte: tarifário TUB 2024 e lançamento da app TUBmobile (dezembro de 2025).
 
-#### Por que esta combinação
+#### Decisão: a PGU adapta-se ao modelo TUB, não o substitui
 
-- **Acessibilidade universal.** Cobre 100% dos perfis: utilizadores habituais (cartão), digitais (mobile), turistas/ocasionais sem app nem cartão (papel). Nenhum cidadão fica excluído.
-- **Coerência com prática TUB atual.** O bilhete a bordo já é vendido hoje — a PGU integra-o em vez de o ignorar. O sistema reflete a operação real, não impõe rutura.
-- **Hardware existente.** Validadores e ETMs estão instalados. Apenas o backend é novo.
-- **Resiliência operacional.** Se sistema mobile falhar, se cartão estiver bloqueado, ou se validador embarcado avariar — papel é fallback funcional.
-- **Origem-destino estimada (R.IPB.05).** Tap-in + telemetria + sequência permite estimar O-D estatisticamente. Bilhetes em papel sem identificação contribuem para estatística agregada (linha/paragem/hora) mas não para padrões individuais — aceitável e RGPD-friendly.
-- **Compatibilidade RGPD.** `cardPseudoId` pseudonimizado para cartão; QR descartável para mobile; **papel sem qualquer dado pessoal** (apenas serial + timestamp + linha + motorista).
-- **Migração futura para CiCo possível.** Adicionar tap-out é mudança incremental (mesmo modelo de evento, novo flag `eventType=CHECK_OUT`).
+A plataforma **ingere e monitoriza** os eventos de bilhética da TUB (validações de cartão, vendas de bordo, check-in/check-out da app) para análise de procura, qualidade de serviço e gestão operacional. A PGU **não cria** a bilhética nem emite títulos: é a **camada de plataforma** sobre o sistema da TUB.
 
-#### Modelo de dados proposto
+Em consequência, foram **removidas** do desenho as abordagens que não correspondiam à operação real:
+
+- **A abordagem trimodal genérica** (Cartão + Mobile QR ao validador + Bilhete papel ETM) assumia um modelo de operador internacional, sem o conceito de **coroas** nem de **validade horária com transbordo** que define a TUB.
+- **A máquina forense de deteção de fraude** (ETM, Z-reports, reconciliação de serial sequencial, 6 regras, "5 padrões clássicos") foi inspirada em operadores que a TUB não usa. A TUB vende o bilhete de bordo de forma simples, em dinheiro, sem serial nem Z-report.
+
+O desenho passa a refletir exatamente os **4 canais reais** e as **2 variáveis** (coroa + tempo).
+
+#### Títulos e canais
+
+Os **4 canais reais** da TUB, com o perfil que cada um serve e os dados que gera para a PGU:
+
+1. **Cartão recarregável TUB** (`CARTAO`): pré-pago, o utilizador carrega 5 ou 10 viagens e faz **tap-in** no validador embarcado. Serve o **utilizador habitual**. Gera: identificador pseudonimizado do cartão, linha, hora e paragem estimada (pela posição do bus). Só tap-in (sem destino).
+
+2. **Bilhete de bordo** (`BORDO`): vendido pelo **motorista a bordo**, em dinheiro, a 1,50 € (rede geral), com direito a transbordo durante 1 hora. Serve **ocasionais, turistas e quem não tem cartão nem app**. Gera: venda, linha e hora. **Simples**: não há serial, ETM forense nem Z-report.
+
+3. **Passe mensal** (`PASSE`): por coroa, com categorias sociais (Normal, Estudante, Reformado, Social). Serve o **passageiro frequente**. Gera: cartão pseudonimizado, coroa, categoria, linha e hora a cada validação. (Na app a partir de 2026.)
+
+4. **App TUBmobile** (`APP`): lê um **QR junto ao motorista** para **check-in** (identifica autocarro, linha, hora e local de partida) e termina a viagem na app (**check-out**), calculando o preço pelo **trajeto real**, incluindo transbordos. Carteira digital (Apple Pay, Google Pay, MB WAY, cartão bancário), recibo por email e histórico de viagens. Serve o **utilizador digital**. Gera: **origem e destino reais**, transbordos e valor. Para já, apenas títulos individuais (0,75 € / 1,50 €).
+
+#### Cálculo de preço (coroas + tempo)
+
+A regra de preço é a da TUB: **preço = f(número de coroas do percurso, tipo de título)**, dentro de uma janela de **validade de 1 hora com transbordo livre**.
+
+- **Cartão e bilhete de bordo** validam por **tap-in**. O âmbito de coroa é o do título (1 coroa ou rede geral); o transbordo dentro da hora não gera nova cobrança.
+- **App TUBmobile** calcula pelo **trajeto real** (check-in → check-out), apurando as coroas efetivamente atravessadas e os transbordos.
+
+Os valores ficam numa **tabela de configuração de tarifário** (não há preços hardcoded), o que permite à TUB ajustar tarifas sem alterar código.
+
+| Título | Âmbito | Preço | Notas |
+|---|---|---|---|
+| Avulso (1 coroa) | Coroa 1 | 0,75 € | Válido 1h, transbordo livre |
+| Avulso (rede geral) | 2 coroas | 1,50 € | Válido 1h, transbordo livre |
+| Cartão recarregável | Pré-comprado | ~0,74 €/viagem | 5/10 viagens; cartão físico ~1 € |
+| Passe mensal Normal | 1 coroa / 2 coroas | 14 € / 28 € | |
+| Passe mensal Estudante | 1 / 2 coroas | reduzido | Categoria social |
+| Passe mensal Reformado | 1 / 2 coroas | reduzido | Categoria social |
+| Passe mensal Social | 1 / 2 coroas | reduzido | Categoria social |
+
+#### Modelo de dados
+
+O modelo substitui a antiga tabela `ticket_validation` pesada e **elimina** a `paper_ticket_reconciliation`. Assenta em: mapeamento de cada paragem a uma **coroa**, um **título** com âmbito de coroa e janela de validade de 1h, **eventos de validação** com `event_type` (`TAP` para cartão/bordo; `CHECK_IN`/`CHECK_OUT` para a app), e uma **tabela de tarifário configurável**. O cartão é sempre pseudonimizado (`card_pseudo_id`).
 
 ```sql
--- Tabela principal: validações + vendas (uma linha por evento, qualquer fonte)
-CREATE TABLE ticket_validation (
-    id              BIGSERIAL PRIMARY KEY,
+-- Coroa (zona tarifária) de cada paragem.
+-- Em alternativa, uma coluna `coroa SMALLINT` diretamente em bus_stops.
+CREATE TABLE stop_zone (
+    stop_id     BIGINT PRIMARY KEY REFERENCES bus_stops(id),
+    coroa       SMALLINT NOT NULL CHECK (coroa IN (1, 2))   -- 1 = centro alargado, 2 = periferia
+);
 
-    -- Comum a todas as fontes
+-- Título / bilhete (instância de um título emitido pela TUB, ingerido pela PGU).
+CREATE TABLE ticket (
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_type     VARCHAR(16) NOT NULL,        -- CARTAO, BORDO, PASSE, APP
+    fare_category   VARCHAR(16),                 -- NORMAL, ESTUDANTE, REFORMADO, SOCIAL (passes)
+    zone_scope      SMALLINT NOT NULL,           -- 1 = uma coroa, 2 = rede geral (duas coroas)
+    card_pseudo_id  VARCHAR(64) NULL,            -- SHA-256(cardReal + salt); NULL no bordo (dinheiro)
+    valid_from      TIMESTAMPTZ NULL,            -- início da janela (validações individuais)
+    valid_until     TIMESTAMPTZ NULL             -- valid_from + 1 hora (transbordo livre)
+);
+
+CREATE INDEX idx_ticket_card ON ticket(card_pseudo_id) WHERE card_pseudo_id IS NOT NULL;
+
+-- Eventos de validação (uma linha por evento; tap-in, check-in ou check-out).
+-- Validações do mesmo título na mesma hora agregam numa viagem com transbordos.
+CREATE TABLE validation_event (
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_id       BIGINT REFERENCES ticket(id),
+    event_type      VARCHAR(12) NOT NULL,        -- TAP (cartão/bordo), CHECK_IN / CHECK_OUT (app)
     bus_id          VARCHAR(32) NOT NULL,
     route_id        BIGINT REFERENCES routes(id),
-    stop_id         BIGINT REFERENCES bus_stops(id),     -- paragem inferida pela posição
+    stop_id         BIGINT REFERENCES bus_stops(id),   -- partida (tap/check-in) ou destino (check-out)
+    coroa           SMALLINT,                    -- coroa da paragem (de stop_zone)
     location        GEOMETRY(Point, 4326),
-    validated_at    TIMESTAMPTZ NOT NULL,
-    ticket_type     VARCHAR(32) NOT NULL,                -- PASSE_MENSAL, PASSE_SENIOR, PASSE_ESTUDANTE,
-                                                          -- BILHETE_AVULSO_MOBILE, BILHETE_AVULSO_PAPEL
-    source          VARCHAR(16) NOT NULL,                -- CARD, MOBILE_QR, ONBOARD_PAPER
-    validation_result VARCHAR(16) NOT NULL,              -- OK, INVALID, EXPIRED, DUPLICATE
-
-    -- Específico CARD
-    card_pseudo_id  VARCHAR(64) NULL,                    -- SHA-256(cardReal + salt)
-
-    -- Específico MOBILE_QR
-    qr_token        VARCHAR(128) NULL,                    -- token descartável (já consumido após validação)
-
-    -- Específico ONBOARD_PAPER
-    paper_serial    VARCHAR(64) NULL,                     -- número sequencial impresso no bilhete
-    etm_id          VARCHAR(32) NULL,                     -- ID da Electronic Ticket Machine
-    driver_id       BIGINT NULL REFERENCES drivers(id),   -- motorista que emitiu
-    payment_method  VARCHAR(16) NULL,                     -- CASH, MULTIBANCO_TPA
-    amount_cents    INT NULL,                              -- preço pago (cêntimos)
-
-    raw_payload     JSONB,                                 -- auditoria total da mensagem original
-
-    CONSTRAINT chk_source_fields CHECK (
-        (source = 'CARD'          AND card_pseudo_id IS NOT NULL) OR
-        (source = 'MOBILE_QR'     AND qr_token       IS NOT NULL) OR
-        (source = 'ONBOARD_PAPER' AND paper_serial   IS NOT NULL AND etm_id IS NOT NULL)
-    )
+    event_at        TIMESTAMPTZ NOT NULL,
+    is_transfer     BOOLEAN NOT NULL DEFAULT FALSE,    -- validação dentro da hora do mesmo título
+    result          VARCHAR(16) NOT NULL,        -- OK, INVALID, EXPIRED, DUPLICATE
+    amount_cents    INT NULL,                    -- preço apurado (app calcula no check-out)
+    raw_payload     JSONB
 );
 
-CREATE INDEX idx_tv_route_time  ON ticket_validation(route_id, validated_at);
-CREATE INDEX idx_tv_card_time   ON ticket_validation(card_pseudo_id, validated_at)
-    WHERE card_pseudo_id IS NOT NULL;
-CREATE INDEX idx_tv_etm_serial  ON ticket_validation(etm_id, paper_serial)
-    WHERE paper_serial IS NOT NULL;
-CREATE INDEX idx_tv_driver_time ON ticket_validation(driver_id, validated_at)
-    WHERE driver_id IS NOT NULL;
-CREATE INDEX idx_tv_location    ON ticket_validation USING GIST(location);
+CREATE INDEX idx_ve_route_time  ON validation_event(route_id, event_at);
+CREATE INDEX idx_ve_ticket_time ON validation_event(ticket_id, event_at);
+CREATE INDEX idx_ve_type_time   ON validation_event(event_type, event_at);
+CREATE INDEX idx_ve_location    ON validation_event USING GIST(location);
 
--- Tabela de reconciliação fim-de-turno (financeiro + anti-fraude)
-CREATE TABLE paper_ticket_reconciliation (
-    id                     BIGSERIAL PRIMARY KEY,
-    driver_id              BIGINT NOT NULL REFERENCES drivers(id),
-    bus_id                 VARCHAR(32) NOT NULL,
-    etm_id                 VARCHAR(32) NOT NULL,
-    shift_start            TIMESTAMPTZ NOT NULL,
-    shift_end              TIMESTAMPTZ NOT NULL,
-    serial_range_start     VARCHAR(64) NOT NULL,        -- primeiro serial do turno
-    serial_range_end       VARCHAR(64) NOT NULL,        -- último serial do turno
-    tickets_sold_count     INT NOT NULL,                 -- contagem de bilhetes em ticket_validation
-    expected_revenue_cents INT NOT NULL,                 -- soma de amount_cents do turno
-    reported_revenue_cents INT NULL,                     -- declarado pelo motorista no fim do turno
-    discrepancy_cents      INT GENERATED ALWAYS AS
-        (COALESCE(reported_revenue_cents, 0) - expected_revenue_cents) STORED,
-    skipped_serials        TEXT[],                       -- gaps na sequência (cada gap = potencial fraude)
-    fraud_flags            TEXT[],                       -- ex.: ['SEQUENCE_GAP','CASH_DISCREPANCY','UNDERSELL_VS_COUNTER']
-    status                 VARCHAR(16) NOT NULL DEFAULT 'PENDING',
-                                                          -- PENDING, RECONCILED, DISPUTED, FRAUD_INVESTIGATION
-    reviewed_by            VARCHAR(64),
-    reviewed_at            TIMESTAMPTZ,
-    notes                  TEXT
+-- Tarifário configurável (sem preços hardcoded; a TUB ajusta sem alterar código).
+CREATE TABLE fare_config (
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_type     VARCHAR(16) NOT NULL,        -- CARTAO, BORDO, PASSE, APP
+    fare_category   VARCHAR(16),                 -- NORMAL, ESTUDANTE, REFORMADO, SOCIAL (NULL = N/A)
+    zone_scope      SMALLINT NOT NULL,           -- 1 ou 2 coroas
+    price_cents     INT NOT NULL,
+    valid_from      DATE NOT NULL,               -- versionamento do tarifário
+    valid_to        DATE NULL,
+    UNIQUE (ticket_type, fare_category, zone_scope, valid_from)
 );
-
-CREATE INDEX idx_recon_driver_shift ON paper_ticket_reconciliation(driver_id, shift_end DESC);
-CREATE INDEX idx_recon_status       ON paper_ticket_reconciliation(status, shift_end DESC)
-    WHERE status != 'RECONCILED';
 ```
 
-Compatível com Smart Data Model `Ticket` / `TransitTrip` da FIWARE.
+Compatível com os Smart Data Models `Ticket` / `TransitTrip` da FIWARE (uma viagem com transbordos mapeia para um `TransitTrip`; cada evento para um `Ticket`/validação).
 
-#### Deteção de Fraude e Estatísticas
+#### Deteção de fraude (proporcional)
 
-A componente de papel é a mais vulnerável a fraude operacional. A literatura (LTA Singapore, RATP Paris, MTA NYC) e prática de operadores identificam **5 padrões recorrentes**:
+A fraude é tratada como **monitorização**, não como motor forense. A TUB tem um sistema simples (coroas + tempo) e o bilhete de bordo é numerário sem serial, pelo que não faz sentido reconciliar sequências, Z-reports ou ETMs. Mantém-se apenas o que é proporcional à operação real e já é tecnicamente válido na plataforma:
 
-1. **Bolso do motorista** — recebe cash mas anula o bilhete; passageiro embarca sem registo.
-2. **Impressora pulada** — motorista imprime ticket fora do sistema (mais discreto que anular).
-3. **Bilhete reciclado** — passageiro entrega bilhete usado a outro; motorista revalida visualmente.
-4. **Stack pré-impresso** — chega ao turno com bilhetes em branco impressos previamente.
-5. **Clonagem de ETM** — equipamento alternativo emite bilhetes com formato idêntico mas serial fora do sistema.
+| Sinal | Como deteta | Severidade | Sprint |
+|---|---|---|---|
+| **Evasão tarifária (APC vs validações)** | Cruza passageiros contados pelos sensores de bordo (`PassengerSensor`, S2) com o total de validações no mesmo trajeto. Passageiros contados sem validação correspondente = potencial evasão. | MEDIO–ALTO | S7 (depende de S2) |
+| **Integridade de validação** | Cartão expirado ou duplicado; QR/token da app reusado fora da janela. Marcado em `result` (EXPIRED, DUPLICATE, INVALID). | MEDIO | S5 |
+| **Apoio à fiscalização no terreno** | O fiscal consulta o estado do título validado num dado bus/hora para aferir, em campo, a regularidade. | Operacional | S5 |
+| **Reconciliação leve do numerário de bordo** | Compara o **total** de bilhetes de bordo do turno com o esperado (sem serial nem Z-report): apenas total declarado vs total registado. | BAIXO | S7 |
 
-**Detecção implementada** (regras base em Sprint 5, regras avançadas com IA em Sprint 7):
+Nenhum destes sinais pressupõe hardware "inteligente" no bus nem identidade de equipamento. A evasão tarifária reaproveita o sensor de passageiros já previsto (S2); a integridade de validação resulta diretamente do campo `result`; a reconciliação de numerário compara apenas agregados de turno.
 
-| # | Regra | Como detecta | Severidade | Sprint |
-|---|---|---|---|---|
-| 1 | **Sequence gap** | `expected_count = (serial_end - serial_start + 1)`. Se `tickets_sold_count < expected_count` → gaps no array `skipped_serials`. Cada gap = bilhete impresso sem registo. | ALTO | S5 |
-| 2 | **Cash discrepancy** | `\|reported_revenue - expected_revenue\| > 100 cents` (tolerância 1€). MEDIO se < 5€; ALTO se ≥ 5€. | MEDIO–ALTO | S5 |
-| 3 | **Duplicate serial cross-shift** | Mesmo `(etm_id, paper_serial)` em dois turnos diferentes = ETM clonada ou replay. | CRITICO | S5 |
-| 4 | **Undersell vs APC sensor** | Cross-check com `PassengerSensor` (S2): `boarded_count_during_trip` vs `(tickets_sold + passes_validated)`. Desvio > 20% e > 5 passageiros não-justificados = flag. | ALTO | S7 (depende de S2) |
-| 5 | **Driver pattern anomaly** | Histograma 30 dias: bilhetes vendidos por 100 passageiros, normalizado por linha/hora. Outlier > 2 desvios padrão = flag. | MEDIO | S7 (análise estatística) |
-| 6 | **GPS-time mismatch** | Timestamp do bilhete + ETM location declarada vs `vehicle_telemetry` ±60s. Distância > 500m = flag (pode ser dessincronização ou fraude). | BAIXO | S7 |
+**Estatísticas geradas** (extensões ao `TicketingDashboard` em S5 e S7):
 
-**Captura de identidade do motorista (`driver_id`):**
+- Distribuição de validações por **canal** (CARTAO / BORDO / PASSE / APP) por hora, linha e coroa.
+- **Procura por coroa** e por janela horária (carga de Coroa 1 vs Coroa 2).
+- **Transbordos**: percentagem de viagens com mais de uma validação dentro da hora.
+- **Origem-destino real** a partir do check-in/check-out da app (matriz O-D para planeamento).
+- **Heatmap geográfico** de embarques (centro de Braga, Bom Jesus, polo universitário).
+- **Cruzamento com ocupação real** do bus (R.IPB.04 do caderno: "correlacionamento com dados operacionais").
+- **Conversão para passe/app**: percentagem de utilizadores de bilhete de bordo que migram para cartão/app, como input para campanhas (futuro).
 
-A `ETM` publica apenas `busId` (identidade do veículo). O backend resolve `driver_id` no momento da ingestão consultando `driver_bus_assignment` ativa para esse bus (a que tem `active = true`, criada quando o motorista fez login no painel de bordo do tablet). Se não houver assignment ativo no momento da venda → flag de auditoria `NO_DRIVER_ASSIGNED` (caso raro: motorista esqueceu login). Esta resolução garante que **bilhetes papel ficam sempre ligados ao motorista** que estava em turno, sem a ETM precisar de saber a identidade (mantém hardware burro).
+#### Privacidade (RGPD)
 
-**Como os dados entram no sistema:**
+- **Pseudonimização do cartão.** O número real do cartão nunca é guardado; usa-se `card_pseudo_id = SHA-256(cardReal + salt)`. A PGU não cria nem retém numeração real de cartões da TUB.
+- **Origem-destino real só da app.** A matriz O-D provém do check-in/check-out da **conta do utilizador** na TUBmobile (dado já fornecido com consentimento), não de estimativa intrusiva sobre cartões anónimos.
+- **Bilhete de bordo sem dado pessoal.** É numerário, sem qualquer identificador associado.
+- **Apenas metadados agregados** alimentam os dashboards (linha, coroa, hora, contagens), nunca trajetos individuais identificáveis.
 
-A `ETM` (impressora a bordo) liga-se à PGU de uma de três formas (em ordem de preferência):
-
-- **A) Tempo real via MQTT** (preferida) — cada venda publica imediatamente em `tub/ticket/sale`. NiFi consome, transforma e ingere via `POST /api/v1/validations` com `source=ONBOARD_PAPER`. Latência: <5s. **É o padrão que adotamos** porque mantém o Live Map consistente e permite detecção de fraude próximo de tempo real.
-- **B) Upload periódico** (5-15 min) — ETM acumula buffer local, envia batch quando WiFi/4G disponível. Fallback para zonas com má cobertura.
-- **C) Fim de turno** (deposit) — apenas no depot, ETM descarrega via cabo. Pior caso; usado se A e B falharem por hardware.
-
-**Reconciliação fim-de-turno:**
-
-Quando motorista termina turno:
-1. ETM imprime "Z-report" com `serial_range`, `tickets_sold_count`, `expected_revenue`.
-2. Sistema interno PGU recebe o Z-report e cria registo `paper_ticket_reconciliation` com `status=PENDING`.
-3. Motorista entrega cash no escritório; valor é introduzido em `reported_revenue_cents`.
-4. Job `PaperTicketFraudDetector` corre as 6 regras automaticamente, popula `fraud_flags`.
-5. Se `fraud_flags` vazio → `status=RECONCILED`. Se não → `status=DISPUTED` e notifica supervisor.
-6. Supervisor revê em `ReconciliationDashboard.jsx`, pode marcar como falso positivo (`notes`) ou escalar (`status=FRAUD_INVESTIGATION`).
-
-**Estatísticas adicionais geradas** (extensões ao `TicketingDashboard` em S5 e S7):
-
-- Distribuição de validações por **fonte** (CARD / MOBILE_QR / ONBOARD_PAPER) por hora/linha/zona.
-- **Heatmap geográfico** de vendas papel — identifica zonas turísticas (centro Braga, Bom Jesus), paragens problemáticas.
-- **Top 10 motoristas por discrepância** acumulada (mensal) — para revisão proativa pela manutenção/RH.
-- **Tendência mensal** de fraude detectada vs reconciliada — KPI de saúde do canal de venda.
-- **Taxa de skipped serials por ETM** — indicador de manutenção de equipamento (papel encravado vs fraude).
-- **Cross-validation report**: bilhetes papel vendidos vs ocupação real do bus (R.ICP cruzamento) — comprova R.IPB.04 do caderno ("correlacionamento com dados operacionais").
-- **Conversão papel → cartão**: % de utilizadores que após N viagens em papel adquirem passe — input para campanhas comerciais (futuro).
+> **Nota de migração.** Esta secção substitui o desenho trimodal genérico anterior. Foram **removidos**: a tabela `paper_ticket_reconciliation`, as 6 regras forenses (sequence gap, cash discrepancy, duplicate serial, etc.) e os "5 padrões clássicos" de fraude de bilhete papel, o modelo de "Mobile QR ao validador", e a decisão em aberto entre CiCo/CiBo/BiBo. **Razão:** a TUB já opera um sistema simples assente em **coroas + tempo** (validade 1h com transbordo) e já o modernizou com a app **TUBmobile** (check-in/check-out real, dezembro de 2025). A PGU adapta-se a esse sistema e limita-se a **ingerir e monitorizar** os seus eventos.
 
 ### 5.2 IA / Chatbot com Privacidade
 
@@ -389,7 +376,7 @@ Estes requisitos devem ser **mencionados no relatório final como decisões fund
 
 #### Vertical 3.3 — Bilhética
 - **Inteiro vertical ausente.** Decisão de modelo em §5.1.
-- Sem entidades `Ticket`, `TicketValidation`, `Card`.
+- Sem entidades `Ticket`, `ValidationEvent`, `StopZone`, `FareConfig`.
 - Sem dashboards de procura, estimativa O-D.
 
 #### Vertical 3.4 — Contagem de Passageiros
@@ -966,8 +953,7 @@ O trabalho real extravasou o plano original de 10 fases. Além de F0, F1, F3 e F
 - Esforço: 4h.
 
 **Fundação bilhética** (preparação Sprint 5)
-- Migração V29: tabela `ticket_validation` criada (vazia) — schema em §5.1.
-- Migração V30: tabela `ticket_type` (catálogo).
+- Migração V29: tabela `ticket_validation` criada (vazia) como placeholder. **Nota:** S5 substitui este desenho pelo modelo coroas + tempo (`stop_zone`, `ticket`, `validation_event`, `fare_config`), ver §5.1.
 - Endpoint stub `/api/v1/validations` que aceita ingestão mas só loga (sem dashboards).
 - Esforço: 3h.
 
@@ -1048,9 +1034,9 @@ O trabalho real extravasou o plano original de 10 fases. Além de F0, F1, F3 e F
 
 ---
 
-### Sprint 5 — Vertical 3.3 (Bilhética Trí-Modal)
+### Sprint 5 — Vertical 3.3 (Bilhética: coroas + tempo)
 
-**Duração:** 2 semanas (~52h). **Aumento vs estimativa original (~34h) por adição da componente papel/ETM + reconciliação + fraude base.**
+**Duração:** 2 semanas (~52h). **Aumento vs estimativa original (~34h) pela ingestão dos 4 canais reais + motor de preço por coroa + deteção proporcional de fraude.**
 
 **Requisitos 3.x cobertos:** R.IPB.01–10.
 
@@ -1058,62 +1044,58 @@ O trabalho real extravasou o plano original de 10 fases. Além de F0, F1, F3 e F
 - R.SEC.04 — RGPD anonimização.
 - R.INT.01 — Smart Data Model `Ticket` / `TransitTrip`.
 
-**Pré-requisitos garantidos:** Tabela `ticket_validation` criada em S2 (vazia, sem coluna paper). Esta sprint **estende** a tabela com colunas para mobile e papel + cria `paper_ticket_reconciliation`.
+**Pré-requisitos garantidos:** Tabela `ticket_validation` criada (vazia) em S2 como fundação. Esta sprint **substitui** esse desenho pelo modelo coroas + tempo: cria `stop_zone`, `ticket`, `validation_event` e `fare_config` (esquema completo em §5.1).
 
-**Pré-requisito operacional:** **CONFIGURAR `PGU_TICKET_SALT` em env vars antes de qualquer ingestão.** Se simulador correr em dev sem salt, hashes ficam diferentes entre ambientes e validações aparecem como duplicadas.
+**Pré-requisito operacional:** **CONFIGURAR `PGU_TICKET_SALT` em env vars antes de qualquer ingestão.** Se o simulador correr em dev sem salt, os hashes ficam diferentes entre ambientes e as validações aparecem como duplicadas.
 
-#### Entregáveis core (todos os três modos)
+#### Entregáveis core (modelo coroas + tempo)
 
-- **Migração V36** — estender `ticket_validation` com colunas mobile (`qr_token`) + papel (`paper_serial`, `etm_id`, `driver_id`, `payment_method`, `amount_cents`) + constraint `chk_source_fields`. Esquema completo em §5.1. 2h.
-- **Migração V37** — criar `paper_ticket_reconciliation` com índices. 1h.
-- **`TicketValidationController`**:
-  - `POST /api/v1/validations` (universal — aceita os três sources via campo `source`). Valida via constraint do schema. X-API-Key obrigatório. 4h.
-  - `GET /api/v1/validations` (filtros: source, route, from, to). Paginado. Requer admin/operador. 1.5h.
-  - `GET /api/v1/validations/stats?route_id&from&to&source` (agregados anonimizados, sem `card_pseudo_id`). 2h.
-- **`PaperTicketReconciliationController`**:
-  - `POST /api/v1/reconciliations` (recebe Z-report do ETM via NiFi). 2h.
-  - `GET /api/v1/reconciliations?status&driver` (lista, com filtros). 1.5h.
-  - `PATCH /api/v1/reconciliations/{id}` (supervisor introduz `reported_revenue_cents`, status). 1h.
-  - `POST /api/v1/reconciliations/{id}/investigate` (escala para FRAUD_INVESTIGATION com notes). 0.5h.
-- **`PaperTicketFraudDetector` (jobs/scheduled)** — corre quando reconciliação é submetida ou via cron diário. **Implementa regras 1, 2 e 3 do §5.1** (sequence gap, cash discrepancy, duplicate serial cross-shift). Regras 4-6 ficam para S7. Popula `fraud_flags`, dispara alertas para supervisor via `AlertaService`. 5h.
-- **Pseudonimização** — cartões usam `SHA-256(cardReal + salt)`; sem armazenamento de nome/email. `PGU_TICKET_SALT` carregado de env, falha boot se ausente. 2h.
+- **Migração V36**: criar `stop_zone` (mapeamento paragem -> coroa), `ticket` (título: `ticket_type`, `fare_category`, `zone_scope`, janela `valid_from`/`valid_until` de 1h, `card_pseudo_id`) e `validation_event` (`event_type` TAP / CHECK_IN / CHECK_OUT, `is_transfer`, `result`, `amount_cents`). Esquema completo em §5.1. 3h.
+- **Migração V37**: criar `fare_config` (tarifário configurável, versionado por `valid_from`/`valid_to`) e seed do tarifário TUB inicial. 1h.
+- **Mapeamento de paragens a coroas**: popular `stop_zone` (Coroa 1 = centro alargado; Coroa 2 = periferia) a partir da geometria das paragens. 1.5h.
+- **`TicketingController`** (ingestão dos canais reais):
+  - `POST /api/v1/validations` (universal, aceita TAP de cartão/bordo e CHECK_IN/CHECK_OUT da app via `event_type`). Resolve a coroa pela paragem, aplica a janela de 1h e marca `is_transfer` para validações do mesmo título na hora. X-API-Key obrigatório. 4h.
+  - `GET /api/v1/validations` (filtros: canal, coroa, route, from, to). Paginado. Requer admin/operador. 1.5h.
+  - `GET /api/v1/validations/stats?route_id&coroa&from&to&channel` (agregados anonimizados, sem `card_pseudo_id`). 2h.
+- **Motor de cálculo de preço (coroas + tempo)**: serviço que apura `preço = f(nº de coroas do percurso, tipo de título)` contra `fare_config`. Cartão/bordo usam o âmbito do título (sem nova cobrança em transbordo dentro da hora); a app calcula pelo trajeto real (check-in até check-out), apurando coroas atravessadas e transbordos. 5h.
+- **Ingestão dos 4 canais** via o pipeline existente (NiFi/MQTT ou REST): validação de cartão (`CARTAO`, tap-in), venda de bordo (`BORDO`, tap-in simples, sem serial/ETM/Z-report), check-in/check-out da app (`APP`), validação de passe (`PASSE`). 3h.
+- **Pseudonimização**: cartões usam `SHA-256(cardReal + salt)`; sem armazenamento de nome/email. `PGU_TICKET_SALT` carregado de env, falha boot se ausente. 2h.
 
 #### Simulador estendido
 
-Geração realista das três fontes com perfis temporais e espaciais:
-- **CARD (~70%)**: PASSE_MENSAL alto em horas de ponta laborais, PASSE_SENIOR em meio-dia, PASSE_ESTUDANTE em horas escolares.
-- **MOBILE_QR (~15-20%)**: maior peso em fins-de-semana, eventos, zonas universitárias.
-- **ONBOARD_PAPER (~10-15%)**: maior peso em paragens turísticas (centro Braga, Bom Jesus, hospital), domingos, períodos sem cartão TUB.
-- **Reconciliação simulada**: a cada turno (8h), simulador emite Z-report. **5% dos turnos têm fraude injetada** (sequence gap aleatório ou cash discrepancy) para testar `PaperTicketFraudDetector`.
+Geração realista dos 4 canais com perfis temporais e espaciais:
+- **CARTAO (~50%)**: tap-in em horas de ponta laborais; utilizador habitual.
+- **PASSE (~25%)**: validações regulares (categorias Normal/Estudante/Reformado/Social) por coroa.
+- **APP TUBmobile (~15%)**: check-in + check-out reais, com origem-destino e transbordos; maior peso em zonas universitárias e fins-de-semana.
+- **BORDO (~10%)**: venda em dinheiro pelo motorista (1,50 €, rede geral), maior peso em paragens turísticas (centro Braga, Bom Jesus, hospital) e domingos.
+- **Transbordos**: parte das validações ocorre dentro da janela de 1h do mesmo título (marca `is_transfer`).
 - Esforço: 7h.
 
 #### Dashboards e Analytics
 
 - **`TicketingDashboard.jsx`**:
-  - Validações por hora/linha/tipo de título (R.IPB.03). 2h.
-  - **Distribuição por fonte** (CARD vs MOBILE_QR vs ONBOARD_PAPER) — gráfico de barras stacked + tabela. 2h.
-  - Matriz origem-destino agregada (R.IPB.05) — apenas para CARD (papel sem identidade). 2h.
-  - Alertas de validações inválidas/duplicadas (R.IPB.06). 1h.
-  - Heatmap geográfico de utilização por paragem **com filtro por fonte**. 2h.
-- **`ReconciliationDashboard.jsx`** (admin/operador):
-  - Lista de reconciliações pendentes ordenada por shift_end. 2h.
-  - Drill-down por motorista: histórico, taxa de discrepância, fraud_flags acumulados. 2h.
-  - Workflow de revisão (introduzir reported_revenue, marcar reconciled/disputed). 2h.
-  - **Top 10 motoristas por discrepância** mensal. 1h.
-  - **Taxa de skipped serials por ETM** (manutenção vs fraude). 1h.
+  - Validações por hora/linha/coroa/canal (R.IPB.03). 2h.
+  - **Distribuição por canal** (CARTAO / BORDO / PASSE / APP): gráfico de barras stacked + tabela. 2h.
+  - **Procura por coroa** (carga de Coroa 1 vs Coroa 2) por janela horária. 1.5h.
+  - **Matriz origem-destino real** (R.IPB.05): a partir do check-in/check-out da app (único canal com destino). 2h.
+  - **Transbordos**: percentagem de viagens com mais de uma validação dentro da hora. 1h.
+  - Alertas de validações inválidas/duplicadas/expiradas (R.IPB.06). 1h.
+  - Heatmap geográfico de embarques **com filtro por canal e coroa**. 2h.
 
 #### Cruzamentos exigidos pelo caderno
 
-- **R.IPB.04 Correlação com GTFS/SAE** — endpoint `/api/v1/analytics/demanda-vs-oferta` que cruza validações totais (todas fontes) com `vehicle_telemetry` + horários GTFS. 3h.
-- **Cross-validation com APC sensors** (fundação para regra 4 de fraude em S7): endpoint stub `/api/v1/reconciliations/{id}/cross-check` que mostra "boarded count" vs "tickets sold + passes validated" para o turno. Em S5 é só display; em S7 alimenta o detector automático. 2h.
+- **R.IPB.04 Correlação com GTFS/SAE**: endpoint `/api/v1/analytics/demanda-vs-oferta` que cruza o total de validações (todos os canais) com `vehicle_telemetry` + horários GTFS. 3h.
+- **Fundação de deteção de evasão** (cruzamento com APC, motor automático em S7): endpoint `/api/v1/analytics/evasao` que mostra "passageiros contados" (`PassengerSensor`, S2) vs "validações" para o trajeto. Em S5 é só display; em S7 alimenta o detector automático. 2h.
+- **Integridade de validação**: marcação de `result` (OK / INVALID / EXPIRED / DUPLICATE), cartão expirado ou duplicado, QR/token da app reusado fora da janela. 2h.
+- **Apoio à fiscalização no terreno**: endpoint que devolve o estado do título validado num dado bus/hora para o fiscal aferir a regularidade em campo. 1.5h.
 
 #### DPIA (R.SEC.04 + entregável 4.6 do caderno)
 
 Documento `docs/dpia-bilhetica.md` cobrindo:
-- **Dados pessoais tratados:** apenas `card_pseudo_id` (CARD source). MOBILE_QR usa token descartável; ONBOARD_PAPER **não tem qualquer dado pessoal**.
-- **Finalidade:** análise operacional de procura, deteção de fraude operacional.
-- **Base legal:** interesse legítimo do operador de transportes (Art. 6.º(1)(f) RGPD).
-- **Retenção:** 5 anos para validações agregadas; 3 meses para `raw_payload` JSON; 7 anos para `paper_ticket_reconciliation` (obrigação contabilística).
+- **Dados pessoais tratados:** apenas `card_pseudo_id` (cartão e passe). A app fornece origem-destino com consentimento da conta; o bilhete de bordo **não tem qualquer dado pessoal** (numerário).
+- **Finalidade:** análise operacional de procura, qualidade de serviço, monitorização proporcional de evasão.
+- **Base legal:** interesse legítimo do operador de transportes (Art. 6.º(1)(f) RGPD); o trajeto real da app assenta no consentimento da conta TUBmobile.
+- **Retenção:** 5 anos para validações agregadas; 3 meses para `raw_payload` JSON.
 - **Direitos do titular:** exercidos via emissor de cartões TUB (mapping cardReal↔cardPseudoId é externo à PGU).
 - **Risk assessment:** matriz de riscos (reidentificação se salt comprometido, leak de raw_payload, etc.) e mitigações.
 - Esforço: 4h.
@@ -1127,8 +1109,8 @@ Documento `docs/dpia-bilhetica.md` cobrindo:
 
 #### Cross-cutting
 
-- Pulse `DataSourceHealthService` para "Card validator", "Mobile QR scanner", "ETM onboard" (3 fontes distintas). 0.75h.
-- Métricas Micrometer: `Counter("ticket.validation.{source}.{result}")`, `Counter("paper.fraud.flag.{rule}")`, `Gauge("reconciliation.pending.count")`. 0.5h.
+- Pulse `DataSourceHealthService` para os canais reais ("Validador de cartão/passe", "App TUBmobile", "Venda de bordo"). 0.75h.
+- Métricas Micrometer: `Counter("ticket.validation.{channel}.{result}")`, `Counter("ticket.transfer.count")`, `Gauge("ticket.demand.coroa")`. 0.5h.
 
 **Esforço total Sprint 5:** ~52h (2 sem apertadas para 1 dev; viável se 6h/dia + algum overflow para S6 que é leve).
 
@@ -1183,20 +1165,20 @@ Documento `docs/dpia-bilhetica.md` cobrindo:
 - **Service alerts** — entidade `ServiceAlert` (interrupções planeadas/imprevistas, afeta rotas X/Y, mostra no Livemap e painel da paragem). Cobre R.IPM.06 também. 5h.
 - **Forecasting simples** — previsão de procura por linha/hora 24h via ARIMA (lib `org.apache.commons.math3`). Endpoint `/api/v1/analytics/forecast` + secção AnalyticsDashboard. 6h.
 
-#### Deteção avançada de fraude bilhética (regras 4, 5, 6 — extensão do S5)
+#### Deteção proporcional de fraude bilhética (extensão do S5)
 
-Implementação das regras de fraude que dependem de dados cruzados de outros verticais (já existentes após S2, S4, S5).
+Refinamento da monitorização proporcional iniciada em S5, com os cruzamentos que dependem de dados de outros verticais (já existentes após S2, S4, S5). Não há motor forense de serial/Z-report.
 
-- **Regra 4 — Undersell vs APC sensor** (depende de S2 `PassengerSensor`): job `CrossSensorFraudCheck` que, por turno, agrega `boarded_count` de `vehicle_telemetry` (já com `{boarded, alighted, onboard}` desde S2) e compara com `(papel_tickets_sold + passes_validated)` da mesma janela temporal. Desvio > 20% e > 5 passageiros = `fraud_flag='UNDERSELL_VS_COUNTER'`. **Output**: relatório no `ReconciliationDashboard` mostrando bus_id, motorista, turno, contagens lado-a-lado. 4h.
-- **Regra 5 — Driver pattern anomaly**: cálculo estatístico mensal. Para cada motorista: histograma de "bilhetes papel por 100 passageiros boarded" normalizado por linha+hora_dia. Detecta outliers (z-score > 2). Job mensal `DriverPatternAnomalyDetector`. **Output**: lista de motoristas a investigar em `ReconciliationDashboard`. 3h.
-- **Regra 6 — GPS-time mismatch**: job que correlaciona timestamp e local declarado de cada `ticket_validation` com `vehicle_telemetry` mais próximo (±60s). Se distância > 500m = flag. Útil também para dessincronização de ETM (manutenção). 2h.
+- **Deteção automática de evasão (APC vs validações)** (depende de S2 `PassengerSensor`): job `EvasaoCheck` que, por turno, agrega `boarded_count` de `vehicle_telemetry` (já com `{boarded, alighted, onboard}` desde S2) e compara com o total de validações (cartão + passe + bordo + app) da mesma janela temporal. Passageiros contados sem validação correspondente = potencial evasão; desvio acima do limiar configurado gera sinal. **Output**: relatório no `TicketingDashboard` com bus_id, linha, coroa, turno e contagens lado-a-lado. 4h.
+- **Análise de padrões agregados de evasão**: cálculo estatístico mensal de taxa de evasão por linha+coroa+hora_dia, detetando outliers (z-score > 2) para priorizar fiscalização. Job mensal `EvasaoPatternAnalyzer`. **Output**: lista de trajetos/janelas a fiscalizar no `TicketingDashboard`. 3h.
+- **Reconciliação leve do numerário de bordo**: compara o **total** de bilhetes de bordo do turno com o esperado (apenas total declarado vs total registado, sem serial nem Z-report). Desvio sinaliza para revisão. 2h.
 
-Estas regras integram-se no `PaperTicketFraudDetector` existente (S5) que passa a ter 6 regras em vez de 3.
+Estes sinais integram-se na monitorização proporcional do S5; refinam a deteção de evasão e a reconciliação leve sem qualquer dependência de hardware "inteligente" ou identidade de equipamento.
 
 #### IA aplicada à fraude (opcional, se houver tempo)
 
-- **Tool extra para o chatbot**: `getReconciliationsAtRisk(driver_id?, window)` que devolve agregados de discrepâncias e flags. Permite operador perguntar em linguagem natural "que motoristas tiveram mais discrepâncias este mês?". 1h.
-- **Anomaly detection com Isolation Forest** (extensão futura, não obrigatório) — usar lib `smile` Java para deteção não-supervisionada de padrões de fraude novos. Documentado como roadmap. 0h (apenas decisão arquitetural documentada).
+- **Tool extra para o chatbot**: `getEvasaoAtRisk(route_id?, coroa?, window)` que devolve agregados de evasão (passageiros contados vs validações) por trajeto e janela. Permite ao operador perguntar em linguagem natural "que linhas tiveram mais evasão este mês?". 1h.
+- **Anomaly detection com Isolation Forest** (extensão futura, não obrigatório): usar lib `smile` Java para deteção não-supervisionada de padrões de evasão novos. Documentado como roadmap. 0h (apenas decisão arquitetural documentada).
 
 **Cross-cutting:**
 - Métricas IA: `Counter("ai.query.success/failed")`, `Timer("ai.query.latency")`, `Counter("ai.tool.{name}.invocations")`. 1h.
@@ -1509,9 +1491,10 @@ Novas entidades a criar (resumo):
 - `PassengerSensor` (S2)
 - `DisplayPanel`, `DisplayPanelEvent` (S3)
 - `VehicleDiagnostic` (S4)
-- `TicketValidation` (S5 — tri-modal: CARD + MOBILE_QR + ONBOARD_PAPER, com `chk_source_fields` constraint)
-- `TicketType` (S5 — catálogo: `PASSE_MENSAL`, `PASSE_SENIOR`, `PASSE_ESTUDANTE`, `BILHETE_AVULSO_MOBILE`, `BILHETE_AVULSO_PAPEL`)
-- `PaperTicketReconciliation` (S5 — fim-de-turno, com `fraud_flags[]` e workflow PENDING/RECONCILED/DISPUTED/FRAUD_INVESTIGATION)
+- `StopZone` (S5, coroa de cada paragem: Coroa 1 = centro alargado, Coroa 2 = periferia)
+- `Ticket` (S5, título: `ticket_type` CARTAO/BORDO/PASSE/APP, `fare_category`, `zone_scope`, janela de validade de 1h, `card_pseudo_id`)
+- `ValidationEvent` (S5, evento de validação: `event_type` TAP / CHECK_IN / CHECK_OUT, `is_transfer`, `result`, `amount_cents`)
+- `FareConfig` (S5, tarifário configurável por canal/categoria/coroa, versionado)
 - `ChargingStation`, `ChargingSession` (S6)
 - `ServiceAlert` (S7)
 - `ApiAccessLog` (S0), `AiInteractionLog` (S7)
@@ -1519,7 +1502,7 @@ Novas entidades a criar (resumo):
 Total de migrações estimadas: V25 a ~V42.
 
 Schemas detalhados:
-- `ticket_validation` e `paper_ticket_reconciliation` — ver §5.1.
+- `stop_zone`, `ticket`, `validation_event` e `fare_config` (ver §5.1).
 - Outras schemas estão descritas em cada sprint.
 
 ---
@@ -1562,7 +1545,7 @@ S2 (3.4)        — usa: Smart Data Model PassengerCount, DataSource, alerts
                   ↓                  ↓
                   S4 (3.2)         (continua paralelo)
                   ↓
-                  S5 (3.3)        — usa: ticket_validation table (S2), telemetria (S2/S4)
+                  S5 (3.3)        usa: fundação bilhética (S2), telemetria (S2/S4); cria stop_zone/ticket/validation_event/fare_config
                   ↓                ↘
                   S6 (3.6) ←  paralelizável com S5 (independente)
                   ↓                  ↓
@@ -1633,7 +1616,7 @@ Paralelo: S3 (durante S2/S4), S6 (durante S5)
 | S2 | 32 | 1.5 sem | OK |
 | S3 | 25 | 1 sem | Leve (pode absorver mais se preciso) |
 | S4 | 33 | 1.5 sem | OK |
-| S5 | 52 | 2 sem | **Apertado** (aumentou de 34h→52h por bilhética trí-modal + ETM + reconciliação + fraude base). Overflow de ~5h pode ir para S6 (leve) ou estender meio dia. |
+| S5 | 52 | 2 sem | **Apertado** (aumentou de 34h→52h pela ingestão dos 4 canais + motor de preço por coroa + deteção proporcional de fraude). Overflow de ~5h pode ir para S6 (leve) ou estender meio dia. |
 | S6 | 26 | 1.5 sem | OK |
 | S7 | 59 | 2 sem | OK (50h core + 9h regras avançadas de fraude que dependem de S2+S5) |
 | S8a | 30 | 1.5 sem | OK |
@@ -1642,9 +1625,9 @@ Paralelo: S3 (durante S2/S4), S6 (durante S5)
 **Total:** ~450h ≈ ~18 semanas FT (1 dev). Com folga para imprevistos: **19-21 semanas realistas**.
 
 **Crescimento de carga vs versão anterior:**
-- S5: +18h (componente papel/ETM, reconciliação, 3 regras fraude base, dashboards adicionais, simulador estendido, DPIA mais detalhado)
-- S7: +9h (3 regras fraude avançadas que dependem de cross-vertical: APC sensor, driver patterns, GPS-time)
-- **Total: +27h (~1 semana). Justificado pela completude do canal de venda papel que reflete prática real TUB e cria um vertical de "fraude operacional" mais robusto.**
+- S5: +18h (ingestão dos 4 canais reais, motor de preço por coroa + janela 1h, deteção proporcional de fraude, dashboards adicionais, simulador estendido, DPIA mais detalhado)
+- S7: +9h (deteção proporcional avançada que depende de cross-vertical: evasão APC vs validações, padrões agregados, reconciliação leve de numerário)
+- **Total: +27h (~1 semana). Justificado pela ingestão fiel dos 4 canais reais da TUB (coroas + tempo) e por um vertical de monitorização de evasão proporcional à operação real.**
 
 ---
 
@@ -1659,7 +1642,7 @@ Para o relatório do trabalho (caderno seção 4 — Entregáveis e Documentaç�
 5. **Sem Load Balancer / HA** (R.CLOUD.04/08 — limitação Azure free tier).
 6. **Sem Data Lake formal** (R.DL.04 — DW PostGIS suficiente para âmbito).
 7. **Autenticação interna em vez de Autenticação.gov** (R.AUT.03 — funcionários TUB).
-8. **Painel de bordo com Keycloak direto no tablet do bus** (em vez de QR pairing entre tablet + telemóvel do motorista). **Rationale:** captura imediata de identidade do motorista (necessária para `paper_ticket_reconciliation.driver_id` e regras 4-5 de fraude do §5.1); evita 3ª interface (app mobile) que duplicaria esforço de demo e manutenção; mitiga password-typing-on-shared-tablet com auto-logout por inatividade + botão "Terminar turno" + tokens curtos. Aceita-se trade-off de UX vs simplicidade arquitetural no scope académico.
+8. **Painel de bordo com Keycloak direto no tablet do bus** (em vez de QR pairing entre tablet + telemóvel do motorista). **Rationale:** captura imediata de identidade do motorista (útil para associar a venda de bilhete de bordo ao turno e para a reconciliação leve de numerário do §5.1); evita 3ª interface (app mobile) que duplicaria esforço de demo e manutenção; mitiga password-typing-on-shared-tablet com auto-logout por inatividade + botão "Terminar turno" + tokens curtos. Aceita-se trade-off de UX vs simplicidade arquitetural no scope académico.
 
 ---
 
