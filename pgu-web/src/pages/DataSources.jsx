@@ -13,7 +13,9 @@ import { createStompClient } from '../services/stompClient';
 import Modal from '../components/Modal';
 import './DataSources.css';
 
-const CHART_COLORS = ['#009BDB', '#10b981', '#f59e0b', '#ef4444', '#0084BD', '#0ea5e9'];
+// Paleta de 12 cores distintas (matizes diferentes, sem azuis repetidos) para
+// que cada fonte de dados tenha uma cor unica mesmo com 9+ fontes.
+const CHART_COLORS = ['#009BDB', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#eab308', '#a855f7'];
 
 function formatBucketTs(iso, range) {
   if (!iso) return '';

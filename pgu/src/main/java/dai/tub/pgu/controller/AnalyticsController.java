@@ -8,6 +8,7 @@ import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
 import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
 import dai.tub.pgu.dto.AnalyticsDTOs.CoverageIndicators;
+import dai.tub.pgu.dto.AnalyticsDTOs.OccupancyByRouteHour;
 import dai.tub.pgu.service.AnalyticsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,6 +118,21 @@ public class AnalyticsController {
             @RequestParam(required = false) String startHour,
             @RequestParam(required = false) String endHour) {
         List<CongestionData> data = analyticsService.getCongestion(startDate, endDate, startHour, endHour);
+        return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
+    }
+
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.04): ocupacao media por rota e hora-do-dia
+     * (onboard/capacidade). Mesmos filtros opcionais data/hora dos irmaos.
+     * Alimenta o dashboard de ocupacao.
+     */
+    @GetMapping("/occupancy")
+    public ResponseEntity<List<OccupancyByRouteHour>> getOccupancy(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String startHour,
+            @RequestParam(required = false) String endHour) {
+        List<OccupancyByRouteHour> data = analyticsService.getOccupancyByRouteHour(startDate, endDate, startHour, endHour);
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 

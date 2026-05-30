@@ -181,6 +181,77 @@ public class NgsiLdService {
     }
 
     /**
+     * Sprint 2 (Vertical 3.4, R.ICP.10): constroi a entity NGSI-LD para o Smart
+     * Data Model oficial {@code PassengerCount} (dataModel.Transportation) a
+     * partir de uma leitura APC. Devolve um Map ja' no formato NGSI-LD v1.6
+     * (id, type, @context FIWARE, atributos como Property/Relationship), pronto
+     * a ser servido pelo proxy NGSI-LD.
+     *
+     * <p>Mapeamento (campos chave do Smart Data Model PassengerCount):
+     * <ul>
+     *   <li>{@code occupancy}     -> ocupacao normalizada 0..1 (onboard/capacidade)</li>
+     *   <li>{@code peopleCount}   -> ocupacao absoluta (onboard)</li>
+     *   <li>{@code peopleBoarding}-> entradas na ultima paragem (boarded)</li>
+     *   <li>{@code peopleLeaving} -> saidas na ultima paragem (alighted)</li>
+     *   <li>{@code refVehicle}    -> Relationship para o urn do Vehicle</li>
+     *   <li>{@code dateObserved}  -> instante da leitura (observedAt)</li>
+     * </ul>
+     *
+     * @param busId       codigo do autocarro (ex.: "TUB-12")
+     * @param boarded     entradas na ultima paragem (pode ser null -> 0)
+     * @param alighted    saidas na ultima paragem (pode ser null -> 0)
+     * @param onboard     ocupacao instantanea a bordo
+     * @param capacity    capacidade do autocarro (para normalizar occupancy; <=0 ignora)
+     * @param observedAt  instante ISO-8601 da leitura
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> buildPassengerCountEntity(String busId,
+                                                         Integer boarded,
+                                                         Integer alighted,
+                                                         int onboard,
+                                                         int capacity,
+                                                         String observedAt) {
+        ObjectNode ld = mapper.createObjectNode();
+        ld.put("id", "urn:ngsi-ld:PassengerCount:" + busId);
+        ld.put("type", "PassengerCount");
+
+        ArrayNode ctx = mapper.createArrayNode();
+        ctx.add(contextUrl);
+        ld.set("@context", ctx);
+
+        int b = boarded != null ? boarded : 0;
+        int a = alighted != null ? alighted : 0;
+        double occupancy = capacity > 0 ? Math.min(1.0, (double) onboard / capacity) : 0.0;
+
+        ld.set("occupancy", property(mapper.getNodeFactory().numberNode(Math.round(occupancy * 1000.0) / 1000.0), observedAt));
+        ld.set("peopleCount", property(mapper.getNodeFactory().numberNode(onboard), observedAt));
+        ld.set("peopleBoarding", property(mapper.getNodeFactory().numberNode(b), observedAt));
+        ld.set("peopleLeaving", property(mapper.getNodeFactory().numberNode(a), observedAt));
+
+        ObjectNode ref = mapper.createObjectNode();
+        ref.put("type", "Relationship");
+        ref.put("object", "urn:ngsi-ld:Vehicle:" + busId);
+        ld.set("refVehicle", ref);
+
+        if (observedAt != null && !observedAt.isBlank()) {
+            ld.set("dateObserved", property(mapper.getNodeFactory().textNode(observedAt), observedAt));
+        }
+
+        return mapper.convertValue(ld, Map.class);
+    }
+
+    /** Constroi um atributo NGSI-LD do tipo Property, com observedAt opcional. */
+    private ObjectNode property(JsonNode value, String observedAt) {
+        ObjectNode p = mapper.createObjectNode();
+        p.put("type", "Property");
+        p.set("value", value);
+        if (observedAt != null && !observedAt.isBlank()) {
+            p.put("observedAt", observedAt);
+        }
+        return p;
+    }
+
+    /**
      * Excecao 404 propria para o controller mapear para HTTP 404.
      */
     public static class NotFound extends RuntimeException {

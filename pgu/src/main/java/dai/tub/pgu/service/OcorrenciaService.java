@@ -280,7 +280,7 @@ public class OcorrenciaService {
 
         if (o.getTelemetriaSnapshot() != null) {
             try {
-                dto.setTelemetriaSnapshot(objectMapper.readTree(o.getTelemetriaSnapshot()));
+                dto.setTelemetriaSnapshot(objectMapper.readValue(o.getTelemetriaSnapshot(), Object.class));
             } catch (Exception ex) {
                 log.error("Falha ao deserializar snapshot de telemetria para DTO: {}", ex.getMessage());
             }

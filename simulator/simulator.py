@@ -239,6 +239,11 @@ class SimBus:
         self.progress      = 0.0     # 0.0→1.0 entre duas paragens
         self.point_idx     = 0       # índice no segmento OSRM actual
         self.passengers    = random.randint(3, 20)
+        # Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC por paragem.
+        # entradas/saidas referem-se SEMPRE ao ultimo evento de paragem; sao
+        # postas a 0 enquanto o autocarro circula entre paragens.
+        self.last_boarded  = 0
+        self.last_alighted = 0
         self.status        = "active"
         self.stopped_ticks = 0
         self.removed = False
@@ -287,6 +292,10 @@ class SimBus:
                 self._ensure_direction()
                 self.progress = 0.0
                 self.point_idx = 0
+                # Ao arrancar, as entradas/saidas da paragem ja' foram reportadas:
+                # zera-as para os ticks em movimento (boarded=alighted=0).
+                self.last_boarded = 0
+                self.last_alighted = 0
             return
 
         # — Em movimento —
@@ -349,6 +358,9 @@ class SimBus:
             self.status = "stopped"
             self.stopped_ticks = 999999
             self.removed = True
+            # Todos os passageiros saem; ninguem entra (autocarro a ser parado).
+            self.last_alighted = self.passengers
+            self.last_boarded = 0
             self.passengers = 0
             api_patch(f"/api/v1/buses/{self.db_id}", {"status": "STOPPED"})
             print(f"[SIM] {self.bus_id} PARADO no extremo da rota")
@@ -380,7 +392,18 @@ class SimBus:
             saem = random.randint(0, min(self.passengers, int(10 * mult)))
             entram = random.randint(0, max(0, int(12 * mult)))
 
-        self.passengers = max(0, min(self.capacity, self.passengers - saem + entram))
+        # Sprint 2 (Vertical 3.4, R.ICP.01): aplicar saidas e depois entradas,
+        # respeitando a capacidade, e registar os valores REAIS (pos-clamp) para
+        # manter onboard = anterior - alighted + boarded coerente.
+        before = self.passengers
+        after_alight = max(0, before - saem)
+        real_alighted = before - after_alight
+        after_board = min(self.capacity, after_alight + entram)
+        real_boarded = after_board - after_alight
+
+        self.last_alighted = real_alighted
+        self.last_boarded = real_boarded
+        self.passengers = after_board
 
     def stops_remaining(self):
         """Paragens que faltam até ao extremo da rota (ida ou volta)."""
@@ -412,6 +435,12 @@ class SimBus:
             "lat":                 round(self.lat, 6),
             "lon":                 round(self.lon, 6),
             "passageiros":         self.passengers,
+            # Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC por paragem.
+            # entradas/saidas = ultimo evento de paragem (0 em movimento);
+            # ocupacao = passageiros a bordo (acumulado, limitado pela capacidade).
+            "entradas":            self.last_boarded,
+            "saidas":              self.last_alighted,
+            "ocupacao":            self.passengers,
             "estado":              self.status,
             "proxima_paragem":     self.next_stop_name(),
             "paragens_restantes":  self.stops_remaining(),

@@ -4,8 +4,8 @@
 // Antes: cada NavLink era hardcoded e a filtragem admin-only era um `if`
 // isolado. Agora basta editar `routes.js` para adicionar/remover items.
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
 import {
@@ -13,6 +13,7 @@ import {
   IconStop, IconRoute, IconExport, IconAudit, IconUsers, IconGtfs, IconAlarm,
   IconSettings, IconDataSource, IconDriver, IconAccount,
   IconChatbot, IconAiMonitoring, IconDevTools, IconOperator, IconCalendar, IconSchedule,
+  IconSensor,
 } from './NavIcon';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -21,6 +22,7 @@ import TubLogo from './TubLogo';
 import ProjectDisclaimer from './ProjectDisclaimer';
 import api from '../services/api';
 import { getOcorrencias } from '../services/ocorrenciasApi';
+import { createStompClient } from '../services/stompClient';
 import { routes, hasAccess } from '../routes';
 import './Layout.css';
 
@@ -47,6 +49,7 @@ const ICON_COMPONENTS = {
   IconOperator,
   IconCalendar,
   IconSchedule,
+  IconSensor,
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
@@ -119,6 +122,7 @@ export default function Layout() {
   const auth = useAuth();
   const { logout, username, roles } = auth;
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [alarmsCount, setAlarmsCount] = useState(0);
   const [meProfile, setMeProfile] = useState(null);
@@ -152,19 +156,46 @@ export default function Layout() {
     });
   };
 
+  // Contador do badge "Ocorrencias" no sidebar = nº de ocorrencias ABERTAS.
+  // Estabilizado em useCallback para poder ser reutilizado por varios efeitos
+  // (poll periodico, evento WS e mudanca de rota) sem recriar a funcao.
+  const fetchAlarmsCount = useCallback(async () => {
+    try {
+      const response = await getOcorrencias({ estado: 'ABERTA' });
+      setAlarmsCount(Array.isArray(response.data) ? response.data.length : 0);
+    } catch (err) {
+      console.error('Erro ao buscar quantidade de alarmes ativos:', err);
+    }
+  }, []);
+
+  // Sincronizacao do badge:
+  //  1. fetch inicial ao montar;
+  //  2. poll de seguranca a cada 10s (fallback se o WS cair);
+  //  3. subscricao WS a /topic/alertas — o backend publica aqui em cada
+  //     criacao/alteracao/fecho de ocorrencia, por isso o badge sobe E desce
+  //     em tempo real (ex.: fechar uma ocorrencia decrementa o contador).
   useEffect(() => {
-    const fetchAlarmsCount = async () => {
-      try {
-        const response = await getOcorrencias({ estado: 'ABERTA' });
-        setAlarmsCount(response.data.length);
-      } catch (err) {
-        console.error('Erro ao buscar quantidade de alarmes ativos:', err);
-      }
-    };
     fetchAlarmsCount();
     const interval = setInterval(fetchAlarmsCount, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    const client = createStompClient({
+      onConnect: () => {
+        client.subscribe('/topic/alertas', () => fetchAlarmsCount());
+      },
+    });
+    client.activate();
+    return () => {
+      clearInterval(interval);
+      client.deactivate();
+    };
+  }, [fetchAlarmsCount]);
+
+  // Re-sincroniza imediatamente ao navegar para a pagina de ocorrencias
+  // (e ao sair dela), para o badge refletir o estado atual sem esperar o poll.
+  useEffect(() => {
+    if (location.pathname.startsWith('/backoffice/ocorrencias')) {
+      fetchAlarmsCount();
+    }
+  }, [location.pathname, fetchAlarmsCount]);
 
   // Carrega /me 1x para popular o avatar/nome do utilizador no footer.
   useEffect(() => {

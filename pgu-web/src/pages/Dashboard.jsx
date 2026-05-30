@@ -10,6 +10,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ buses: 0, stops: 0, routes: 0, active: 0, stopping: 0, stopped: 0 });
   const [recentTelemetry, setRecentTelemetry] = useState([]);
   const [activeAlarms, setActiveAlarms] = useState([]);
+  // Sprint 2 (estilo BRT): feed de atividade recente (read-only). 204 -> [].
+  const [activity, setActivity] = useState([]);
 
   const load = useCallback(() => {
     Promise.all([
@@ -18,7 +20,8 @@ export default function Dashboard() {
       api.get('/routes').catch(() => ({ data: [] })),
       api.get('/telemetry/latest').catch(() => ({ data: [] })),
       api.get('/ocorrencias?estado=ABERTA').catch(() => ({ data: [] })),
-    ]).then(([buses, stops, routes, telemetry, ocorrencias]) => {
+      api.get('/activity?limit=20').catch(() => ({ data: [] })),
+    ]).then(([buses, stops, routes, telemetry, ocorrencias, activityRes]) => {
       const busData = buses.data || [];
       setStats({
         buses: busData.length,
@@ -31,6 +34,8 @@ export default function Dashboard() {
       const activeCodes = new Set(busData.filter(b => b.status === 'ACTIVE' || b.status === 'STOPPING').map(b => b.busCode));
       setRecentTelemetry((telemetry.data || []).filter(t => activeCodes.has(t.busId)).slice(0, 6));
       setActiveAlarms(ocorrencias.data || []);
+      // 204 No Content -> activityRes.data === '' (axios). Normaliza para [].
+      setActivity(Array.isArray(activityRes.data) ? activityRes.data : []);
     });
   }, []);
 
@@ -128,6 +133,34 @@ export default function Dashboard() {
 
         <div className="dash-panel">
           <div className="dash-panel-header">
+            <h3>{t('pages.dashboard.activityTitle')}</h3>
+            <span className="live-dot"></span>
+          </div>
+          <div className="dash-panel-body dash-panel-body--list activity-feed">
+            {activity.length === 0 ? (
+              <div className="dash-empty">{t('pages.dashboard.activityEmpty')}</div>
+            ) : (
+              activity.map((item, i) => (
+                <div key={i} className="activity-row">
+                  <div className={`activity-icon activity-icon--${(item.category || '').toLowerCase()}`}>
+                    <ActivityIcon category={item.category} />
+                  </div>
+                  <div className="activity-info">
+                    <div className="activity-title">{item.title}</div>
+                    <div className="activity-meta">
+                      {item.actor && <span className="activity-actor">{item.actor}</span>}
+                      {item.actor && <span className="telemetry-sep">|</span>}
+                      <span className="activity-time">{item.timestamp}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="dash-panel">
+          <div className="dash-panel-header">
             <h3>{t('pages.dashboard.recentTelemetry')}</h3>
             <span className="live-dot"></span>
           </div>
@@ -156,6 +189,41 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+// Sprint 2 (estilo BRT): icone SVG por categoria do activity feed.
+// ALERTA = sino; OCORRENCIA = triangulo de aviso; AUDIT = documento/check.
+function ActivityIcon({ category }) {
+  const common = {
+    width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+  };
+  switch (String(category || '').toUpperCase()) {
+    case 'ALERTA':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      );
+    case 'OCORRENCIA':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+    case 'AUDIT':
+    default:
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <path d="M9 15l2 2 4-4" />
+        </svg>
+      );
+  }
 }
 
 function FleetBar({ label, count, total, color }) {

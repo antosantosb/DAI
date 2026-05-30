@@ -89,7 +89,8 @@
     "account": "Minha Conta",
     "chatbot": "Chatbot IA",
     "aiMonitoring": "Monitorização IA",
-    "devTools": "Ferramentas Dev"
+    "devTools": "Ferramentas Dev",
+    "sensors": "Sensores"
   },
   "sections": {
     "dev": "Developer",
@@ -180,7 +181,9 @@
       "recentTelemetry": "Telemetria Recente",
       "noTelemetry": "Sem dados de telemetria",
       "trip": "Viagem",
-      "atStop": "Paragem"
+      "atStop": "Paragem",
+      "activityTitle": "Atividade recente",
+      "activityEmpty": "Sem atividade recente."
     },
     "health": {
       "title": "Saúde da Frota",
@@ -236,6 +239,8 @@
       "passengers": "Passageiros",
       "noRoute": "Sem linha",
       "noDriver": "Sem motorista",
+      "routeUnnamed": "Sem nome",
+      "unreadAria": "{{count}} mensagens não lidas",
       "statusActive": "Ativo",
       "statusStopping": "A parar",
       "statusStopped": "Parado",
@@ -885,6 +890,14 @@
         "dropHint": "Arraste um ficheiro ou clique para selecionar",
         "noAttachments": "Sem anexos associados.",
         "view": "Ver"
+      },
+      "tabs": {
+        "active": "Ativos",
+        "activeWithCount": "Ativos ({{count}})",
+        "history": "Histórico",
+        "activeEmpty": "Sem ocorrências ativas de momento.",
+        "activeCount": "{{count}} ativos",
+        "openDetail": "Abrir detalhe"
       }
     },
     "analytics": {
@@ -974,7 +987,22 @@
       "waitMinutes": "min de espera",
       "waitDepartures": "passagens/dia",
       "noCoverageData": "Sem dados de horário para calcular indicadores de cobertura.",
-      "coverageUnitPct": "%"
+      "coverageUnitPct": "%",
+      "tabOccupancy": "Ocupação",
+      "occTitle": "Ocupação média por linha e hora",
+      "occSubtitle": "Percentagem média de ocupação (passageiros a bordo / capacidade) por linha ao longo do dia.",
+      "occRouteHeader": "Linha",
+      "noOccupancyData": "Sem dados de ocupação para o período selecionado.",
+      "occAvgKpi": "Ocupação média",
+      "occPeakKpi": "Pico de ocupação",
+      "occPeakWhenKpi": "Pico (linha e hora)",
+      "occPeakAt": "{{route}} às {{hour}}h",
+      "occCellTitle": "Linha {{route}} às {{hour}}h: {{pct}}% de ocupação ({{onboard}} a bordo, {{samples}} amostras)",
+      "occCellTitleNone": "Linha {{route}} às {{hour}}h: sem dados",
+      "occLegendLow": "Vazio",
+      "occLegendHigh": "Cheio",
+      "occLegendNone": "Sem dados",
+      "occLegendUnit": "% ocupação"
     },
     "dataSources": {
       "title": "Fontes de Dados",
@@ -1327,7 +1355,11 @@
         "assumeOcorrencia": "Assumir Ocorrência",
         "correctiveAction": "Registar Ação Corretiva",
         "closeOcorrencia": "Fechar Ocorrência",
-        "markFalsePositive": "Marcar Falso Positivo"
+        "markFalsePositive": "Marcar Falso Positivo",
+        "messageSent": "Mensagem enviada",
+        "messageDelivered": "Mensagem entregue",
+        "messageRead": "Mensagem lida",
+        "messageCancelled": "Mensagem cancelada"
       }
     },
     "minhaConta": {
@@ -1490,6 +1522,47 @@
         "success": "{{count}} motoristas criados.",
         "error": "Falha ao criar motoristas em batch."
       }
+    },
+    "sensors": {
+      "title": "Sensores de Contagem",
+      "subtitle": "Inventário dos sensores de contagem de passageiros (APC) instalados na frota.",
+      "newSensor": "Adicionar sensor",
+      "create": "Novo sensor",
+      "searchPlaceholder": "Pesquisar por gateway, autocarro, porta ou estado...",
+      "noSensors": "Sem sensores registados.",
+      "successTitle": "Sensor criado",
+      "successCreated": "O sensor foi adicionado com sucesso.",
+      "errorTitle": "Erro",
+      "deleteTitle": "Apagar sensor",
+      "deleteMessage": "Tem a certeza que pretende apagar o sensor \"{{gateway}}\"? Esta ação é irreversível.",
+      "deleteConfirm": "Apagar",
+      "fieldGateway": "Gateway",
+      "fieldBusId": "Autocarro (ID)",
+      "fieldDoorPosition": "Posição da porta",
+      "fieldStatus": "Estado",
+      "fieldLatitude": "Latitude",
+      "fieldLongitude": "Longitude",
+      "door": {
+        "FRONT": "Dianteira",
+        "MIDDLE": "Central",
+        "REAR": "Traseira"
+      },
+      "statusLabel": {
+        "ACTIVE": "Ativo",
+        "INACTIVE": "Inativo",
+        "MAINTENANCE": "Manutenção",
+        "FAULT": "Avaria"
+      },
+      "headers": {
+        "gateway": "Gateway",
+        "bus": "Autocarro",
+        "door": "Porta",
+        "status": "Estado",
+        "lastReading": "Última leitura",
+        "actions": "Ações"
+      },
+      "deletedToast": "Sensor \"{{gateway}}\" apagado.",
+      "deleteErrorToast": "Não foi possível apagar o sensor."
     }
   },
   "livemap": {

@@ -14,14 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.domain.Bus;
+import dai.tub.pgu.domain.GlobalConfig;
 import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.dto.BusHealthDTO;
 import dai.tub.pgu.mapper.TelemetryMapper;
 import dai.tub.pgu.repository.TelemetryRepository;
 import dai.tub.pgu.repository.BusRepository;
+import dai.tub.pgu.repository.GlobalConfigRepository;
 import java.time.Duration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Service
 public class TelemetryService
@@ -32,6 +38,20 @@ public class TelemetryService
     private final JdbcTemplate jdbc;
     private final AlertaService alertaService;
     private final SimpMessagingTemplate messagingTemplate; // Sprint -1 (BE-9)
+
+    // Sprint 2 (Vertical 3.4): contagem APC + observabilidade.
+    private final GlobalConfigRepository globalConfigRepository;
+    private final DataSourceHealthService healthService;
+    private final Counter boardedCounter;
+    private final Counter alightedCounter;
+    // Gauge da ultima percentagem de ocupacao observada (occupancy.percent).
+    // Mantido num holder atomico que o Micrometer le' periodicamente.
+    private final java.util.concurrent.atomic.AtomicReference<Double> lastOccupancyPct =
+            new java.util.concurrent.atomic.AtomicReference<>(0.0);
+
+    /** Sprint 2: nomes das DataSources self-pulse alimentadas por este servico (V47). */
+    private static final String DS_TELEMETRY_INGEST = "Telemetry ingest";
+    private static final String DS_PASSENGER_SENSORS = "Passenger sensors";
 
     /**
      * Intervalo esperado (em segundos) entre publicações de telemetria por autocarro.
@@ -57,15 +77,31 @@ public class TelemetryService
                             BusRepository busRepository,
                             JdbcTemplate jdbc,
                             AlertaService alertaService,
-                            SimpMessagingTemplate messagingTemplate)
+                            SimpMessagingTemplate messagingTemplate,
+                            GlobalConfigRepository globalConfigRepository,
+                            DataSourceHealthService healthService,
+                            MeterRegistry meterRegistry)
     {
         this.telemetryRepository = telemetryRepository;
         this.busRepository = busRepository;
         this.jdbc = jdbc;
         this.alertaService = alertaService;
         this.messagingTemplate = messagingTemplate;
+        this.globalConfigRepository = globalConfigRepository;
+        this.healthService = healthService;
         // SRID 4326 é o standard WGS84 (usado pelo GPS e Google Maps)
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+
+        // Sprint 2 (Vertical 3.4): metricas Micrometer. Counters de entradas/saidas
+        // e gauge da ultima ocupacao observada (em %).
+        this.boardedCounter = Counter.builder("passenger.boarded")
+                .description("Total de passageiros que entraram (APC)")
+                .register(meterRegistry);
+        this.alightedCounter = Counter.builder("passenger.alighted")
+                .description("Total de passageiros que sairam (APC)")
+                .register(meterRegistry);
+        meterRegistry.gauge("occupancy.percent", lastOccupancyPct,
+                ref -> { Double v = ref.get(); return v == null ? 0.0 : v; });
     }
 
     /**
@@ -79,10 +115,21 @@ public class TelemetryService
         Coordinate coordinate = new Coordinate(dto.getLongitude(), dto.getLatitude());
         Point location = geometryFactory.createPoint(coordinate);
 
+        // Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC com fallback.
+        // Se o produtor (NiFi/simulador antigo) so' enviar passengerCount,
+        // onboard = passengerCount; boarded/alighted ficam null (desconhecidos).
+        // Se enviar onboard, mantemos passengerCount = onboard por compatibilidade
+        // com todos os dashboards/analytics que leem passenger_count.
+        boolean hasApc = dto.getOnboard() != null || dto.getBoarded() != null || dto.getAlighted() != null;
+        int onboard = dto.getOnboard() != null ? dto.getOnboard() : dto.getPassengers();
+
         VehicleTelemetry entity = new VehicleTelemetry();
         entity.setBusId(dto.getBusId());
         entity.setLocation(location);
-        entity.setPassengers(dto.getPassengers());
+        entity.setPassengers(onboard);
+        entity.setBoarded(dto.getBoarded());
+        entity.setAlighted(dto.getAlighted());
+        entity.setOnboard(onboard);
         entity.setSpeedKmh(dto.getSpeed());
         entity.setRecordedAt(dto.getTimestamp() != null ? dto.getTimestamp() : Instant.now());
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : "unknown");
@@ -91,19 +138,63 @@ public class TelemetryService
 
         telemetryRepository.save(entity);
 
-        // Update the bus last sync time
-        busRepository.findByBusCode(dto.getBusId()).ifPresent(bus -> {
+        // Sprint 2 (Vertical 3.4): metricas Micrometer de entradas/saidas.
+        if (dto.getBoarded() != null && dto.getBoarded() > 0)  boardedCounter.increment(dto.getBoarded());
+        if (dto.getAlighted() != null && dto.getAlighted() > 0) alightedCounter.increment(dto.getAlighted());
+
+        // Update the bus last sync time. Resolve a capacidade para o gauge de
+        // ocupacao e para os alertas de ocupacao (R.ICP.05).
+        Integer capacity = busRepository.findByBusCode(dto.getBusId()).map(bus -> {
             bus.setLastSync(Instant.now());
             busRepository.save(bus);
-        });
+            return bus.getCapacity();
+        }).orElse(null);
+
+        if (capacity != null && capacity > 0 && onboard > 0) {
+            lastOccupancyPct.set(Math.round(1000.0 * onboard / capacity) / 10.0);
+            // Sprint 2 (Vertical 3.4, R.ICP.05): alertas de ocupacao.
+            alertaService.avaliarOcupacao(dto, onboard, capacity);
+        }
 
         // Avaliar alertas críticos (ex: AVARIADO)
         alertaService.processarTelemetria(dto);
+
+        // Sprint 2 (Vertical 3.4): pulses de saude. "Telemetry ingest" pulsa
+        // sempre que ha telemetria persistida; "Passenger sensors" so' quando a
+        // leitura traz dados APC reais. recordPulseByName e' best-effort (engole
+        // excecoes e corre em REQUIRES_NEW), nao parte a ingestao.
+        healthService.recordPulseByName(DS_TELEMETRY_INGEST, "telemetry ingest");
+        if (hasApc) {
+            healthService.recordPulseByName(DS_PASSENGER_SENSORS, "apc reading");
+        }
 
         // Sprint -1 (BE-9): broadcast WS dentro do service (era no controller).
         // Mantem-se dentro da @Transactional — se a persistencia falhar nao se publica
         // telemetria inconsistente ao frontend.
         messagingTemplate.convertAndSend("/topic/telemetry", dto);
+    }
+
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.05): verificacao periodica de autocarros
+     * activos que deixaram de reportar ocupacao. Para cada autocarro nao parado
+     * cujo last_sync e' mais velho que occupancy_no_data_minutes (GlobalConfig,
+     * default 10), emite um alerta "sem dados de ocupacao" (com o cooldown do
+     * AlertaService a evitar spam). Corre a cada 60s.
+     */
+    @Scheduled(fixedDelay = 60_000L, initialDelay = 60_000L)
+    public void verificarAusenciaDeDados() {
+        GlobalConfig config = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+        int noDataMinutes = (config != null && config.getOccupancyNoDataMinutes() != null)
+                ? config.getOccupancyNoDataMinutes() : 10;
+        Instant now = Instant.now();
+        for (Bus bus : busRepository.findAll()) {
+            if ("STOPPED".equals(bus.getStatus())) continue;
+            if (bus.getLastSync() == null) continue;
+            long minutos = Duration.between(bus.getLastSync(), now).toMinutes();
+            if (minutos >= noDataMinutes) {
+                alertaService.alertarSemDadosOcupacao(bus.getBusCode(), minutos);
+            }
+        }
     }
 
     public List<TelemetryDTO> getAllTelemetry()

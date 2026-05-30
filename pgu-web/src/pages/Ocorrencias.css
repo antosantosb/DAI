@@ -13,30 +13,81 @@
   animation: fadeIn 0.4s ease both;
 }
 
-/* ─── Top Active Panel ─── */
-.active-alarms-panel {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+/* ─── List View Tabs (Ativos / Histórico) ─── */
+.ocorrencias-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 6px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  width: fit-content;
 }
 
-.active-alarms-header {
+.ocorrencias-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ocorrencias-tab:hover {
+  color: var(--color-text-heading);
+  background: var(--color-surface);
+}
+
+.ocorrencias-tab.is-active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ocorrencias-tab svg {
+  flex-shrink: 0;
+}
+
+/* ─── Active Tab Card (Ativos) ─── */
+.active-tab-card {
+  padding: 18px 20px 20px;
+}
+
+.active-tab-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
+  justify-content: flex-end;
+  margin-bottom: 14px;
 }
 
-.active-alarms-header h2 {
-  font-size: 18px;
+.active-tab-count {
+  font-size: 12px;
   font-weight: 700;
-  color: #f8fafc;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+}
+
+.active-tab-empty {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  margin: 8px 0;
+  text-align: center;
+  padding: 28px 0;
+}
+
+/* Scroll cap so the active list never grows endlessly */
+.active-tab-scroll {
+  max-height: 540px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .active-alarms-grid {
@@ -46,8 +97,8 @@
 }
 
 .active-alarm-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -58,25 +109,48 @@
 
 .active-alarm-card:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-border);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.18);
+}
+
+.active-alarm-card--clickable {
+  cursor: pointer;
 }
 
 .alarm-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 10px;
 }
 
 .alarm-card-title {
   font-weight: 700;
   font-size: 14px;
-  color: #f1f5f9;
+  color: var(--color-text-heading);
 }
 
 .alarm-card-subtitle {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--color-text-secondary);
+}
+
+.alarm-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.alarm-tag-recurrent {
+  background: #ffedd5;
+  color: #ea580c;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .alarm-badge-priority {
@@ -105,8 +179,12 @@
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--color-text-secondary);
   margin-top: auto;
+}
+
+.alarm-card-meta strong {
+  color: var(--color-text-heading);
 }
 
 .btn-open-alarm {
@@ -330,7 +408,7 @@
 .glass-modal-panel {
   width: 100%;
   max-width: 650px;
-  background: #ffffff;
+  background: var(--color-surface);
   height: 100%;
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
   display: flex;
@@ -346,7 +424,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
 }
 
 .panel-header h2 {
@@ -370,7 +448,9 @@
 }
 
 .panel-body {
-  padding: 24px;
+  /* padding inferior maior: o disclaimer fixo (~31px) sobrepoe-se ao fundo do
+     painel, por isso o ultimo conteudo (anexos) tem de clarear o rodape. */
+  padding: 24px 24px 56px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -384,7 +464,7 @@
 }
 
 .panel-info-card {
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-light);
   border-radius: 8px;
   padding: 12px 16px;
@@ -466,7 +546,7 @@
   font-size: 12px;
   color: var(--color-text-secondary);
   margin-top: 2px;
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   padding: 6px 10px;
   border-radius: 6px;
   border-left: 3px solid #cbd5e1;
@@ -544,7 +624,7 @@
 }
 
 .btn-action-outline:hover {
-  background: #f1f5f9;
+  background: var(--color-bg-subtle);
   border-color: #cbd5e1;
 }
 
@@ -567,7 +647,7 @@
   padding: 24px;
   text-align: center;
   cursor: pointer;
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   transition: all 0.2s;
 }
 
@@ -601,7 +681,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #f1f5f9;
+  background: var(--color-bg-subtle);
   border-radius: 6px;
   font-size: 12px;
 }
@@ -640,7 +720,7 @@
 
 /* ─── Telemetry Subflow Panel ─── */
 .telemetria-panel {
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-light);
   border-radius: 12px;
   padding: 16px;
@@ -692,7 +772,7 @@
 }
 
 .ocorrencia-chat-box {
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-light);
   border-radius: 12px;
   overflow: hidden;
@@ -706,7 +786,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #ffffff;
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -746,7 +826,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #f1f5f9;
+  background: var(--color-bg-subtle);
 }
 
 .ocorrencia-chat-empty {
@@ -773,7 +853,7 @@
 
 .ocorrencia-msg.msg--driver {
   align-self: flex-start;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border-light);
   color: var(--color-text-heading);
   border-bottom-left-radius: 2px;
@@ -809,7 +889,7 @@
   display: flex;
   gap: 8px;
   padding: 10px 16px;
-  background: #ffffff;
+  background: var(--color-surface);
   border-top: 1px solid var(--color-border-light);
 }
 

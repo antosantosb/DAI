@@ -22,7 +22,20 @@ public class GlobalConfig {
 
     @Column(name = "default_owner_email", length = 128)
     private String defaultOwnerEmail;
-    
+
+    // Sprint 2 (Vertical 3.4, R.ICP.05): thresholds de ocupacao (onboard/capacidade
+    // em %). warning < critical garantido pela validacao no controller. no_data
+    // e' o numero de minutos sem reporte de um bus activo antes de emitir alerta
+    // de "sem dados de ocupacao".
+    @Column(name = "occupancy_warning_pct")
+    private Integer occupancyWarningPct;
+
+    @Column(name = "occupancy_critical_pct")
+    private Integer occupancyCriticalPct;
+
+    @Column(name = "occupancy_no_data_minutes")
+    private Integer occupancyNoDataMinutes;
+
     public GlobalConfig() {}
 
     public Long getId() {
@@ -87,5 +100,29 @@ public class GlobalConfig {
 
     public void setDefaultOwnerEmail(String defaultOwnerEmail) {
         this.defaultOwnerEmail = defaultOwnerEmail;
+    }
+
+    public Integer getOccupancyWarningPct() {
+        return occupancyWarningPct;
+    }
+
+    public void setOccupancyWarningPct(Integer occupancyWarningPct) {
+        this.occupancyWarningPct = occupancyWarningPct;
+    }
+
+    public Integer getOccupancyCriticalPct() {
+        return occupancyCriticalPct;
+    }
+
+    public void setOccupancyCriticalPct(Integer occupancyCriticalPct) {
+        this.occupancyCriticalPct = occupancyCriticalPct;
+    }
+
+    public Integer getOccupancyNoDataMinutes() {
+        return occupancyNoDataMinutes;
+    }
+
+    public void setOccupancyNoDataMinutes(Integer occupancyNoDataMinutes) {
+        this.occupancyNoDataMinutes = occupancyNoDataMinutes;
     }
 }

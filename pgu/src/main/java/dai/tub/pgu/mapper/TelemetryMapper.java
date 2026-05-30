@@ -48,6 +48,19 @@ public class TelemetryMapper
                         case "passengers":
                             dto.setPassengers(value.asInt());
                             break;
+                        // Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC.
+                        case "entradas":
+                        case "boarded":
+                            dto.setBoarded(value.asInt());
+                            break;
+                        case "saidas":
+                        case "alighted":
+                            dto.setAlighted(value.asInt());
+                            break;
+                        case "ocupacao":
+                        case "onboard":
+                            dto.setOnboard(value.asInt());
+                            break;
                         case "velocidade_atual":
                         case "speed":
                             dto.setSpeed(value.asDouble());
@@ -89,6 +102,9 @@ public class TelemetryMapper
             
             dto.setBusId(entity.getBusId());
             dto.setPassengers(entity.getPassengers());
+            dto.setBoarded(entity.getBoarded());
+            dto.setAlighted(entity.getAlighted());
+            dto.setOnboard(entity.getOnboard());
             dto.setSpeed(entity.getSpeedKmh());
             dto.setTimestamp(entity.getRecordedAt());
             dto.setStatus(entity.getStatus());

@@ -1,5 +1,9 @@
 package dai.tub.pgu.controller;
 
+import dai.tub.pgu.domain.Bus;
+import dai.tub.pgu.domain.VehicleTelemetry;
+import dai.tub.pgu.repository.BusRepository;
+import dai.tub.pgu.repository.TelemetryRepository;
 import dai.tub.pgu.service.NgsiLdService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +43,10 @@ public class NgsiLdProxyController {
     private static final MediaType LD_JSON = MediaType.parseMediaType("application/ld+json");
 
     private final NgsiLdService service;
+    // Sprint 2 (Vertical 3.4, R.ICP.10): fonte das leituras APC para o Smart
+    // Data Model PassengerCount. A capacidade vem do autocarro (buses.capacity).
+    private final TelemetryRepository telemetryRepository;
+    private final BusRepository busRepository;
 
     @GetMapping(value = "/entities", produces = "application/ld+json")
     public ResponseEntity<List<Map<String, Object>>> listEntities(
@@ -63,5 +73,47 @@ public class NgsiLdProxyController {
     @GetMapping(value = "/types", produces = "application/ld+json")
     public ResponseEntity<List<String>> listTypes() {
         return ResponseEntity.ok().contentType(LD_JSON).body(service.listTypes());
+    }
+
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.10): expoe a contagem de passageiros como
+     * entidades NGSI-LD no Smart Data Model oficial {@code PassengerCount}.
+     *
+     * <p>Constroi uma entity por autocarro a partir da ultima telemetria
+     * conhecida (onboard/boarded/alighted) e da capacidade do autocarro.
+     * Devolve {@code application/ld+json} com @context FIWARE.
+     */
+    @GetMapping(value = "/passenger-count", produces = "application/ld+json")
+    public ResponseEntity<List<Map<String, Object>>> listPassengerCounts() {
+        List<VehicleTelemetry> latest = telemetryRepository.findLatestPerBus();
+        List<Map<String, Object>> out = new ArrayList<>(latest.size());
+        for (VehicleTelemetry t : latest) {
+            out.add(toPassengerCount(t));
+        }
+        return ResponseEntity.ok().contentType(LD_JSON).body(out);
+    }
+
+    @GetMapping(value = "/passenger-count/{busId}", produces = "application/ld+json")
+    public ResponseEntity<Map<String, Object>> getPassengerCount(@PathVariable String busId) {
+        VehicleTelemetry t = telemetryRepository.findLatestByBusId(busId);
+        if (t == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Sem telemetria para o autocarro " + busId);
+        }
+        return ResponseEntity.ok().contentType(LD_JSON).body(toPassengerCount(t));
+    }
+
+    private Map<String, Object> toPassengerCount(VehicleTelemetry t) {
+        int capacity = busRepository.findByBusCode(t.getBusId())
+                .map(Bus::getCapacity)
+                .filter(c -> c != null)
+                .orElse(0);
+        // onboard pode ser null em linhas historicas: usa passenger_count como fallback.
+        int onboard = t.getOnboard() != null ? t.getOnboard() : t.getPassengers();
+        String observedAt = t.getRecordedAt() != null
+                ? DateTimeFormatter.ISO_INSTANT.format(t.getRecordedAt())
+                : null;
+        return service.buildPassengerCountEntity(
+                t.getBusId(), t.getBoarded(), t.getAlighted(), onboard, capacity, observedAt);
     }
 }

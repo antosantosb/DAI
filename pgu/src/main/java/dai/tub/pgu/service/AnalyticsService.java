@@ -10,6 +10,7 @@ import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
 import dai.tub.pgu.dto.AnalyticsDTOs.CoverageIndicators;
 import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
+import dai.tub.pgu.dto.AnalyticsDTOs.OccupancyByRouteHour;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteAdherenceData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayCorrelation;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
@@ -376,6 +377,52 @@ public class AnalyticsService {
 
     public List<CongestionData> getCongestion() {
         return getCongestion(null, null, null, null);
+    }
+
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.04): ocupacao media por rota e hora-do-dia.
+     *
+     * <p>Para cada (rota, hora) calcula a media de passageiros a bordo e a
+     * percentagem media de ocupacao (onboard/capacidade). Usa a coluna
+     * {@code onboard} com fallback para {@code passenger_count} (linhas antigas
+     * ou produtores sem APC). A hora e' extraida no fuso Europe/Lisbon. Aceita
+     * os mesmos filtros opcionais de data/hora dos restantes endpoints; sem
+     * filtros, limita-se as ultimas 24h.
+     */
+    public List<OccupancyByRouteHour> getOccupancyByRouteHour(String startDate, String endDate,
+                                                              String startHour, String endHour) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    r.code                                                       AS route_code,
+                    EXTRACT(HOUR FROM (t.recorded_at AT TIME ZONE 'Europe/Lisbon'))::int AS hour,
+                    AVG(COALESCE(t.onboard, t.passenger_count))::double precision AS avg_onboard,
+                    CASE
+                        WHEN COALESCE(MIN(b.capacity), 50) > 0
+                        THEN ROUND(100.0 * AVG(COALESCE(t.onboard, t.passenger_count))
+                                   / COALESCE(MIN(b.capacity), 50), 1)::double precision
+                        ELSE 0.0
+                    END                                                          AS occupancy_pct,
+                    COUNT(*)                                                      AS samples
+                FROM vehicle_telemetry t
+                JOIN buses  b ON t.bus_id   = b.bus_code
+                JOIN routes r ON b.route_id = r.id
+                WHERE 1=1
+                """);
+        List<Object> args = new java.util.ArrayList<>();
+        appendFilters(sql, args, startDate, endDate, startHour, endHour, "t.recorded_at >= NOW() - INTERVAL '24 hours'");
+
+        sql.append("""
+                GROUP BY r.code, hour
+                ORDER BY r.code, hour
+                """);
+
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new OccupancyByRouteHour(
+                rs.getString("route_code"),
+                rs.getInt("hour"),
+                Math.round(rs.getDouble("avg_onboard") * 10.0) / 10.0,
+                rs.getDouble("occupancy_pct"),
+                rs.getLong("samples")
+        ), args.toArray());
     }
 
     /**

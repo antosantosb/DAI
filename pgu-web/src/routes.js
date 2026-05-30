@@ -165,6 +165,14 @@ export const routes = [
         loader: () => import('./pages/DataSources'),
         nav: { sectionKey: 'sections.data', labelKey: 'nav.dataSources', iconKey: 'IconDataSource' },
       },
+      // Sprint 2 (Vertical 3.4, R.ICP.07): inventario de sensores de contagem
+      // de passageiros (APC). CRUD restrito a admin/funcionario.
+      {
+        path: 'sensors',
+        loader: () => import('./pages/Sensors'),
+        access: ['admin', 'funcionario', 'developer'],
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.sensors', iconKey: 'IconSensor' },
+      },
       {
         path: 'gtfs',
         loader: () => import('./pages/GtfsManager'),

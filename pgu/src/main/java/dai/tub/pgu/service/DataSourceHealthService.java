@@ -212,11 +212,15 @@ public class DataSourceHealthService {
      * last_sync) e nao por um probe externo. SIMULATOR pulsa via POST /pulse;
      * GTFS_RT/NETEX pulsam internamente a cada geracao de feed/export
      * (recordPulseByName). Para estes, o probe NAO deve tocar no last_sync.
+     *
+     * <p>Sprint 2 (Vertical 3.4): APC_SENSOR e TELEMETRY pulsam internamente a
+     * cada leitura de ocupacao / telemetria persistida (recordPulseByName), pelo
+     * que tambem sao self-pulse.
      */
     private static boolean isSelfPulse(String tipo) {
         if (tipo == null) return false;
         return switch (tipo.toUpperCase()) {
-            case "SIMULATOR", "GTFS_RT", "NETEX" -> true;
+            case "SIMULATOR", "GTFS_RT", "NETEX", "APC_SENSOR", "TELEMETRY" -> true;
             default -> false;
         };
     }

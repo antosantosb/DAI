@@ -2,32 +2,56 @@ package dai.tub.pgu.service;
 
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.TelemetryDTO;
+import dai.tub.pgu.repository.BusRepository;
+import dai.tub.pgu.repository.GlobalConfigRepository;
 import dai.tub.pgu.repository.TelemetryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import java.time.Instant;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class TelemetryServiceTests {
-    
-    @InjectMocks
+
     private TelemetryService telemetryService;
 
-    @Mock
     private TelemetryRepository telemetryRepository;
+    private BusRepository busRepository;
+    private GlobalConfigRepository globalConfigRepository;
+    private DataSourceHealthService healthService;
 
     private TelemetryDTO telemetryDTO;
 
     @BeforeEach
     void setUp() {
+        // Sprint 2 (Vertical 3.4): construcao manual com mocks + registry real.
+        // O construtor passou a receber GlobalConfigRepository, DataSourceHealthService
+        // e MeterRegistry (para os counters/gauge APC). Um SimpleMeterRegistry real
+        // evita NPE no registo das metricas; os restantes sao mocks.
+        telemetryRepository = mock(TelemetryRepository.class);
+        busRepository = mock(BusRepository.class);
+        globalConfigRepository = mock(GlobalConfigRepository.class);
+        healthService = mock(DataSourceHealthService.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        AlertaService alertaService = mock(AlertaService.class);
+        SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
+
+        when(busRepository.findByBusCode(anyString())).thenReturn(java.util.Optional.empty());
+        when(globalConfigRepository.findAll()).thenReturn(Collections.emptyList());
+
+        telemetryService = new TelemetryService(
+                telemetryRepository, busRepository, jdbc, alertaService, messagingTemplate,
+                globalConfigRepository, healthService, new SimpleMeterRegistry());
+
         telemetryDTO = new TelemetryDTO();
         telemetryDTO.setBusId("Autocarro teste");
         telemetryDTO.setTimestamp(Instant.now());

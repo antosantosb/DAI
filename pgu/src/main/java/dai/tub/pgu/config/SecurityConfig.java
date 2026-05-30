@@ -59,6 +59,23 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
+                // Sprint 2 (Vertical 3.4, R.ICP.07): inventario de sensores APC.
+                // admin/funcionario gerem o CRUD. TEM que vir ANTES do catch-all
+                // GET /api/v1/** abaixo, senao o GET cairia em authenticated().
+                .requestMatchers(HttpMethod.GET, "/api/v1/sensors").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.GET, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
+                // Sprint 2 (Vertical 3.4): ingestao interna de validacoes de
+                // bilhetica (fundacao stub, implementada por outra tarefa). E'
+                // machine-to-machine como o telemetry/ingest e o pulse: protegido
+                // pelo InternalApiKeyFilter (X-API-Key), nao exige role de user.
+                .requestMatchers(HttpMethod.POST, "/api/v1/validations").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/validations/**").permitAll()
+                // Sprint 2: activity feed (implementado por outra tarefa).
+                // admin/funcionario. TEM que vir ANTES do catch-all GET /api/v1/**.
+                .requestMatchers(HttpMethod.GET, "/api/v1/activity").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.GET, "/api/v1/activity/**").hasAnyRole("admin", "funcionario", "developer")
                 // Sprint 1 (F1): GeoJSON export aberto (R.BO.01) — tem que vir
                 // ANTES do catch-all GET /api/v1/** autenticado abaixo.
                 .requestMatchers(HttpMethod.GET, "/api/v1/routes/export.geojson").permitAll()

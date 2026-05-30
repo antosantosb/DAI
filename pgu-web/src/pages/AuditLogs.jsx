@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import Modal from '../components/Modal';
@@ -42,14 +42,59 @@ const ACTION_KEY_MAP = {
   'Registar Ação Corretiva': 'correctiveAction',
   'Fechar Ocorrência': 'closeOcorrencia',
   'Marcar Falso Positivo': 'markFalsePositive',
+  // Acoes de despacho emitidas em SNAKE_UPPER pelo backend.
+  MENSAGEM_ENVIADA: 'messageSent',
+  MENSAGEM_ENTREGUE: 'messageDelivered',
+  MENSAGEM_LIDA: 'messageRead',
+  MENSAGEM_CANCELADA: 'messageCancelled',
 };
 
+// Converte uma string SNAKE_UPPER (ex.: "MENSAGEM_ENTREGUE") numa frase legivel
+// com so' a 1ª letra maiuscula ("Mensagem entregue"). Tolera digitos e nº.
+const isSnakeUpper = (s) => /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(s);
+const humanizeSnake = (s) => {
+  const lower = s.replace(/_/g, ' ').toLowerCase().trim();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+};
+
+// Fallback final: title-case por palavra, preservando acrónimos ja' em maiusculas
+// (ex.: "GTFS"). Usado quando a acao nao e' conhecida nem SNAKE_UPPER.
+const titleCase = (s) =>
+  s.replace(/\s+/g, ' ').trim().split(' ').map((w) =>
+    w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  ).join(' ');
+
 export default function AuditLogs() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // Reverse-map: label traduzido (PT ou EN, qualquer idioma carregado) -> slug.
+  // Permite normalizar acoes que o backend ja' envia em frase (ex.: "Update bus",
+  // "Sincronizar GTFS TUB") em vez da string PT canonica do ACTION_KEY_MAP.
+  const valueToSlug = useMemo(() => {
+    const map = {};
+    for (const lng of i18n.languages || [i18n.language]) {
+      const bundle = i18n.getResourceBundle(lng, 'translation');
+      const actions = bundle?.pages?.auditLogs?.actionMap;
+      if (actions) {
+        for (const [slug, label] of Object.entries(actions)) {
+          if (typeof label === 'string') map[label.toLowerCase()] = slug;
+        }
+      }
+    }
+    return map;
+  }, [i18n, i18n.language]);
+
+  // Normalizacao para APRESENTACAO (nao toca nos dados do backend):
+  //  1. acao PT canonica conhecida -> label i18n;
+  //  2. acao ja' em frase noutro idioma (reverse-map) -> label i18n do idioma atual;
+  //  3. SNAKE_UPPER -> frase legivel ("MENSAGEM_ENTREGUE" -> "Mensagem entregue");
+  //  4. fallback -> title-case da string original.
   const translateAction = (action) => {
     if (!action) return '—';
-    const slug = ACTION_KEY_MAP[action];
-    return slug ? t(`pages.auditLogs.actionMap.${slug}`) : action;
+    const slug = ACTION_KEY_MAP[action] || valueToSlug[action.toLowerCase()];
+    if (slug) return t(`pages.auditLogs.actionMap.${slug}`);
+    if (isSnakeUpper(action)) return humanizeSnake(action);
+    return titleCase(action);
   };
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);

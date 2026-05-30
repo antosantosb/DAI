@@ -22,6 +22,19 @@ public class VehicleTelemetry
     @Column(name = "passenger_count")
     private int passengerCount;
 
+    // Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC por paragem.
+    // boarded/alighted = entradas/saidas na ultima paragem; onboard = ocupacao
+    // instantanea a bordo. Nullable para tolerar produtores antigos (a ingestao
+    // faz fallback onboard = passengerCount quando estes campos nao vierem).
+    @Column(name = "boarded")
+    private Integer boarded;
+
+    @Column(name = "alighted")
+    private Integer alighted;
+
+    @Column(name = "onboard")
+    private Integer onboard;
+
     @Column(name = "speed_kmh")
     private Double speedKmh;
 
@@ -54,6 +67,9 @@ public class VehicleTelemetry
     public String  getBusId()      { return this.busId; }
     public Point   getLocation()   { return this.location; }
     public int     getPassengers() { return this.passengerCount; }
+    public Integer getBoarded()    { return this.boarded; }
+    public Integer getAlighted()   { return this.alighted; }
+    public Integer getOnboard()    { return this.onboard; }
     public Double  getSpeedKmh()   { return this.speedKmh; }
     public Instant getRecordedAt() { return this.recordedAt; }
     public String  getStatus()         { return this.status; }
@@ -65,6 +81,9 @@ public class VehicleTelemetry
     public void setBusId(String busId)             { this.busId = busId; }
     public void setLocation(Point location)        { this.location = location; }
     public void setPassengers(int passengerCount) { this.passengerCount = passengerCount; }
+    public void setBoarded(Integer boarded)        { this.boarded = boarded; }
+    public void setAlighted(Integer alighted)      { this.alighted = alighted; }
+    public void setOnboard(Integer onboard)        { this.onboard = onboard; }
     public void setSpeedKmh(Double speedKmh)       { this.speedKmh = speedKmh; }
     public void setRecordedAt(Instant recordedAt)  { this.recordedAt = recordedAt; }
     public void setStatus(String status)                   { this.status = status; }

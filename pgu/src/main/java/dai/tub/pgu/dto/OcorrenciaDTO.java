@@ -1,7 +1,6 @@
 package dai.tub.pgu.dto;
 
 import java.time.Instant;
-import com.fasterxml.jackson.databind.JsonNode;
 
 public class OcorrenciaDTO {
     private Long id;
@@ -20,7 +19,7 @@ public class OcorrenciaDTO {
     private String falsoPositivoJustificacao;
     private boolean reincidencia;
     private Long ocorrenciaPaiId;
-    private JsonNode telemetriaSnapshot;
+    private Object telemetriaSnapshot;
     private String criadoPor;
 
     public OcorrenciaDTO() {}
@@ -42,7 +41,7 @@ public class OcorrenciaDTO {
     public String getFalsoPositivoJustificacao() { return falsoPositivoJustificacao; }
     public boolean isReincidencia() { return reincidencia; }
     public Long getOcorrenciaPaiId() { return ocorrenciaPaiId; }
-    public JsonNode getTelemetriaSnapshot() { return telemetriaSnapshot; }
+    public Object getTelemetriaSnapshot() { return telemetriaSnapshot; }
     public String getCriadoPor() { return criadoPor; }
 
     // SETTERS
@@ -62,6 +61,6 @@ public class OcorrenciaDTO {
     public void setFalsoPositivoJustificacao(String falsoPositivoJustificacao) { this.falsoPositivoJustificacao = falsoPositivoJustificacao; }
     public void setReincidencia(boolean reincidencia) { this.reincidencia = reincidencia; }
     public void setOcorrenciaPaiId(Long ocorrenciaPaiId) { this.ocorrenciaPaiId = ocorrenciaPaiId; }
-    public void setTelemetriaSnapshot(JsonNode telemetriaSnapshot) { this.telemetriaSnapshot = telemetriaSnapshot; }
+    public void setTelemetriaSnapshot(Object telemetriaSnapshot) { this.telemetriaSnapshot = telemetriaSnapshot; }
     public void setCriadoPor(String criadoPor) { this.criadoPor = criadoPor; }
 }

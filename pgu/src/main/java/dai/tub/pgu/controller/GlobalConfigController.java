@@ -49,6 +49,27 @@ public class GlobalConfigController {
         // Sprint 0 (F4 follow-up): owner default das DataSources.
         config.setDefaultOwnerName(req.getDefaultOwnerName());
         config.setDefaultOwnerEmail(req.getDefaultOwnerEmail());
+
+        // Sprint 2 (Vertical 3.4, R.ICP.05): thresholds de ocupacao com validacao
+        // de range coerente. So aplica se vierem ambos os pcts; exige
+        // 0 < warning < critical <= 100. no_data_minutes (se vier) tem de ser > 0.
+        Integer warn = req.getOccupancyWarningPct();
+        Integer crit = req.getOccupancyCriticalPct();
+        if (warn != null && crit != null) {
+            if (warn <= 0 || crit <= 0 || warn >= crit || crit > 100) {
+                return ResponseEntity.badRequest().build();
+            }
+            config.setOccupancyWarningPct(warn);
+            config.setOccupancyCriticalPct(crit);
+        }
+        Integer noData = req.getOccupancyNoDataMinutes();
+        if (noData != null) {
+            if (noData <= 0) {
+                return ResponseEntity.badRequest().build();
+            }
+            config.setOccupancyNoDataMinutes(noData);
+        }
+
         config.setUpdatedAt(Instant.now());
 
         if (jwt != null) {

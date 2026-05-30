@@ -43,3 +43,18 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+
+/* Sprint 2 (R.ICP.07): estado do sensor APC com "bolinha" de cor + rotulo. */
+.sensor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.sensor-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
+}

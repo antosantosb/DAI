@@ -89,7 +89,8 @@
     "account": "My Account",
     "chatbot": "AI Chatbot",
     "aiMonitoring": "AI Monitoring",
-    "devTools": "Dev Tools"
+    "devTools": "Dev Tools",
+    "sensors": "Sensors"
   },
   "sections": {
     "dev": "Developer",
@@ -180,7 +181,9 @@
       "recentTelemetry": "Recent Telemetry",
       "noTelemetry": "No telemetry data",
       "trip": "Trip",
-      "atStop": "At Stop"
+      "atStop": "At Stop",
+      "activityTitle": "Recent activity",
+      "activityEmpty": "No recent activity."
     },
     "health": {
       "title": "Fleet Health",
@@ -236,6 +239,8 @@
       "passengers": "Passengers",
       "noRoute": "No line",
       "noDriver": "No driver",
+      "routeUnnamed": "Unnamed",
+      "unreadAria": "{{count}} unread messages",
       "statusActive": "Active",
       "statusStopping": "Stopping",
       "statusStopped": "Stopped",
@@ -885,6 +890,14 @@
         "dropHint": "Drag a file or click to select",
         "noAttachments": "No attachments.",
         "view": "View"
+      },
+      "tabs": {
+        "active": "Active",
+        "activeWithCount": "Active ({{count}})",
+        "history": "History",
+        "activeEmpty": "No active incidents at the moment.",
+        "activeCount": "{{count}} active",
+        "openDetail": "Open detail"
       }
     },
     "analytics": {
@@ -974,7 +987,22 @@
       "waitMinutes": "min wait",
       "waitDepartures": "passings/day",
       "noCoverageData": "No timetable data to compute coverage indicators.",
-      "coverageUnitPct": "%"
+      "coverageUnitPct": "%",
+      "tabOccupancy": "Occupancy",
+      "occTitle": "Average occupancy by route and hour",
+      "occSubtitle": "Average occupancy share (onboard passengers / capacity) per route throughout the day.",
+      "occRouteHeader": "Route",
+      "noOccupancyData": "No occupancy data for the selected period.",
+      "occAvgKpi": "Average occupancy",
+      "occPeakKpi": "Peak occupancy",
+      "occPeakWhenKpi": "Peak (route and hour)",
+      "occPeakAt": "{{route}} at {{hour}}h",
+      "occCellTitle": "Route {{route}} at {{hour}}h: {{pct}}% occupancy ({{onboard}} onboard, {{samples}} samples)",
+      "occCellTitleNone": "Route {{route}} at {{hour}}h: no data",
+      "occLegendLow": "Empty",
+      "occLegendHigh": "Full",
+      "occLegendNone": "No data",
+      "occLegendUnit": "% occupancy"
     },
     "dataSources": {
       "title": "Data Sources",
@@ -1327,7 +1355,11 @@
         "assumeOcorrencia": "Take Incident",
         "correctiveAction": "Record Corrective Action",
         "closeOcorrencia": "Close Incident",
-        "markFalsePositive": "Mark False Positive"
+        "markFalsePositive": "Mark False Positive",
+        "messageSent": "Message sent",
+        "messageDelivered": "Message delivered",
+        "messageRead": "Message read",
+        "messageCancelled": "Message cancelled"
       }
     },
     "minhaConta": {
@@ -1490,6 +1522,47 @@
         "success": "{{count}} drivers created.",
         "error": "Failed to create drivers in batch."
       }
+    },
+    "sensors": {
+      "title": "Passenger Counting Sensors",
+      "subtitle": "Inventory of the automatic passenger counting (APC) sensors installed across the fleet.",
+      "newSensor": "Add sensor",
+      "create": "New sensor",
+      "searchPlaceholder": "Search by gateway, bus, door or status...",
+      "noSensors": "No sensors registered.",
+      "successTitle": "Sensor created",
+      "successCreated": "The sensor was added successfully.",
+      "errorTitle": "Error",
+      "deleteTitle": "Delete sensor",
+      "deleteMessage": "Are you sure you want to delete sensor \"{{gateway}}\"? This action cannot be undone.",
+      "deleteConfirm": "Delete",
+      "fieldGateway": "Gateway",
+      "fieldBusId": "Bus (ID)",
+      "fieldDoorPosition": "Door position",
+      "fieldStatus": "Status",
+      "fieldLatitude": "Latitude",
+      "fieldLongitude": "Longitude",
+      "door": {
+        "FRONT": "Front",
+        "MIDDLE": "Middle",
+        "REAR": "Rear"
+      },
+      "statusLabel": {
+        "ACTIVE": "Active",
+        "INACTIVE": "Inactive",
+        "MAINTENANCE": "Maintenance",
+        "FAULT": "Fault"
+      },
+      "headers": {
+        "gateway": "Gateway",
+        "bus": "Bus",
+        "door": "Door",
+        "status": "Status",
+        "lastReading": "Last reading",
+        "actions": "Actions"
+      },
+      "deletedToast": "Sensor \"{{gateway}}\" deleted.",
+      "deleteErrorToast": "Could not delete the sensor."
     }
   },
   "livemap": {

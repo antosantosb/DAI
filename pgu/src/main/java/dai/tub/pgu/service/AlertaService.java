@@ -120,6 +120,57 @@ public class AlertaService {
     }
 
 
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.05): avalia a ocupacao de um autocarro e
+     * dispara alertas quando ultrapassa os thresholds configurados no
+     * GlobalConfig (occupancy_warning_pct / occupancy_critical_pct). A
+     * percentagem e' onboard/capacidade. Aplica o mesmo cooldown por ativo+tipo.
+     *
+     * <p>Chamado pelo TelemetryService, que ja' resolveu a capacidade do
+     * autocarro. Se a capacidade for invalida (<=0) ou nao houver ocupacao,
+     * nao faz nada.
+     *
+     * @param telemetria leitura recebida (para snapshot e bus_id)
+     * @param onboard    ocupacao instantanea a bordo
+     * @param capacidade capacidade do autocarro
+     */
+    public void avaliarOcupacao(TelemetryDTO telemetria, int onboard, int capacidade) {
+        if (telemetria == null || capacidade <= 0 || onboard <= 0) return;
+
+        GlobalConfig config = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+        int warningPct  = (config != null && config.getOccupancyWarningPct()  != null) ? config.getOccupancyWarningPct()  : 80;
+        int criticalPct = (config != null && config.getOccupancyCriticalPct() != null) ? config.getOccupancyCriticalPct() : 95;
+
+        double pct = 100.0 * onboard / capacidade;
+
+        if (pct >= criticalPct) {
+            triggerOcorrencia(telemetria, "BUS", "OCUPACAO_CRITICA",
+                "Ocupacao critica: " + onboard + "/" + capacidade + " ("
+                + Math.round(pct) + "%, acima do limite de " + criticalPct + "%).");
+        } else if (pct >= warningPct) {
+            triggerOcorrencia(telemetria, "BUS", "OCUPACAO_ELEVADA",
+                "Ocupacao elevada: " + onboard + "/" + capacidade + " ("
+                + Math.round(pct) + "%, acima do limite de " + warningPct + "%).");
+        }
+    }
+
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.05): emite um alerta de "sem dados de
+     * ocupacao" para um autocarro activo que nao reporta ha mais do que o
+     * limite configurado (occupancy_no_data_minutes). Reusa o cooldown via
+     * triggerOcorrencia. Chamado pela verificacao periodica no TelemetryService.
+     *
+     * @param busId            codigo do autocarro
+     * @param minutosSemDados  minutos desde a ultima telemetria
+     */
+    public void alertarSemDadosOcupacao(String busId, long minutosSemDados) {
+        if (busId == null || busId.isBlank()) return;
+        TelemetryDTO stub = new TelemetryDTO();
+        stub.setBusId(busId);
+        triggerOcorrencia(stub, "BUS", "SEM_DADOS_OCUPACAO",
+            "Autocarro activo sem reportar ocupacao ha " + minutosSemDados + " minutos.");
+    }
+
     private void triggerOcorrencia(TelemetryDTO telemetria, String tipoAtivo, String tipoAnomalia, String descricao) {
         String ativoId = telemetria.getBusId();
         String key = ativoId + ":" + tipoAnomalia;

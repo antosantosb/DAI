@@ -35,6 +35,9 @@ export default function Ocorrencias() {
   const [activeAlarms, setActiveAlarms] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // List view tabs: 'ativos' (open occurrences) | 'historico' (full table)
+  const [activeTab, setActiveTab] = useState('ativos');
+
   // Filters state
   const [estadoFilter, setEstadoFilter] = useState('');
   const [ativoFilter, setAtivoFilter] = useState('');
@@ -473,6 +476,14 @@ export default function Ocorrencias() {
     currentPage * pageSize
   );
 
+  // Active occurrences for the "Ativos" tab: critical first, then oldest open first.
+  const sortedActiveAlarms = [...activeAlarms].sort((a, b) => {
+    const critA = a.prioridade === 'CRITICA' ? 0 : 1;
+    const critB = b.prioridade === 'CRITICA' ? 0 : 1;
+    if (critA !== critB) return critA - critB;
+    return new Date(a.timestampAbertura) - new Date(b.timestampAbertura);
+  });
+
   const formatTime = (ts) => {
     if (!ts) return '—';
     return new Date(ts).toLocaleString('pt-PT');
@@ -507,159 +518,204 @@ export default function Ocorrencias() {
         )}
       </div>
 
-      {/* ─── PAINEL DE ALARMES ATIVOS (Sempre visível no topo) ─── */}
-      <section className="active-alarms-panel">
-        <div className="active-alarms-header">
-          <h2>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: '-4px', marginRight: '6px' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>{t('pages.ocorrencias.activeAlarms.title', { count: activeAlarms.length })}
-          </h2>
-        </div>
-        {activeAlarms.length === 0 ? (
-          <p style={{ color: '#cbd5e1', fontSize: '13px', margin: 0 }}>{t('pages.ocorrencias.activeAlarms.empty')}</p>
-        ) : (
-          <div className="active-alarms-grid">
-            {activeAlarms.map(a => (
-              <div key={a.id} className="active-alarm-card">
-                <div className="alarm-card-header">
-                  <div>
-                    <span className="alarm-card-title">{a.tipoAnomalia}</span>
-                    <div className="alarm-card-subtitle">{t('pages.ocorrencias.activeAlarms.assetPrefix')}: {a.ativoId} ({a.tipoAtivo})</div>
-                  </div>
-                  <span className={`alarm-badge-priority alarm-badge-priority--${a.prioridade.toLowerCase()}`}>
-                    {a.prioridade}
-                  </span>
-                </div>
-                <div className="alarm-card-meta">
-                  <span>{t('pages.ocorrencias.activeAlarms.openSince')}: <strong>{getElapsedTime(a.timestampAbertura)}</strong></span>
-                  <button className="btn-open-alarm" onClick={() => navigate(`/backoffice/ocorrencias/${a.id}`)}>
-                    {t('pages.ocorrencias.activeAlarms.openDetail')}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ─── FILTROS ─── */}
-      <div className="table-filter-card">
-        <div className="filter-item">
-          <label>{t('pages.ocorrencias.filters.byState')}</label>
-          <select value={estadoFilter} onChange={(e) => { setEstadoFilter(e.target.value); setCurrentPage(1); }}>
-            <option value="">{t('pages.ocorrencias.filters.all')}</option>
-            <option value="ABERTA">{t('pages.ocorrencias.states.aberta')}</option>
-            <option value="EM_CURSO">{t('pages.ocorrencias.states.emCurso')}</option>
-            <option value="RESOLVIDA">{t('pages.ocorrencias.states.resolvida')}</option>
-            <option value="FALSO_POSITIVO">{t('pages.ocorrencias.states.falsoPositivo')}</option>
-          </select>
-        </div>
-
-        <div className="filter-item">
-          <label>{t('pages.ocorrencias.filters.byAsset')}</label>
-          <input
-            type="text"
-            placeholder={t('pages.ocorrencias.search.busPlaceholder')}
-            value={ativoFilter}
-            onChange={(e) => { setAtivoFilter(e.target.value); setCurrentPage(1); }}
-          />
-        </div>
-
-        {(estadoFilter || ativoFilter) && (
-          <button
-            className="btn-clear-filters"
-            onClick={() => { setEstadoFilter(''); setAtivoFilter(''); setCurrentPage(1); }}
-          >
-            {t('pages.ocorrencias.filters.clear')}
-          </button>
-        )}
+      {/* ─── ABAS: ATIVOS / HISTÓRICO ─── */}
+      <div className="ocorrencias-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'ativos'}
+          className={`ocorrencias-tab ${activeTab === 'ativos' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('ativos')}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+          {t('pages.ocorrencias.tabs.activeWithCount', { count: activeAlarms.length })}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'historico'}
+          className={`ocorrencias-tab ${activeTab === 'historico' ? 'is-active' : ''}`}
+          onClick={() => setActiveTab('historico')}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 8v4l3 3" /><path d="M3.05 11a9 9 0 1 1 .5 4" /><path d="M3 4v4h4" /></svg>
+          {t('pages.ocorrencias.tabs.history')}
+        </button>
       </div>
 
-      {/* ─── TABELA DE OCORRÊNCIAS ─── */}
       {loading ? (
         <p className="analytics-loading">{t('pages.ocorrencias.loading')}</p>
+      ) : activeTab === 'ativos' ? (
+        /* ─── TAB ATIVOS: ocorrências abertas, compacta e scrollável ─── */
+        <section className="bus-card active-tab-card">
+          <div className="active-tab-header">
+            <span className="active-tab-count">{t('pages.ocorrencias.tabs.activeCount', { count: activeAlarms.length })}</span>
+          </div>
+          {sortedActiveAlarms.length === 0 ? (
+            <p className="active-tab-empty">{t('pages.ocorrencias.tabs.activeEmpty')}</p>
+          ) : (
+            <div className="active-tab-scroll">
+              <div className="active-alarms-grid">
+                {sortedActiveAlarms.map(a => (
+                  <div
+                    key={a.id}
+                    className="active-alarm-card active-alarm-card--clickable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/backoffice/ocorrencias/${a.id}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/backoffice/ocorrencias/${a.id}`); } }}
+                  >
+                    <div className="alarm-card-header">
+                      <div>
+                        <span className="alarm-card-title">{a.tipoAnomalia}</span>
+                        <div className="alarm-card-subtitle">{t('pages.ocorrencias.activeAlarms.assetPrefix')}: {a.ativoId} ({a.tipoAtivo})</div>
+                      </div>
+                      <span className={`alarm-badge-priority alarm-badge-priority--${a.prioridade.toLowerCase()}`}>
+                        {a.prioridade}
+                      </span>
+                    </div>
+                    <div className="alarm-card-tags">
+                      <span className={`ocorrencia-badge-state state--${a.estado.toLowerCase()}`}>
+                        {a.estado.replace('_', ' ')}
+                      </span>
+                      {a.reincidencia && (
+                        <span className="alarm-tag-recurrent">{t('pages.ocorrencias.recurrent')}</span>
+                      )}
+                    </div>
+                    <div className="alarm-card-meta">
+                      <span>{t('pages.ocorrencias.activeAlarms.openSince')}: <strong>{getElapsedTime(a.timestampAbertura)}</strong></span>
+                      <button
+                        className="btn-open-alarm"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/backoffice/ocorrencias/${a.id}`); }}
+                      >
+                        {t('pages.ocorrencias.tabs.openDetail')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       ) : (
-        <section className="bus-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="ocorrencias-table-wrap" style={{ maxHeight: 'none' }}>
-            <table className="ocorrencias-table">
-              <thead>
-                <tr>
-                  <th>{t('pages.ocorrencias.headers.id')}</th>
-                  <th>{t('pages.ocorrencias.headers.asset')}</th>
-                  <th>{t('pages.ocorrencias.headers.anomalyType')}</th>
-                  <th>{t('pages.ocorrencias.headers.priority')}</th>
-                  <th>{t('pages.ocorrencias.headers.state')}</th>
-                  <th>{t('pages.ocorrencias.headers.openedAt')}</th>
-                  <th>{t('pages.ocorrencias.headers.responsible')}</th>
-                  <th>{t('pages.ocorrencias.headers.notes')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="dash-empty">{t('pages.ocorrencias.emptyTable')}</td>
-                  </tr>
-                ) : (
-                  paginatedData.map(o => (
-                    <tr
-                      key={o.id}
-                      className="table-row-clickable"
-                      onClick={() => navigate(`/backoffice/ocorrencias/${o.id}`)}
-                    >
-                      <td style={{ fontWeight: 700 }}>#{o.id}</td>
-                      <td>{o.ativoId} <span style={{ fontSize: '10px', color: '#94a3b8' }}>({o.tipoAtivo})</span></td>
-                      <td style={{ fontWeight: 600 }}>{o.tipoAnomalia}</td>
-                      <td>
-                        <span className={`priority--${o.prioridade.toLowerCase()}`}>
-                          {o.prioridade}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`ocorrencia-badge-state state--${o.estado.toLowerCase()}`}>
-                          {o.estado.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="ocorrencias-time">{formatTime(o.timestampAbertura)}</td>
-                      <td>{o.responsavel || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('pages.ocorrencias.unassigned')}</span>}</td>
-                      <td>
-                        {o.reincidencia && (
-                          <span style={{ background: '#ffedd5', color: '#ea580c', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>
-                            {t('pages.ocorrencias.recurrent')}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        /* ─── TAB HISTÓRICO: filtros + tabela completa + paginação ─── */
+        <>
+          {/* ─── FILTROS ─── */}
+          <div className="table-filter-card">
+            <div className="filter-item">
+              <label>{t('pages.ocorrencias.filters.byState')}</label>
+              <select value={estadoFilter} onChange={(e) => { setEstadoFilter(e.target.value); setCurrentPage(1); }}>
+                <option value="">{t('pages.ocorrencias.filters.all')}</option>
+                <option value="ABERTA">{t('pages.ocorrencias.states.aberta')}</option>
+                <option value="EM_CURSO">{t('pages.ocorrencias.states.emCurso')}</option>
+                <option value="RESOLVIDA">{t('pages.ocorrencias.states.resolvida')}</option>
+                <option value="FALSO_POSITIVO">{t('pages.ocorrencias.states.falsoPositivo')}</option>
+              </select>
+            </div>
+
+            <div className="filter-item">
+              <label>{t('pages.ocorrencias.filters.byAsset')}</label>
+              <input
+                type="text"
+                placeholder={t('pages.ocorrencias.search.busPlaceholder')}
+                value={ativoFilter}
+                onChange={(e) => { setAtivoFilter(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
+
+            {(estadoFilter || ativoFilter) && (
+              <button
+                className="btn-clear-filters"
+                onClick={() => { setEstadoFilter(''); setAtivoFilter(''); setCurrentPage(1); }}
+              >
+                {t('pages.ocorrencias.filters.clear')}
+              </button>
+            )}
           </div>
 
-          {/* Paginação */}
-          <div className="pagination-container" style={{ padding: '16px 22px', borderTop: '1px solid var(--color-border-light)' }}>
-            <span className="pagination-info">
-              {t('pages.ocorrencias.pagination.showing', { shown: paginatedData.length, total: filteredOcorrencias.length })}
-            </span>
-            <div className="pagination-actions">
-              <button
-                className="btn-page"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              >
-                {t('pages.ocorrencias.pagination.previous')}
-              </button>
-              <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '13px', padding: '0 8px', fontWeight: 600 }}>
-                {t('pages.ocorrencias.pagination.pageOf', { current: currentPage, total: totalPages })}
-              </span>
-              <button
-                className="btn-page"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              >
-                {t('pages.ocorrencias.pagination.next')}
-              </button>
+          {/* ─── TABELA DE OCORRÊNCIAS ─── */}
+          <section className="bus-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="ocorrencias-table-wrap" style={{ maxHeight: 'none' }}>
+              <table className="ocorrencias-table">
+                <thead>
+                  <tr>
+                    <th>{t('pages.ocorrencias.headers.id')}</th>
+                    <th>{t('pages.ocorrencias.headers.asset')}</th>
+                    <th>{t('pages.ocorrencias.headers.anomalyType')}</th>
+                    <th>{t('pages.ocorrencias.headers.priority')}</th>
+                    <th>{t('pages.ocorrencias.headers.state')}</th>
+                    <th>{t('pages.ocorrencias.headers.openedAt')}</th>
+                    <th>{t('pages.ocorrencias.headers.responsible')}</th>
+                    <th>{t('pages.ocorrencias.headers.notes')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedData.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="dash-empty">{t('pages.ocorrencias.emptyTable')}</td>
+                    </tr>
+                  ) : (
+                    paginatedData.map(o => (
+                      <tr
+                        key={o.id}
+                        className="table-row-clickable"
+                        onClick={() => navigate(`/backoffice/ocorrencias/${o.id}`)}
+                      >
+                        <td style={{ fontWeight: 700 }}>#{o.id}</td>
+                        <td>{o.ativoId} <span style={{ fontSize: '10px', color: '#94a3b8' }}>({o.tipoAtivo})</span></td>
+                        <td style={{ fontWeight: 600 }}>{o.tipoAnomalia}</td>
+                        <td>
+                          <span className={`priority--${o.prioridade.toLowerCase()}`}>
+                            {o.prioridade}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`ocorrencia-badge-state state--${o.estado.toLowerCase()}`}>
+                            {o.estado.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="ocorrencias-time">{formatTime(o.timestampAbertura)}</td>
+                        <td>{o.responsavel || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('pages.ocorrencias.unassigned')}</span>}</td>
+                        <td>
+                          {o.reincidencia && (
+                            <span style={{ background: '#ffedd5', color: '#ea580c', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>
+                              {t('pages.ocorrencias.recurrent')}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </section>
+
+            {/* Paginação */}
+            <div className="pagination-container" style={{ padding: '16px 22px', borderTop: '1px solid var(--color-border-light)' }}>
+              <span className="pagination-info">
+                {t('pages.ocorrencias.pagination.showing', { shown: paginatedData.length, total: filteredOcorrencias.length })}
+              </span>
+              <div className="pagination-actions">
+                <button
+                  className="btn-page"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                >
+                  {t('pages.ocorrencias.pagination.previous')}
+                </button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '13px', padding: '0 8px', fontWeight: 600 }}>
+                  {t('pages.ocorrencias.pagination.pageOf', { current: currentPage, total: totalPages })}
+                </span>
+                <button
+                  className="btn-page"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                >
+                  {t('pages.ocorrencias.pagination.next')}
+                </button>
+              </div>
+            </div>
+          </section>
+        </>
       )}
 
       {/* ─── GLASSMORPHISM DETAIL SLIDE-OUT OVERLAY ─── */}
@@ -702,7 +758,7 @@ export default function Ocorrencias() {
               {selectedOcorrencia.descricao && (
                 <div className="panel-info-card" style={{ display: 'block', width: '100%' }}>
                   <span className="panel-info-label">{t('pages.ocorrencias.detail.descriptionLabel')}</span>
-                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#334155', lineHeight: 1.5 }}>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text)', lineHeight: 1.5 }}>
                     {selectedOcorrencia.descricao}
                   </p>
                 </div>

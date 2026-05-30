@@ -259,6 +259,40 @@ public class AnalyticsDTOs {
         }
     }
 
+    /**
+     * Sprint 2 (Vertical 3.4, R.ICP.04): ocupacao media agregada por rota e por
+     * hora-do-dia (0-23). occupancyPct = media de onboard/capacidade em %.
+     * Alimenta o dashboard de ocupacao (heatmap rota x hora).
+     *   - routeCode     : codigo da rota
+     *   - hour          : hora do dia (0-23), fuso Europe/Lisbon
+     *   - avgOnboard    : media de passageiros a bordo no balde
+     *   - occupancyPct  : media da ocupacao (onboard/capacidade) em %
+     *   - samples       : numero de observacoes no balde
+     */
+    public record OccupancyByRouteHour(
+            String routeCode,
+            int hour,
+            double avgOnboard,
+            double occupancyPct,
+            long samples
+    ) {
+        public String getRouteCode() {
+            return routeCode != null ? routeCode : "Unknown Route";
+        }
+        public int getHour() {
+            return hour;
+        }
+        public double getAvgOnboard() {
+            return avgOnboard;
+        }
+        public double getOccupancyPct() {
+            return occupancyPct;
+        }
+        public long getSamples() {
+            return samples;
+        }
+    }
+
     public record CongestionData(
             String busId,
             double lat,

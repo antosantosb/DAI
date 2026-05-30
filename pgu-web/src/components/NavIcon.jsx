@@ -182,6 +182,17 @@ export const IconCalendar = () => (
   </svg>
 );
 
+// Sprint 2 (Vertical 3.4, R.ICP.07): icone para Sensores de contagem (APC).
+// Ondas de sinal a sair de um ponto-sensor — comunica deteccao/telemetria,
+// distinto do IconDataSource (cilindro de BD) e do IconBus.
+export const IconSensor = () => (
+  <svg {...common} aria-hidden="true">
+    <circle cx="12" cy="12" r="2" />
+    <path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M6 6a8 8 0 0 0 0 12M18 6a8 8 0 0 1 0 12" />
+  </svg>
+);
+
 // Sprint 1 (F4): icone para Horarios (relogio + linhas de horario).
 export const IconSchedule = () => (
   <svg {...common} aria-hidden="true">

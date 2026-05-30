@@ -12,6 +12,11 @@ public class TelemetryDTO
     private String busId, status;
     private Double latitude, longitude, speed;
     private int passengerCount;
+    // Sprint 2 (Vertical 3.4, R.ICP.01): contagem APC. Integer (nullable) para
+    // distinguir "nao reportado" de "zero" e permitir o fallback na ingestao.
+    private Integer boarded;
+    private Integer alighted;
+    private Integer onboard;
     private Instant timestamp;
     private String nextStop;
     private Integer stopsRemaining;
@@ -28,6 +33,9 @@ public class TelemetryDTO
     public Double  getLatitude()   { return this.latitude; }
     public Double  getLongitude()  { return this.longitude; }
     public int     getPassengers() { return this.passengerCount; }
+    public Integer getBoarded()    { return this.boarded; }
+    public Integer getAlighted()   { return this.alighted; }
+    public Integer getOnboard()    { return this.onboard; }
     public Double  getSpeed()      { return this.speed; }
     public Instant getTimestamp()      { return this.timestamp; }
     public String  getNextStop()       { return this.nextStop; }
@@ -43,6 +51,9 @@ public class TelemetryDTO
     public void setLatitude(Double latitude)       { this.latitude = latitude; }
     public void setLongitude(Double longitude)     { this.longitude = longitude; }
     public void setPassengers(int passengerCount) { this.passengerCount = passengerCount; }
+    public void setBoarded(Integer boarded)        { this.boarded = boarded; }
+    public void setAlighted(Integer alighted)      { this.alighted = alighted; }
+    public void setOnboard(Integer onboard)        { this.onboard = onboard; }
     public void setSpeed(Double speed)             { this.speed = speed; }
     public void setTimestamp(Instant timestamp)            { this.timestamp = timestamp; }
     public void setNextStop(String nextStop)               { this.nextStop = nextStop; }

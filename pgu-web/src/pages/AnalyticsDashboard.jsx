@@ -56,6 +56,16 @@ const getOccupancyColor = (rate) => {
   return '#ef4444'; // high
 };
 
+// Sprint 2 (R.ICP.04): cor de uma celula do heatmap de ocupacao (rota x hora).
+// Gradiente verde (vazio) -> amarelo -> vermelho (cheio). Sem amostras = celula
+// vazia (transparente). pct em 0..100.
+const getOccupancyCellColor = (pct) => {
+  if (pct == null || Number.isNaN(pct)) return 'transparent';
+  const clamped = Math.max(0, Math.min(100, pct));
+  const hue = 140 - (clamped / 100) * 140; // 140 (verde) .. 0 (vermelho)
+  return `hsl(${hue}, 70%, 45%)`;
+};
+
 // Heatmap de frequência: headway (min) -> cor. Verde = mais frequente
 // (headway baixo), vermelho = menos frequente (headway alto). Sem dados = cinza.
 const HEADWAY_MIN = 5;   // <= 5 min: muito frequente (verde)
@@ -77,6 +87,7 @@ export default function AnalyticsDashboard() {
     { key: 'fleet', label: t('pages.analytics.tabFleet') },
     { key: 'buses', label: t('pages.analytics.tabBuses') },
     { key: 'geo', label: t('pages.analytics.tabGeo') },
+    { key: 'occupancy', label: t('pages.analytics.tabOccupancy') },
     { key: 'coverage', label: t('pages.analytics.tabCoverage') },
   ];
   const [fleetData, setFleetData]             = useState([]);
@@ -84,6 +95,8 @@ export default function AnalyticsDashboard() {
   const [efficiencyData, setEfficiencyData]   = useState([]);
   const [speedData, setSpeedData]             = useState([]);
   const [congestionData, setCongestionData]   = useState([]);
+  // Sprint 2 (R.ICP.04): ocupacao media por rota x hora (heatmap).
+  const [occupancyData, setOccupancyData]     = useState([]);
   // Cobertura/frequência: baseada no horário planeado, não usa os filtros de
   // data/hora. Carregada uma única vez ao montar o componente.
   const [coverageData, setCoverageData]       = useState(null);
@@ -117,12 +130,13 @@ export default function AnalyticsDashboard() {
 
     setLoading(true);
     try {
-      const [fleet, delays, eff, speed, cong] = await Promise.all([
+      const [fleet, delays, eff, speed, cong, occ] = await Promise.all([
         api.get('/analytics/fleet-occupancy', { params, signal: ctrl.signal }),
         api.get('/analytics/route-delays',    { params, signal: ctrl.signal }),
         api.get('/analytics/bus-efficiency',  { params, signal: ctrl.signal }),
         api.get('/analytics/speed-over-time', { params, signal: ctrl.signal }),
         api.get('/analytics/congestion',      { params, signal: ctrl.signal }),
+        api.get('/analytics/occupancy',       { params, signal: ctrl.signal }),
       ]);
       setFleetData(fleet.data || []);
       const normalized = (delays.data || []).map(d => ({
@@ -135,6 +149,8 @@ export default function AnalyticsDashboard() {
       setEfficiencyData(eff.data || []);
       setSpeedData(speed.data || []);
       setCongestionData(cong.data || []);
+      // 204 No Content -> occ.data === '' (axios). Normaliza para [].
+      setOccupancyData(Array.isArray(occ.data) ? occ.data : []);
     } catch (err) {
       if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
         console.error('Error fetching analytics', err);
@@ -246,6 +262,29 @@ export default function AnalyticsDashboard() {
     : 0;
   const hasCoverage = !!coverageData &&
     (freqRows.length > 0 || waitStops.length > 0 || geoCoveragePct != null);
+
+  // Sprint 2 (R.ICP.04): ocupacao -> matriz [rota][hora] para o heatmap.
+  const occRows = (() => {
+    const byRoute = new Map();
+    (occupancyData || []).forEach((o) => {
+      if (!byRoute.has(o.routeCode)) {
+        byRoute.set(o.routeCode, { routeCode: o.routeCode, cells: {} });
+      }
+      byRoute.get(o.routeCode).cells[o.hour] = {
+        pct: o.occupancyPct,
+        onboard: o.avgOnboard,
+        samples: o.samples,
+      };
+    });
+    return Array.from(byRoute.values()).sort((a, b) =>
+      String(a.routeCode).localeCompare(String(b.routeCode), undefined, { numeric: true }));
+  })();
+  const avgOccupancyAll = occupancyData.length > 0
+    ? (occupancyData.reduce((acc, o) => acc + (o.occupancyPct || 0), 0) / occupancyData.length)
+    : null;
+  const peakOccupancy = occupancyData.length > 0
+    ? occupancyData.reduce((prev, o) => ((o.occupancyPct || 0) > (prev.occupancyPct || 0) ? o : prev), occupancyData[0])
+    : null;
 
   return (
     <div className="analytics-page">
@@ -576,6 +615,89 @@ export default function AnalyticsDashboard() {
                 )}
               </section>
             </div>
+          )}
+
+          {/* ═══ TAB OCUPAÇÃO (R.ICP.04) ═══ */}
+          {activeTab === 'occupancy' && (
+            <>
+              <div className="analytics-kpi-row">
+                <div className="analytics-kpi-card">
+                  <span className="kpi-value">{avgOccupancyAll != null ? `${fmt1(avgOccupancyAll)}%` : '—'}</span>
+                  <span className="kpi-label">{t('pages.analytics.occAvgKpi')}</span>
+                </div>
+                <div className="analytics-kpi-card">
+                  <span className="kpi-value">
+                    {peakOccupancy ? `${fmt1(peakOccupancy.occupancyPct)}%` : '—'}
+                  </span>
+                  <span className="kpi-label">{t('pages.analytics.occPeakKpi')}</span>
+                </div>
+                <div className="analytics-kpi-card">
+                  <span className="kpi-value">
+                    {peakOccupancy ? t('pages.analytics.occPeakAt', { route: peakOccupancy.routeCode, hour: peakOccupancy.hour }) : '—'}
+                  </span>
+                  <span className="kpi-label">{t('pages.analytics.occPeakWhenKpi')}</span>
+                </div>
+              </div>
+
+              <section className="bus-card analytics-card">
+                <h3>{t('pages.analytics.occTitle')}</h3>
+                <p className="analytics-subtitle">{t('pages.analytics.occSubtitle')}</p>
+                {occRows.length === 0 ? (
+                  <p className="analytics-empty">{t('pages.analytics.noOccupancyData')}</p>
+                ) : (
+                  <>
+                    <div className="freq-heatmap-scroll">
+                      <div className="freq-heatmap">
+                        <div className="freq-heatmap-corner">{t('pages.analytics.occRouteHeader')}</div>
+                        {HOURS.map((h) => (
+                          <div key={`oh-${h}`} className="freq-heatmap-hhead">{h}</div>
+                        ))}
+                        {occRows.map((row) => (
+                          <Fragment key={row.routeCode}>
+                            <div className="freq-heatmap-rowhead" title={row.routeCode}>
+                              {row.routeCode}
+                            </div>
+                            {HOURS.map((h) => {
+                              const cell = row.cells[h];
+                              const pct = cell?.pct;
+                              const title = (cell && pct != null)
+                                ? t('pages.analytics.occCellTitle', {
+                                    route: row.routeCode,
+                                    hour: h,
+                                    pct: fmt1(pct),
+                                    onboard: fmt1(cell.onboard),
+                                    samples: cell.samples,
+                                  })
+                                : t('pages.analytics.occCellTitleNone', { route: row.routeCode, hour: h });
+                              return (
+                                <div
+                                  key={`${row.routeCode}-${h}`}
+                                  className="freq-heatmap-cell"
+                                  style={{ background: cell ? getOccupancyCellColor(pct) : 'transparent' }}
+                                  title={title}
+                                >
+                                  {cell && pct != null ? Math.round(pct) : ''}
+                                </div>
+                              );
+                            })}
+                          </Fragment>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="freq-legend">
+                      <span className="freq-legend-label">{t('pages.analytics.occLegendLow')}</span>
+                      <span className="freq-legend-swatch" style={{ background: getOccupancyCellColor(10) }} />
+                      <span className="freq-legend-swatch" style={{ background: getOccupancyCellColor(50) }} />
+                      <span className="freq-legend-swatch" style={{ background: getOccupancyCellColor(90) }} />
+                      <span className="freq-legend-label">{t('pages.analytics.occLegendHigh')}</span>
+                      <span className="freq-legend-swatch" style={{ background: 'transparent', border: '1px solid var(--color-border)' }} />
+                      <span className="freq-legend-label">{t('pages.analytics.occLegendNone')}</span>
+                      <span className="freq-legend-unit">({t('pages.analytics.occLegendUnit')})</span>
+                    </div>
+                  </>
+                )}
+              </section>
+            </>
           )}
 
           {/* ═══ TAB COBERTURA E FREQUÊNCIA ═══ */}
