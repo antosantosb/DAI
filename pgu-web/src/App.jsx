@@ -14,7 +14,6 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalToastListener from './components/GlobalToastListener';
 import { routes } from './routes';
-
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './toast-overrides.css';

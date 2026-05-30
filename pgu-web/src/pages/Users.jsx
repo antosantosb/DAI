@@ -198,9 +198,9 @@ export default function Users() {
       roles: [form.role],
     };
     if (form.password) payload.password = form.password;
-    if (form.role === 'motorista') {
-      payload.mechanographicNumber = form.mechanographicNumber.trim();
-      payload.phoneNumber = form.phoneNumber.trim();
+    if (form.role === 'motorista' && !editing) {
+      payload.mechanographicNumber = (form.mechanographicNumber || '').trim();
+      payload.phoneNumber = (form.phoneNumber || '').trim();
     }
 
     const req = editing

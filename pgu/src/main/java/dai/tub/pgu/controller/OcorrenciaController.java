@@ -72,6 +72,19 @@ public class OcorrenciaController {
         return ResponseEntity.ok(ocorrenciaService.assumirOcorrencia(id, username));
     }
 
+    @PostMapping("/{id}/atribuir")
+    public ResponseEntity<OcorrenciaDTO> reassign(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
+        String username = resolveUsername(jwt);
+        String responsavel = body.get("responsavel");
+        if (responsavel == null || responsavel.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O campo responsavel é obrigatório.");
+        }
+        return ResponseEntity.ok(ocorrenciaService.atribuirOcorrencia(id, responsavel, username));
+    }
+
     @PostMapping("/{id}/acao-corretiva")
     public ResponseEntity<OcorrenciaDTO> registerCorrectiveAction(
             @PathVariable Long id,

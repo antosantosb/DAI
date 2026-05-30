@@ -30,6 +30,12 @@ export const routes = [
     access: ['motorista'],
     layout: 'none',
   },
+  {
+    path: '/driver',
+    loader: () => import('./pages/DriverConsole'),
+    access: 'authenticated',
+    layout: 'none',
+  },
   // Sprint 7 (chatbot IA): rota standalone, sem sidebar. UX de chat ocupa
   // o ecra inteiro. A entrada no sidebar e' uma "ghost entry" em
   // /backoffice children com sidebarOnly+to, que aponta aqui.

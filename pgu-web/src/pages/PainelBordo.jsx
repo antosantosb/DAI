@@ -166,7 +166,7 @@ export default function PainelBordo() {
             if (t.busId === busCode) setTelemetry(t);
           } catch { /* ignore */ }
         });
-        client.subscribe(`/topic/despacho/${busCode}`, () => fetchMessages());
+        client.subscribe(`/topic/mensagens/${busCode}`, () => fetchMessages());
       },
     });
     client.activate();

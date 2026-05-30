@@ -46,7 +46,7 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
     // Sprint -1 (SEC-4): WS autenticado via JWT no CONNECT.
     const client = createStompClient({
       onConnect: () => {
-        client.subscribe(`/topic/despacho/${bus.busCode}`, () => fetchMessages());
+        client.subscribe(`/topic/mensagens/${bus.busCode}`, () => fetchMessages());
       },
     });
     client.activate();
