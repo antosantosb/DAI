@@ -408,6 +408,11 @@
           "description": "Localização de todas as paragens com as linhas que as servem. Cada feature é um Point em coordenadas WGS 84."
         }
       },
+      "feedsTitle": "Standards e tempo real",
+      "metaFormat": "Formato",
+      "metaStandard": "Standard",
+      "feedRealtime": "Tempo real",
+      "feedStatic": "Estático",
       "soon": {
         "catalog": {
           "title": "Catálogo DCAT-AP",
@@ -946,7 +951,30 @@
       "tableSpeed": "Velocidade",
       "tablePassengers": "Passageiros",
       "tableOccupancy": "Ocupação (%)",
-      "tableTime": "Hora"
+      "tableTime": "Hora",
+      "tabCoverage": "Cobertura",
+      "coverageTitle": "Cobertura e frequência",
+      "coverageSubtitle": "Indicadores calculados a partir do horário planeado (viagens e paragens), não da telemetria.",
+      "geoCoverageTitle": "Cobertura geográfica",
+      "geoCoverageDesc": "Percentagem da área de serviço (aproximada pelo invólucro convexo das paragens) a menos de 400m a pé de uma paragem.",
+      "geoCoverageBarLabel": "Área coberta a 400m",
+      "frequencyTitle": "Frequência por linha e hora",
+      "frequencyDesc": "Intervalo médio entre partidas (headway), em minutos, por linha e hora do dia. Verde indica maior frequência (menor intervalo), vermelho menor frequência.",
+      "frequencyRouteHeader": "Linha",
+      "frequencyLegendMore": "Mais frequente",
+      "frequencyLegendLess": "Menos frequente",
+      "frequencyLegendNone": "Sem dados",
+      "frequencyCellTitle": "Linha {{route}}, {{hour}}h: {{headway}} min entre partidas ({{trips}} partidas)",
+      "frequencyCellTitleNone": "Linha {{route}}, {{hour}}h: sem partidas suficientes",
+      "frequencyUnitMin": "min",
+      "waitTitle": "Tempo de espera por paragem",
+      "waitDesc": "Tempo médio de espera (metade do intervalo entre passagens) nas paragens com pior serviço.",
+      "waitWorst": "Pior espera",
+      "waitBest": "Melhor espera",
+      "waitMinutes": "min de espera",
+      "waitDepartures": "passagens/dia",
+      "noCoverageData": "Sem dados de horário para calcular indicadores de cobertura.",
+      "coverageUnitPct": "%"
     },
     "dataSources": {
       "title": "Fontes de Dados",
@@ -1534,6 +1562,16 @@
     "tabBuses": "Motoristas",
     "tabRoutes": "Linhas",
     "tabAccount": "Conta",
+    "causes": {
+      "pillTitle": "Ver causas prováveis do atraso",
+      "title": "Causas prováveis do atraso",
+      "loading": "A carregar eventos...",
+      "empty": "Sem ocorrências ou alertas para esta linha na janela analisada",
+      "eventsSuffix": "eventos",
+      "sourceOcorrencia": "Ocorrência",
+      "sourceAlerta": "Alerta",
+      "critical": "Crítica"
+    },
     "patterns": {
       "title": "Trajetos",
       "loading": "A carregar trajetos...",

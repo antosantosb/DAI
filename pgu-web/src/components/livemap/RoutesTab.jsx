@@ -92,6 +92,30 @@ export default function RoutesTab({
     setScheduleModal(m => ({ ...m, view: 'trips', trip: null, stops: [], stopsLoading: false }));
   }
 
+  // Sprint 1 (F6): modal de "Causas" (R.IVT.10). Lista os eventos operacionais
+  // (ocorrencias e alertas) dos autocarros que servem a rota, dentro da janela,
+  // para o operador correlacionar com os atrasos da linha.
+  const [causesModal, setCausesModal] = useState({
+    open: false,
+    loading: false,
+    routeId: null,
+    events: [],
+  });
+
+  const closedCauses = { open: false, loading: false, routeId: null, events: [] };
+
+  // Abre o modal e vai buscar as correlacoes (eventos) da rota ao backend.
+  // `stopPropagation` evita que o clique no pill selecione/deselecione a rota.
+  function openCauses(route, e) {
+    if (e) e.stopPropagation();
+    setCausesModal({ ...closedCauses, open: true, loading: true, routeId: route.id });
+    api.get('/analytics/route-delays/correlations', { params: { routeId: route.id } })
+      .then(r => setCausesModal(m =>
+        m.open && m.routeId === route.id ? { ...m, loading: false, events: r.data || [] } : m))
+      .catch(() => setCausesModal(m =>
+        m.open && m.routeId === route.id ? { ...m, loading: false, events: [] } : m));
+  }
+
   const busList = useMemo(() =>
     Object.values(buses).map(bus => {
       const backend = backendBuses[bus.busId];
@@ -197,19 +221,22 @@ export default function RoutesTab({
                   <span className="livemap-route-code">{route.code}</span>
                 </div>
                 <div className="livemap-route-meta">
-                  {/* Sprint 1 (F2): pill de adherence stoplight (R.IVT.06) */}
+                  {/* Sprint 1 (F2): pill de adherence stoplight (R.IVT.06).
+                      Sprint 1 (F6): clicavel para abrir o modal de causas (R.IVT.10). */}
                   {isActive && adherenceMap[route.id] && (() => {
                     const a = adherenceMap[route.id];
                     const c = ADHERENCE_COLORS[a.color] || ADHERENCE_COLORS.green;
                     return (
-                      <span
-                        className="livemap-route-adherence"
+                      <button
+                        type="button"
+                        className="livemap-route-adherence livemap-route-adherence--clickable"
                         style={{ background: c.bg, color: c.fg }}
-                        title={`${c.label} · atraso médio ${a.avgDelayMin} min (${a.delayedCount}/${a.observations} obs)`}
+                        title={t('livemap.causes.pillTitle', 'Ver causas prováveis do atraso')}
+                        onClick={(e) => openCauses(route, e)}
                       >
                         <span className="livemap-route-adherence-dot" style={{ background: c.fg }} />
                         {a.avgDelayMin > 0 ? `${a.avgDelayMin}m` : 'OK'}
-                      </span>
+                      </button>
                     );
                   })()}
                   {isActive && <span className="livemap-route-bus-count">{busCount} {t('livemap.busCountSuffix')}</span>}
@@ -398,6 +425,81 @@ export default function RoutesTab({
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* Sprint 1 (F6): modal de causas prováveis do atraso (R.IVT.10).
+          Reutiliza a estrutura de vidro do modal de horários. */}
+      <Modal
+        open={causesModal.open}
+        onClose={() => setCausesModal(closedCauses)}
+      >
+        {(() => {
+          const route = routes.find(r => r.id === causesModal.routeId);
+          const total = causesModal.events.length;
+          return (
+            <div className="livemap-sched-modal">
+              <button
+                type="button"
+                className="livemap-sched-close"
+                onClick={() => setCausesModal(closedCauses)}
+                aria-label={t('common.close')}
+                title={t('common.close')}
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <div className="livemap-sched-head">
+                <div className="livemap-sched-titlerow">
+                  {route?.code && <span className="livemap-sched-route">{route.code}</span>}
+                  <span className="livemap-sched-pattern">{t('livemap.causes.title', 'Causas prováveis do atraso')}</span>
+                </div>
+                {!causesModal.loading && total > 0 && (
+                  <span className="livemap-sched-count">
+                    {total} {t('livemap.causes.eventsSuffix', 'eventos')}
+                  </span>
+                )}
+              </div>
+
+              {causesModal.loading ? (
+                <div className="livemap-sched-state">{t('livemap.causes.loading', 'A carregar eventos...')}</div>
+              ) : total === 0 ? (
+                <div className="livemap-sched-state">
+                  {t('livemap.causes.empty', 'Sem ocorrências ou alertas para esta rota na janela analisada')}
+                </div>
+              ) : (
+                <ul className="livemap-causes-list">
+                  {causesModal.events.map((ev, i) => {
+                    const isOcorrencia = ev.source === 'OCORRENCIA';
+                    const isCritical = ev.level === 'CRITICA';
+                    return (
+                      <li key={i} className="livemap-causes-item">
+                        <span className={`livemap-causes-source livemap-causes-source--${isOcorrencia ? 'ocorrencia' : 'alerta'}`}>
+                          {isOcorrencia
+                            ? t('livemap.causes.sourceOcorrencia', 'Ocorrência')
+                            : t('livemap.causes.sourceAlerta', 'Alerta')}
+                        </span>
+                        <div className="livemap-causes-body">
+                          <div className="livemap-causes-titlerow">
+                            <span className="livemap-causes-title">{ev.title}</span>
+                            {isCritical && (
+                              <span className="livemap-causes-level">{t('livemap.causes.critical', 'Crítica')}</span>
+                            )}
+                          </div>
+                          {ev.description && (
+                            <span className="livemap-causes-desc">{ev.description}</span>
+                          )}
+                          <span className="livemap-causes-meta">
+                            {ev.timestamp}
+                            {ev.busId && <span className="livemap-causes-bus">{ev.busId}</span>}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </div>
           );

@@ -21,9 +21,8 @@ import dai.tub.pgu.repository.OperatorRepository;
  * descarregaveis), {@code dcat:contactPoint} e {@code dct:publisher} (o
  * operador TUB, do F0).
  *
- * <p>Apenas datasets REAIS e descarregaveis sao listados. GTFS-RT (F7) e NeTEx
- * (F8) serao adicionados quando esses endpoints existirem — nao se anuncia o
- * que ainda nao se serve.
+ * <p>Apenas datasets REAIS e descarregaveis sao listados: GeoJSON de linhas e
+ * paragens (F1), o feed GTFS-Realtime (F7) e o export NeTEx (F8).
  *
  * <p>Validador: <https://www.itb.ec.europa.eu/shacl/dcat-ap/upload>
  */
@@ -68,6 +67,22 @@ public class CatalogService
                 baseUrl + "/api/v1/stops/export.geojson",
                 baseUrl + "/open-data",
                 today, publisher, contact));
+        datasets.add(buildFeedDataset(
+                "gtfs-rt",
+                "GTFS-Realtime da rede TUB",
+                "Posições dos veículos e atualizações de viagens em tempo real, em Protocol Buffers (GTFS-Realtime 2.0), compatível com Google Maps, Citymapper e outras apps de mobilidade.",
+                List.of(
+                        buildDistribution(baseUrl + "/api/v1/gtfs-rt/vehicle-positions.pb", "Protobuf", "application/x-protobuf"),
+                        buildDistribution(baseUrl + "/api/v1/gtfs-rt/trip-updates.pb", "Protobuf", "application/x-protobuf")),
+                baseUrl + "/open-data", today, publisher, contact,
+                List.of("transporte", "autocarro", "Braga", "TUB", "GTFS-RT", "tempo real")));
+        datasets.add(buildFeedDataset(
+                "netex",
+                "NeTEx da rede TUB",
+                "Operadores, paragens, linhas, padrões e horários da rede TUB em NeTEx (CEN/TS 16614), o standard europeu de intercâmbio de dados de transporte público.",
+                List.of(buildDistribution(baseUrl + "/api/v1/netex/export.xml", "NeTEx", "application/xml")),
+                baseUrl + "/open-data", today, publisher, contact,
+                List.of("transporte", "autocarro", "Braga", "TUB", "NeTEx")));
 
         Map<String, Object> catalog = new LinkedHashMap<>();
         catalog.put("@context", buildContext());
@@ -113,6 +128,40 @@ public class CatalogService
         dataset.put("dcat:keyword", List.of("transporte", "autocarro", "Braga", "TUB", "GTFS"));
         dataset.put("dcat:distribution", List.of(distribution));
         return dataset;
+    }
+
+    /** Dataset generico: formato/mediaType arbitrarios e varias distribuicoes. */
+    private Map<String, Object> buildFeedDataset(String id, String title, String description,
+                                                 List<Map<String, Object>> distributions, String landingPage,
+                                                 String modified, Map<String, Object> publisher,
+                                                 Map<String, Object> contact, List<String> keywords)
+    {
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("@type", "dcat:Dataset");
+        dataset.put("dct:identifier", "pgu-" + id);
+        dataset.put("dct:title", title);
+        dataset.put("dct:description", description);
+        dataset.put("dcat:landingPage", landingPage);
+        dataset.put("dct:publisher", publisher);
+        dataset.put("dcat:contactPoint", contact);
+        dataset.put("dct:modified", modified);
+        dataset.put("dct:license", "https://creativecommons.org/licenses/by/4.0/");
+        dataset.put("dcat:theme", "http://publications.europa.eu/resource/authority/data-theme/TRAN");
+        dataset.put("dcat:keyword", keywords);
+        dataset.put("dcat:distribution", distributions);
+        return dataset;
+    }
+
+    private Map<String, Object> buildDistribution(String downloadUrl, String format, String mediaType)
+    {
+        Map<String, Object> d = new LinkedHashMap<>();
+        d.put("@type", "dcat:Distribution");
+        d.put("dcat:accessURL", downloadUrl);
+        d.put("dcat:downloadURL", downloadUrl);
+        d.put("dct:format", format);
+        d.put("dcat:mediaType", mediaType);
+        d.put("dct:license", "https://creativecommons.org/licenses/by/4.0/");
+        return d;
     }
 
     private Map<String, Object> buildPublisher(Operator op)

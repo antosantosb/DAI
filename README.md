@@ -34,7 +34,7 @@ Plataforma de centralização, monitorização e gestão de dados de mobilidade 
 
 ## Estado do projeto
 
-Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. O **Sprint 1** (Vertical 3.1 Transportes Públicos) está **em curso (~60%)**: entregues a entidade `Operator`, export GeoJSON, portal Open Data (DCAT-AP), calendário e horários, uma **re-arquitetura Transmodel** do modelo (Linha → Padrão → Trip), um **editor manual de padrões/trajetos** (waypoints + OSRM) e um **redesign visual liquid-glass** transversal; faltam GTFS-RT, NeTEx, schedule adherence stoplight e correlações. Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
+Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. O **Sprint 1** (Vertical 3.1 Transportes Públicos) está **completo (100%)**: entregues a entidade `Operator`, export GeoJSON, portal Open Data (DCAT-AP), calendário e horários, uma **re-arquitetura Transmodel** do modelo (Linha → Padrão → Trip), um **editor manual de padrões/trajetos** (waypoints + OSRM) um **redesign visual liquid-glass** transversal, e ainda adherence stoplight (F2), correlação de atrasos (F6), publisher **GTFS-RT** (F7), exporter **NeTEx** (F8) métricas/pulses (F9) e o dashboard de cobertura/frequência (F5). Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
 
 ### Principais funcionalidades já entregues
 
@@ -45,6 +45,7 @@ Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 foll
 - **Entidade `Operator`** (V38) com CRUD em `/backoffice/operators`; cada linha tem operador.
 - **Calendário operacional** (`/backoffice/calendar`, V39) e **Horários** planeados (`/backoffice/schedules`: Linha → Padrão → Trip → tempos).
 - **Portal Open Data público** em `/open-data`: export **GeoJSON** de linhas e paragens e **catálogo DCAT-AP** (`/api/v1/catalog/datasets`) para indexação por dados.gov.pt.
+- **Standards de tempo real e intercâmbio**: feed **GTFS-RT** protobuf (`/api/v1/gtfs-rt/vehicle-positions.pb` e `/trip-updates.pb`), export **NeTEx** (`/api/v1/netex/export.xml`), adherence stoplight por linha e correlação de atrasos com eventos no Livemap.
 - Naming consistente **"Linha/Line"** em todo o UI (o backend mantém "route", interno ao GTFS).
 
 **Redesign visual liquid-glass (Sprint 1):**
@@ -405,6 +406,10 @@ Interface dedicada ao motorista, em `/bordo`:
 | `GET` | `/api/v1/catalog/datasets` | Público | Catálogo DCAT-AP (JSON-LD) |
 | `GET` | `/api/v1/calendar?from&to` | `admin`, `funcionario` | Calendário operacional por dia |
 | `GET` | `/api/v1/schedules/{trips,coverage}` | `admin`, `funcionario` | Horários planeados e indicadores de cobertura |
+| `GET` | `/api/v1/analytics/route-adherence` | `admin`, `funcionario` | Adherence stoplight por linha (verde/amarelo/vermelho) |
+| `GET` | `/api/v1/analytics/route-delays/correlations?routeId` | `admin`, `funcionario` | Eventos (ocorrências/alertas) correlacionados com atrasos |
+| `GET` | `/api/v1/gtfs-rt/{vehicle-positions,trip-updates}.pb` | Público | Feed GTFS-Realtime (protobuf) |
+| `GET` | `/api/v1/netex/export.xml` | Público | Export NeTEx (PublicationDelivery XML) |
 | `GET/POST` | `/api/v1/buses` | `admin`, `funcionario` | CRUD de autocarros |
 | `POST` | `/api/v1/buses/batch?count=N` | `developer` | Criar 1 a 50 autocarros aleatórios |
 | `PUT` | `/api/v1/buses/{id}/activate` | `admin`, `funcionario` | Ativa o autocarro |
@@ -498,6 +503,7 @@ Localização: `pgu/src/main/resources/db/migration/`. As migrações executam a
 | `V39` | `service_calendar` (calendário operacional GTFS) |
 | `V40` a `V42` | Modelo **Transmodel**: `journey_pattern`, `pattern_stop`, `pattern_segment`, `trip`, `trip_stop_time`, blocks; drop do schedule legado |
 | `V43` | Pontos de autoria dos padrões (waypoints do editor) |
+| `V44` | Fontes de dados de observabilidade (GTFS-RT publisher, NeTEx exporter) |
 
 ---
 
@@ -528,7 +534,7 @@ DAI/
 │       └── resources/
 │           ├── application.properties
 │           ├── application-prod.properties
-│           └── db/migration/       # Flyway V1 a V43
+│           └── db/migration/       # Flyway V1 a V44
 │
 ├── pgu-web/                        # Frontend React + Vite
 │   ├── nginx.conf.template         # Reverse proxy e security headers (prod)
@@ -571,14 +577,14 @@ DAI/
 docker compose ps
 
 # Logs de um serviço
-docker compose logs -f spring-boot_backend
+docker compose logs -f spring-boot-backend
 docker compose logs -f mosquitto
 
 # Reiniciar um serviço
-docker compose restart spring-boot_backend
+docker compose restart spring-boot-backend
 
 # Reconstruir após alterações de código
-docker compose up -d --build spring-boot_backend
+docker compose up -d --build spring-boot-backend
 
 # Parar tudo
 docker compose down
@@ -608,7 +614,7 @@ Plano completo, com critérios de aceitação por fase, em [`PLANO_ITERACAO.md`]
 | Sprint -1 | **Concluído** | Hardening (segurança, CORS, JWT, audit, índices) |
 | Sprint 0 | **Concluído** | Fundações e polish: MFA TOTP, i18n PT/EN, tema escuro, DataSources, self-service de conta, avatares, batch de drivers/buses, exports em MinIO, GTFS toast, proxy NGSI-LD, LiveMap polido |
 | Pré-Sprint 1 | **Concluído** | 8 follow-ups do backlog (motoristas password demo, chatbot AI funcional com stubs Spring Boot 4, password loop, i18n EN Ocorrências + PainelBordo, modal MinhaConta no bordo, deep-link a alarmes, conta `developer` + Ferramentas Dev) |
-| Sprint 1 | **Em curso (~60%)** | Vertical 3.1: feitos `Operator`, GeoJSON, DCAT-AP/Open Data, Calendário+Horários, re-arquitetura **Transmodel** (Linha→Padrão→Trip), editor de padrões e redesign liquid-glass; faltam schedule adherence stoplight, correlações, GTFS-RT e NeTEx |
+| Sprint 1 | **Concluído** | Vertical 3.1: `Operator`, GeoJSON, DCAT-AP/Open Data, Calendário+Horários, re-arquitetura **Transmodel** (Linha→Padrão→Trip), editor de padrões, redesign liquid-glass, adherence stoplight (F2), correlações (F6), **GTFS-RT** (F7), **NeTEx** (F8), métricas (F9) e dashboard de cobertura (F5) |
 | Sprint 2 a 8b | Planeados | Verticais adicionais (consultar `PLANO_ITERACAO.md`) |
 
 > **Nota:** o termo "operadores de transportes" mencionado a partir do Sprint 1 refere-se à entidade de domínio `Operator` (TUB, Carris, etc.) e não a uma role do sistema. As roles do sistema são `admin`, `funcionario`, `motorista` e `developer`.

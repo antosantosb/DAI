@@ -7,11 +7,15 @@ import org.springframework.stereotype.Service;
 
 import dai.tub.pgu.dto.AnalyticsDTOs.BusEfficiencyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.CongestionData;
+import dai.tub.pgu.dto.AnalyticsDTOs.CoverageIndicators;
 import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.HeatmapData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteAdherenceData;
+import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayCorrelation;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
+import dai.tub.pgu.dto.AnalyticsDTOs.RouteHourFrequency;
 import dai.tub.pgu.dto.AnalyticsDTOs.SpeedOverTimeData;
+import dai.tub.pgu.dto.AnalyticsDTOs.StopWaitTime;
 
 @Service
 public class AnalyticsService {
@@ -372,5 +376,213 @@ public class AnalyticsService {
 
     public List<CongestionData> getCongestion() {
         return getCongestion(null, null, null, null);
+    }
+
+    /**
+     * Sprint 1 (F6): cruzamento de dados de mobilidade real (R.IVT.10).
+     * Devolve os eventos operacionais (ocorrencias e alertas) dos autocarros
+     * que servem a rota indicada, dentro da janela analisada, para o operador
+     * correlacionar com os atrasos da linha.
+     *
+     * As duas fontes sao unidas num subquery cujo timestamp e' exposto como
+     * "t.recorded_at", de modo a reutilizar o mesmo appendFilters (data/hora,
+     * fuso Europe/Lisbon) usado pelos restantes endpoints de analytics.
+     *
+     * Ligacao a rota: nenhuma das tabelas tem FK directa para a linha. Os
+     * eventos ligam-se ao autocarro pelo codigo (ocorrencias.ativo_id e
+     * historico_alertas.autocarro == buses.bus_code) e o autocarro a' rota
+     * por buses.route_id.
+     */
+    public List<RouteDelayCorrelation> getRouteDelayCorrelations(Long routeId, String startDate,
+                                                                 String endDate, String startHour, String endHour) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    TO_CHAR(t.recorded_at AT TIME ZONE 'Europe/Lisbon', 'YYYY-MM-DD HH24:MI') AS recorded_at_label,
+                    t.source,
+                    t.level,
+                    t.title,
+                    t.description,
+                    t.bus_id
+                FROM (
+                    SELECT
+                        o.timestamp_abertura          AS recorded_at,
+                        'OCORRENCIA'                  AS source,
+                        o.prioridade                  AS level,
+                        o.tipo_anomalia               AS title,
+                        o.descricao                   AS description,
+                        o.ativo_id                    AS bus_id
+                    FROM ocorrencias o
+                    JOIN buses b ON o.ativo_id = b.bus_code
+                    WHERE o.tipo_ativo = 'BUS' AND b.route_id = ?
+                    UNION ALL
+                    SELECT
+                        h.data                        AS recorded_at,
+                        'ALERTA'                      AS source,
+                        'ALERTA'                      AS level,
+                        h.motivo                      AS title,
+                        NULL                          AS description,
+                        h.autocarro                   AS bus_id
+                    FROM historico_alertas h
+                    JOIN buses b ON h.autocarro = b.bus_code
+                    WHERE b.route_id = ?
+                ) t
+                WHERE 1=1
+                """);
+        List<Object> args = new java.util.ArrayList<>();
+        // Os dois placeholders do route_id (ocorrencias e alertas) vem antes dos filtros.
+        args.add(routeId);
+        args.add(routeId);
+        // Sem filtros de data: limita-se aos ultimos 7 dias para a janela ser util.
+        appendFilters(sql, args, startDate, endDate, startHour, endHour, "t.recorded_at >= NOW() - INTERVAL '7 days'");
+
+        sql.append("""
+                ORDER BY t.recorded_at DESC
+                LIMIT 100
+                """);
+
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new RouteDelayCorrelation(
+                rs.getString("recorded_at_label"),
+                rs.getString("source"),
+                rs.getString("level"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getString("bus_id")
+        ), args.toArray());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  Sprint 1 (F5): indicadores de cobertura e frequencia (R.IVT.06)
+    //
+    //  Calculados sobre o horario planeado (modelo Transmodel) e a geometria
+    //  das paragens, NAO sobre a telemetria. Por isso nao recebem filtros de
+    //  data/hora. As horas GTFS (trip_stop_time.departure_time) sao texto
+    //  "HH:MM:SS" e podem passar das 24h; sao convertidas para minutos com
+    //  split_part e a hora-do-dia e' tirada modulo 24.
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Reune os tres indicadores de cobertura/frequencia num so objeto.
+     */
+    public CoverageIndicators getCoverageIndicators() {
+        return new CoverageIndicators(
+                computeGeographicCoveragePct(),
+                computeFrequencyByRouteHour(),
+                computeWaitTimeByStop());
+    }
+
+    /**
+     * Percentagem da area de servico a menos de ~400m a pe de qualquer paragem.
+     * Sem poligono administrativo de Braga, a area total e' aproximada pelo
+     * convex hull de todas as paragens. Distancias metricas via geography.
+     * Devolve 0 se nao houver paragens (ou area total nula).
+     */
+    private double computeGeographicCoveragePct() {
+        String sql = """
+                WITH covered AS (
+                    SELECT ST_Area(
+                               ST_Union(ST_Buffer(location::geography, 400)::geometry)::geography
+                           ) AS covered_area
+                    FROM bus_stops
+                ),
+                hull AS (
+                    SELECT ST_Area(
+                               ST_ConvexHull(ST_Collect(location))::geography
+                           ) AS total_area
+                    FROM bus_stops
+                )
+                SELECT LEAST(100.0,
+                             COALESCE(covered.covered_area, 0)
+                               / NULLIF(hull.total_area, 0) * 100.0
+                       )::double precision AS pct
+                FROM covered, hull
+                """;
+        Double pct = jdbcTemplate.query(sql, rs -> rs.next() ? (Double) rs.getObject("pct") : null);
+        return pct != null ? Math.round(pct * 10.0) / 10.0 : 0.0;
+    }
+
+    /**
+     * Intervalo medio (headway) entre partidas por linha e hora do dia.
+     *
+     * <p>Partida de uma trip = departure_time da sua primeira paragem (menor
+     * stop_sequence). Para cada (linha, hora) com >= 2 partidas, o headway medio
+     * e' (ultima - primeira) / (n - 1) em minutos, que e' exatamente a media dos
+     * intervalos entre partidas consecutivas. Com 1 partida o headway fica nulo.</p>
+     */
+    private List<RouteHourFrequency> computeFrequencyByRouteHour() {
+        String sql = """
+                WITH first_dep AS (
+                    SELECT DISTINCT ON (tst.trip_id)
+                           t.route_id                                         AS route_id,
+                           (split_part(tst.departure_time, ':', 1)::int) * 60
+                             + split_part(tst.departure_time, ':', 2)::int    AS dep_minute
+                    FROM trip_stop_time tst
+                    JOIN trip t ON t.id = tst.trip_id
+                    ORDER BY tst.trip_id, tst.stop_sequence
+                )
+                SELECT r.id                                                   AS route_id,
+                       r.code                                                 AS route_code,
+                       r.name                                                 AS route_name,
+                       (fd.dep_minute / 60) % 24                              AS hour,
+                       COUNT(*)                                               AS trip_count,
+                       CASE WHEN COUNT(*) >= 2
+                            THEN (MAX(fd.dep_minute) - MIN(fd.dep_minute))::double precision
+                                 / (COUNT(*) - 1)
+                            ELSE NULL
+                       END                                                    AS avg_headway
+                FROM first_dep fd
+                JOIN routes r ON r.id = fd.route_id
+                GROUP BY r.id, r.code, r.name, (fd.dep_minute / 60) % 24
+                ORDER BY r.code, hour
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Object headway = rs.getObject("avg_headway");
+            Double avgHeadway = headway != null
+                    ? Math.round(((Number) headway).doubleValue() * 10.0) / 10.0
+                    : null;
+            return new RouteHourFrequency(
+                    rs.getLong("route_id"),
+                    rs.getString("route_code"),
+                    rs.getString("route_name"),
+                    rs.getInt("hour"),
+                    avgHeadway,
+                    rs.getInt("trip_count"));
+        });
+    }
+
+    /**
+     * Tempo medio de espera por paragem = headway medio na paragem / 2.
+     *
+     * <p>Headway na paragem = (ultima - primeira passagem) / (passagens - 1) em
+     * minutos, usando departure_time de todas as trips que servem a paragem.
+     * So paragens com >= 2 passagens entram (headway definido). Ordenado pela
+     * espera decrescente; limitado a 50 paragens.</p>
+     */
+    private List<StopWaitTime> computeWaitTimeByStop() {
+        String sql = """
+                WITH passings AS (
+                    SELECT tst.stop_id                                        AS stop_id,
+                           (split_part(tst.departure_time, ':', 1)::int) * 60
+                             + split_part(tst.departure_time, ':', 2)::int    AS pass_minute
+                    FROM trip_stop_time tst
+                )
+                SELECT bs.id                                                  AS stop_id,
+                       bs.code                                                AS stop_code,
+                       bs.name                                                AS stop_name,
+                       COUNT(*)                                               AS departures_per_day,
+                       (MAX(p.pass_minute) - MIN(p.pass_minute))::double precision
+                         / (COUNT(*) - 1) / 2.0                               AS avg_wait
+                FROM passings p
+                JOIN bus_stops bs ON bs.id = p.stop_id
+                GROUP BY bs.id, bs.code, bs.name
+                HAVING COUNT(*) >= 2
+                ORDER BY avg_wait DESC
+                LIMIT 50
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new StopWaitTime(
+                rs.getLong("stop_id"),
+                rs.getString("stop_code"),
+                rs.getString("stop_name"),
+                Math.round(rs.getDouble("avg_wait") * 10.0) / 10.0,
+                rs.getInt("departures_per_day")));
     }
 }

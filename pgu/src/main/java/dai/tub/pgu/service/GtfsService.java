@@ -23,6 +23,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+
 import dai.tub.pgu.domain.*;
 import dai.tub.pgu.dto.GtfsConfigDTO;
 import dai.tub.pgu.dto.GtfsImportDTO;
@@ -76,6 +79,10 @@ public class GtfsService
     private final org.springframework.cache.CacheManager cacheManager;
     // Sprint 1 (F4): bulk insert do calendar.txt / calendar_dates.txt
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    // Sprint 1 (F9): contadores de importacoes GTFS bem/mal sucedidas.
+    // MeterRegistry auto-configurado pelo Spring Boot (micrometer-registry-prometheus).
+    private final Counter importSuccessCounter;
+    private final Counter importFailedCounter;
 
     public GtfsService(GtfsImportRepository importRepository,
                        GtfsImportEntityRepository importEntityRepository,
@@ -93,7 +100,8 @@ public class GtfsService
                        SimpMessagingTemplate ws,
                        @org.springframework.context.annotation.Lazy GtfsService self,
                        org.springframework.cache.CacheManager cacheManager,
-                       org.springframework.jdbc.core.JdbcTemplate jdbcTemplate)
+                       org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+                       MeterRegistry meterRegistry)
     {
         this.importRepository = importRepository;
         this.importEntityRepository = importEntityRepository;
@@ -114,6 +122,13 @@ public class GtfsService
         this.jdbcTemplate = jdbcTemplate;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         this.objectMapper = new ObjectMapper();
+        // Sprint 1 (F9): counters de import GTFS (success/failed).
+        this.importSuccessCounter = Counter.builder("gtfs.import.success")
+                .description("Numero de importacoes GTFS concluidas com sucesso")
+                .register(meterRegistry);
+        this.importFailedCounter = Counter.builder("gtfs.import.failed")
+                .description("Numero de importacoes GTFS falhadas")
+                .register(meterRegistry);
     }
 
     /**
@@ -961,12 +976,16 @@ public class GtfsService
             imp.setStatus("COMPLETED");
             imp.setFinishedAt(Instant.now());
             importRepository.save(imp);
+            // Sprint 1 (F9): metrica de import bem sucedido.
+            importSuccessCounter.increment();
 
             log.info("[GTFS] #{}: Importação concluída — {} paragens (+{}upd), {} rotas (+{}upd), {} shapes",
                     imp.getId(), stopsCreated, stopsUpdated, routesCreated, routesUpdated, shapesLoaded);
         }
         catch (Exception e)
         {
+            // Sprint 1 (F9): metrica de import falhado.
+            importFailedCounter.increment();
             failImport(imp, e);
             throw new RuntimeException("Falha no processamento GTFS", e);
         }

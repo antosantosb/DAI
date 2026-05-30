@@ -160,6 +160,23 @@
 			<artifactId>org.eclipse.paho.client.mqttv3</artifactId>
 			<version>1.2.5</version>
 		</dependency>
+
+		<!-- Sprint 1 (F7): GTFS-Realtime bindings (R.IVT.01/04/07).
+		     Classes Java geradas a partir do .proto oficial GTFS-RT, sob o
+		     pacote com.google.transit.realtime.GtfsRealtime.*. Usadas para
+		     publicar /api/v1/gtfs-rt/vehicle-positions.pb e trip-updates.pb
+		     consumiveis por Google Maps, Transit, Citymapper, etc.
+
+		     NOTA: o artefacto canonico com.google.transit:gtfs-realtime-bindings
+		     so existe ate 0.0.4 (protobuf-java 2.6.1, target Java 1.5 — incompativel
+		     com este stack). Usamos o fork mantido pela MobilityData (org.mobilitydata),
+		     que publica 0.0.8 com protobuf-java 3.16.1 e mantem o mesmo pacote Java. -->
+		<dependency>
+			<groupId>org.mobilitydata</groupId>
+			<artifactId>gtfs-realtime-bindings</artifactId>
+			<version>0.0.8</version>
+		</dependency>
+
 		<!-- springdoc-openapi: ver declaracao 2.8.13 mais abaixo (Sprint -1
 		     override para compatibilidade com Spring Boot 4 / Spring 7). -->
 

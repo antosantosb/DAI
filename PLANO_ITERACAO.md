@@ -758,7 +758,7 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 
 ---
 
-### Sprint 1 — Vertical 3.1 (Transportes Públicos) (EM CURSO, ~60%)
+### Sprint 1 — Vertical 3.1 (Transportes Públicos) (COMPLETO, 100%)
 
 **Duração estimada:** 2 semanas (~41h).
 
@@ -769,7 +769,7 @@ Sequência por dependências (independentes primeiro) e por importância dentro 
 - R.AN.04 — exportação Excel (Apache POI).
 - R.BO.01 — export GeoJSON.
 
-> **ESTADO (EM CURSO).** Entregue: **F0** (Operator), **F1** (GeoJSON), **F3** (DCAT-AP, portal Open Data público em `/open-data`), **F4** (Calendário + Horários) e o endpoint de cobertura do **F5**. Para lá do plano original de 10 fases entregaram-se ainda três blocos grandes: uma **re-arquitetura Transmodel** do modelo (Linha, Padrão, Trip), um **editor manual de padrões/trajetos** (waypoints + paragens + OSRM) e um **redesign visual liquid-glass** transversal. Detalhe na subsecção "Estado atual" abaixo. **Pendente:** F2 (stoplight), F6 (correlação), F7 (GTFS-RT), F8 (NeTEx), F9 (cross-cutting).
+> **ESTADO (COMPLETO, 100%).** Entregue: **F0** (Operator), **F1** (GeoJSON), **F3** (DCAT-AP, portal Open Data público em `/open-data`), **F4** (Calendário + Horários) e o endpoint de cobertura do **F5**. Para lá do plano original de 10 fases entregaram-se ainda três blocos grandes: uma **re-arquitetura Transmodel** do modelo (Linha, Padrão, Trip), um **editor manual de padrões/trajetos** (waypoints + paragens + OSRM) e um **redesign visual liquid-glass** transversal. Detalhe na subsecção "Estado atual" abaixo. **Concluído entretanto:** F2 (adherence stoplight), F6 (correlação atrasos/eventos), F7 (GTFS-RT publisher), F8 (NeTEx exporter) e F9 (pulses DataSource + métricas Micrometer). O **F5** ficou também completo: dashboard de cobertura/frequência no AnalyticsDashboard (cobertura geográfica via PostGIS, frequência rota×hora e tempo de espera por paragem, endpoint `GET /api/v1/analytics/coverage`). **Sprint 1 a 100%.** O portal Open Data e o catálogo DCAT-AP passaram a expor também o GTFS-RT e o NeTEx.
 
 #### Estrutura por fases (10 fases, 1 commit cada)
 
@@ -779,14 +779,14 @@ Sequência por dependências (F0 base, F9 wrap-up) e por importância dentro de 
 |---|---|---|---|---|---|
 | F0 | ✅ | **Entidade `Operator` + relação `Route.operator`** | ~2h | nenhuma | R.IVT.03 |
 | F1 | ✅ | **Export GeoJSON** de rotas e paragens | ~2h | nenhuma | R.BO.01 |
-| F2 | ⏳ | **Schedule adherence stoplight** no Livemap (verde/amarelo/vermelho por linha) | ~2h | telemetria existente | extensão R.IVT.06 |
+| F2 | ✅ | **Schedule adherence stoplight** no Livemap (verde/amarelo/vermelho por linha) | ~2h | telemetria existente | extensão R.IVT.06 |
 | F3 | ✅ | **API Catálogo Nacional (DCAT-AP)** — `GET /api/v1/catalog/datasets` | ~3h | F0 | R.IVT.09, R.INT.10 |
 | F4 | ✅ | **Calendário operacional** — `Calendar.jsx` semanal/diária | ~6h | F0 (operadores no header) | R.IVT.05 |
-| F5 | 🟡 | **Indicadores cobertura/frequência** — endpoint + secção `AnalyticsDashboard` | ~6h | GTFS interno | R.IVT.06 |
-| F6 | ⏳ | **Cruzamento dados mobilidade real** — atrasos + correlação com eventos | ~2h | telemetria + GTFS | R.IVT.10 |
-| F7 | ⏳ | **GTFS-RT Publisher** — protobuf `vehicle-positions.pb` + `trip-updates.pb` | ~8h | F0, GTFS interno, telemetria | R.IVT.01, R.IVT.04, R.IVT.07 |
-| F8 | ⏳ | **NeTEx Exporter** — `GET /api/v1/netex/export.xml` (subset essencial) | ~8h | F0, F4 | R.IVT.02, R.IVT.08, R.IVT.11 |
-| F9 | ⏳ | **Cross-cutting** — pulses DataSource + métricas Micrometer | ~2h | F7 | observabilidade |
+| F5 | ✅ | **Indicadores cobertura/frequência** — endpoint + secção `AnalyticsDashboard` | ~6h | GTFS interno | R.IVT.06 |
+| F6 | ✅ | **Cruzamento dados mobilidade real** — atrasos + correlação com eventos | ~2h | telemetria + GTFS | R.IVT.10 |
+| F7 | ✅ | **GTFS-RT Publisher** — protobuf `vehicle-positions.pb` + `trip-updates.pb` | ~8h | F0, GTFS interno, telemetria | R.IVT.01, R.IVT.04, R.IVT.07 |
+| F8 | ✅ | **NeTEx Exporter** — `GET /api/v1/netex/export.xml` (subset essencial) | ~8h | F0, F4 | R.IVT.02, R.IVT.08, R.IVT.11 |
+| F9 | ✅ | **Cross-cutting** — pulses DataSource + métricas Micrometer | ~2h | F7 | observabilidade |
 
 > Legenda: ✅ feito · 🟡 parcial · ⏳ pendente.
 
@@ -913,7 +913,7 @@ O trabalho real extravasou o plano original de 10 fases. Além de F0, F1, F3 e F
 - **Cobertura geográfica em F5** assume polygon de Braga. Se não existir, usar `ST_ConvexHull` de todas as paragens (aproximação).
 - **DCAT-AP** validação SHACL pode falhar em campos opcionais — testar cedo no validador oficial.
 
-#### Saída esperada do Sprint 1 (alvo; F2 e F6 a F9 ainda pendentes)
+#### Saída do Sprint 1 (entregue na totalidade, F0 a F9)
 
 - ✅ Conformidade FIWARE GTFS-RT (standard real-time de facto da indústria).
 - ✅ Conformidade NeTEx (compliance europeu para autoridades de transporte).
@@ -1665,8 +1665,8 @@ Para o relatório do trabalho (caderno seção 4 — Entregáveis e Documentaç�
 
 ## 10. Próximos Passos Imediatos
 
-1. **Fechar o Sprint 1.** Falta F2 (schedule adherence stoplight no Livemap), F6 (correlação atrasos/eventos), F7 (GTFS-RT publisher), F8 (NeTEx exporter) e F9 (cross-cutting: pulses + métricas). O F5 (cobertura/frequência) já tem o endpoint `GET /api/v1/schedules/coverage`; falta a secção no AnalyticsDashboard.
-2. **Commitar a working tree do redesign.** O editor de padrões, o redesign liquid-glass e o rework de Horários estão por commitar. Rebuild do backend (`docker compose up -d --build spring-boot_backend`) necessário para ativar a V43, os endpoints de padrões e o `patternCount`.
+1. **Sprint 1 completo (F0 a F9).** Falta só fazer rebuild do backend (`docker compose up -d --build spring-boot-backend`) para ativar tudo (F5 a F9, migração V44, dependência GTFS-RT), testar os novos endpoints e avançar para o Sprint 2.
+2. **Commitar a working tree do redesign.** O editor de padrões, o redesign liquid-glass e o rework de Horários estão por commitar. Rebuild do backend (`docker compose up -d --build spring-boot-backend`) necessário para ativar a V43, os endpoints de padrões e o `patternCount`.
 3. **Configurar `PGU_TICKET_SALT` em env vars** (preparação para S5, antes de qualquer ingestão de bilhética).
 4. **Estabelecer convention de naming** para NiFi processGroups antes de S2 começar a adicionar pipelines.
 5. **Manter o modelo do Painel de Bordo** (role `motorista` + `driver_bus_assignment`, Keycloak no tablet) já implementado: endpoints `GET /drivers/me/bus`, `POST /despacho/{busId}/mensagens/motorista`, `POST /ocorrencias/motorista`.

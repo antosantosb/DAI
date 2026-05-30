@@ -21,6 +21,12 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>TTL: 10 minutos. Tamanho maximo: 500 entries por cache.
  *
+ * <p>Sprint 1 (F7): caches "gtfs-rt-vp" e "gtfs-rt-tu" registadas com TTL
+ * curto (30s) para os feeds GTFS-Realtime. Como o {@link CaffeineCacheManager}
+ * aplica um unico {@code Caffeine} a todas as caches "default", os feeds RT
+ * usam {@code registerCustomCache} para terem o seu proprio TTL sem afectar
+ * as caches de 10 minutos.
+ *
  * <p>Para invalidar: usar {@code @CacheEvict(value="routes", allEntries=true)}
  * em metodos que mutam (save, update, delete).
  */
@@ -38,6 +44,16 @@ public class CacheConfig {
                 .maximumSize(500)
                 .recordStats()  // expoe estatisticas via Micrometer
         );
+
+        // Sprint 1 (F7): feeds GTFS-Realtime com TTL proprio de 30 segundos.
+        // Caches dedicadas (registerCustomCache) para nao herdarem os 10 minutos.
+        Caffeine<Object, Object> rtSpec = Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(8)
+                .recordStats();
+        mgr.registerCustomCache("gtfs-rt-vp", rtSpec.build());
+        mgr.registerCustomCache("gtfs-rt-tu", rtSpec.build());
+
         return mgr;
     }
 }

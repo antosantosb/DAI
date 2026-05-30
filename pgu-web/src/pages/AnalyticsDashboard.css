@@ -429,3 +429,178 @@
   text-align: right;
 }
 
+/* ─── Cobertura e Frequência (R.IVT.06) ─── */
+.coverage-kpi {
+  display: flex;
+  align-items: baseline;
+  margin: 4px 0 12px;
+}
+
+.coverage-kpi-value {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.coverage-kpi-value small {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-left: 2px;
+}
+
+.coverage-bar-track {
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.coverage-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--color-primary), #10b981);
+  transition: width 0.4s ease;
+}
+
+/* Heatmap linha x hora */
+.freq-heatmap-scroll {
+  overflow-x: auto;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.freq-heatmap {
+  display: grid;
+  grid-template-columns: 64px repeat(24, minmax(26px, 1fr));
+  gap: 2px;
+  padding: 8px;
+  min-width: 720px;
+}
+
+.freq-heatmap-corner,
+.freq-heatmap-hhead,
+.freq-heatmap-rowhead {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.freq-heatmap-corner {
+  position: sticky;
+  left: 0;
+  background: var(--color-bg);
+  z-index: 2;
+}
+
+.freq-heatmap-hhead {
+  justify-content: center;
+}
+
+.freq-heatmap-rowhead {
+  position: sticky;
+  left: 0;
+  background: var(--color-bg);
+  color: var(--color-primary);
+  font-weight: 700;
+  z-index: 1;
+  padding-right: 4px;
+}
+
+.freq-heatmap-cell {
+  height: 26px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  cursor: default;
+}
+
+.freq-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.freq-legend-label,
+.freq-legend-unit {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.freq-legend-swatch {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Tempo de espera por paragem */
+.wait-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.wait-list-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.wait-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wait-row-name {
+  flex: 0 0 38%;
+  font-size: 12px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wait-row-barwrap {
+  flex: 1;
+  height: 8px;
+  background: var(--color-surface);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wait-row-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.wait-row-value {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  min-width: 62px;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .wait-lists { grid-template-columns: 1fr; }
+}
+

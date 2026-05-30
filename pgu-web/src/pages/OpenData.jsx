@@ -68,15 +68,27 @@ const DATASETS = [
   },
 ];
 
-const COMING_SOON = [
+// Sprint 1 (F7/F8): feeds standard ja' disponiveis (live), endpoints publicos.
+const FEEDS = [
   {
     key: 'gtfsRt',
-    sprint: 'F7',
+    format: 'Protobuf',
+    standard: 'GTFS-RT 2.0',
+    realtime: true,
+    endpoints: [
+      { label: 'vehicle-positions.pb', url: '/api/v1/gtfs-rt/vehicle-positions.pb' },
+      { label: 'trip-updates.pb', url: '/api/v1/gtfs-rt/trip-updates.pb' },
+    ],
     iconPath: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></>,
   },
   {
     key: 'netex',
-    sprint: 'F8',
+    format: 'XML',
+    standard: 'CEN/TS 16614',
+    realtime: false,
+    endpoints: [
+      { label: 'export.xml', url: '/api/v1/netex/export.xml' },
+    ],
     iconPath: <><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></>,
   },
 ];
@@ -176,7 +188,7 @@ export default function OpenData() {
               <span className="od-stat-label">{t('pages.openData.statStops')}</span>
             </div>
             <div className="od-stat" role="listitem">
-              <span className="od-stat-value">2</span>
+              <span className="od-stat-value">4</span>
               <span className="od-stat-label">{t('pages.openData.statDatasets')}</span>
             </div>
           </div>
@@ -362,24 +374,90 @@ export default function OpenData() {
           </a>
         </section>
 
-        {/* COMING SOON */}
-        <section className="od-section">
+        {/* STANDARDS E TEMPO REAL (F7 GTFS-RT, F8 NeTEx) */}
+        <section id="feeds" className="od-section">
           <div className="od-section-head">
             <span className="od-section-tag">04</span>
-            <h2>{t('pages.openData.roadmapTitle')}</h2>
+            <h2>{t('pages.openData.feedsTitle')}</h2>
           </div>
 
-          <div className="od-soon-grid">
-            {COMING_SOON.map((cs) => (
-              <article key={cs.key} className="od-soon-card">
-                <div className="od-soon-icon" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    {cs.iconPath}
-                  </svg>
-                </div>
-                <div className="od-soon-meta">
-                  <span className="od-soon-sprint">{cs.sprint}</span>
-                  <h4>{t(`pages.openData.soon.${cs.key}.title`)}</h4>
+          <div className="od-datasets">
+            {FEEDS.map((feed, idx) => (
+              <article
+                key={feed.key}
+                className="od-card"
+                style={{ '--enter-delay': `${idx * 80}ms` }}
+              >
+                <header className="od-card-header">
+                  <div className="od-card-icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      {feed.iconPath}
+                    </svg>
+                  </div>
+                  <div className="od-card-badges">
+                    <span className="od-badge od-badge-format">{feed.format}</span>
+                    <span className="od-badge od-badge-geom">{feed.standard}</span>
+                  </div>
+                </header>
+
+                <h3 className="od-card-title">{t(`pages.openData.soon.${feed.key}.title`)}</h3>
+
+                <dl className="od-card-meta">
+                  <div>
+                    <dt>{t('pages.openData.metaFormat')}</dt>
+                    <dd className="od-card-meta-strong">{feed.format}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('pages.openData.metaUpdated')}</dt>
+                    <dd>{feed.realtime ? t('pages.openData.feedRealtime') : t('pages.openData.feedStatic')}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('pages.openData.metaStandard')}</dt>
+                    <dd>{feed.standard}</dd>
+                  </div>
+                </dl>
+
+                {feed.endpoints.map((ep) => (
+                  <div className="od-endpoint" key={ep.url}>
+                    <span className="od-endpoint-method">GET</span>
+                    <code className="od-endpoint-url">{ep.url}</code>
+                    <button
+                      type="button"
+                      className="od-endpoint-copy"
+                      onClick={() => copyUrl(ep.url, ep.url)}
+                      aria-label={t('pages.openData.copyUrl')}
+                    >
+                      {copiedKey === ep.url ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                ))}
+
+                <div className="od-card-actions">
+                  {feed.endpoints.map((ep) => (
+                    <a
+                      key={ep.url}
+                      href={ep.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="od-btn od-btn-ghost od-btn-sm"
+                    >
+                      {ep.label}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </a>
+                  ))}
                 </div>
               </article>
             ))}

@@ -408,6 +408,11 @@
           "description": "Location of every stop with the lines serving it. Each feature is a Point in WGS 84 coordinates."
         }
       },
+      "feedsTitle": "Standards and real-time",
+      "metaFormat": "Format",
+      "metaStandard": "Standard",
+      "feedRealtime": "Real-time",
+      "feedStatic": "Static",
       "soon": {
         "catalog": {
           "title": "DCAT-AP catalog",
@@ -946,7 +951,30 @@
       "tableSpeed": "Speed",
       "tablePassengers": "Passengers",
       "tableOccupancy": "Occupancy (%)",
-      "tableTime": "Time"
+      "tableTime": "Time",
+      "tabCoverage": "Coverage",
+      "coverageTitle": "Coverage and frequency",
+      "coverageSubtitle": "Indicators computed from the planned timetable (trips and stops), not from telemetry.",
+      "geoCoverageTitle": "Geographic coverage",
+      "geoCoverageDesc": "Percentage of the service area (approximated by the convex hull of stops) within a 400m walk of a stop.",
+      "geoCoverageBarLabel": "Area covered within 400m",
+      "frequencyTitle": "Frequency by line and hour",
+      "frequencyDesc": "Average gap between departures (headway), in minutes, by line and hour of day. Green means higher frequency (smaller gap), red means lower frequency.",
+      "frequencyRouteHeader": "Line",
+      "frequencyLegendMore": "More frequent",
+      "frequencyLegendLess": "Less frequent",
+      "frequencyLegendNone": "No data",
+      "frequencyCellTitle": "Line {{route}}, {{hour}}h: {{headway}} min between departures ({{trips}} departures)",
+      "frequencyCellTitleNone": "Line {{route}}, {{hour}}h: not enough departures",
+      "frequencyUnitMin": "min",
+      "waitTitle": "Wait time by stop",
+      "waitDesc": "Average wait time (half the gap between passings) at the worst-served stops.",
+      "waitWorst": "Worst wait",
+      "waitBest": "Best wait",
+      "waitMinutes": "min wait",
+      "waitDepartures": "passings/day",
+      "noCoverageData": "No timetable data to compute coverage indicators.",
+      "coverageUnitPct": "%"
     },
     "dataSources": {
       "title": "Data Sources",
@@ -1534,6 +1562,16 @@
     "tabBuses": "Drivers",
     "tabRoutes": "Lines",
     "tabAccount": "Account",
+    "causes": {
+      "pillTitle": "View likely causes of the delay",
+      "title": "Likely causes of the delay",
+      "loading": "Loading events...",
+      "empty": "No incidents or alerts for this line in the analysed window",
+      "eventsSuffix": "events",
+      "sourceOcorrencia": "Incident",
+      "sourceAlerta": "Alert",
+      "critical": "Critical"
+    },
     "patterns": {
       "title": "Trajectories",
       "loading": "Loading trajectories...",

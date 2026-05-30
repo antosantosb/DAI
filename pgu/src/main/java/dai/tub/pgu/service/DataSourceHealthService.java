@@ -95,6 +95,26 @@ public class DataSourceHealthService {
         return ds;
     }
 
+    /**
+     * Sprint 1 (F9): regista um pulse a partir de um componente interno do
+     * backend (publicadores GTFS-RT / NeTEx), resolvido pelo nome unico da
+     * fonte em vez do id. Pensado para ser chamado de dentro do mesmo processo
+     * (nao via HTTP), evitando que cada servico tenha de conhecer o id seeded.
+     *
+     * <p>Tolerante a falhas: se a fonte nao existir (seed em falta) ou o
+     * registo falhar, regista warning e segue. Nunca propaga excecao para nao
+     * partir a resposta do feed que o invocou.
+     */
+    public void recordPulseByName(String nome, String detalhes) {
+        try {
+            repo.findByNome(nome).ifPresentOrElse(
+                ds -> recordPulse(ds.getId(), detalhes),
+                () -> log.warn("Pulse interno ignorado: DataSource '{}' nao existe (seed em falta?)", nome));
+        } catch (Exception e) {
+            log.warn("Falha a registar pulse interno para DataSource '{}': {}", nome, e.getMessage());
+        }
+    }
+
     // Sprint 0 (F4 follow-up v2): evaluateAll() removido. O probeAll agora
     // decide o status directamente e regista todos os ticks (OK ou FAIL)
     // na tabela data_source_pulse. Uptime = ratio HEALTHY/total nos pulses.
@@ -158,8 +178,12 @@ public class DataSourceHealthService {
         entry.setDetalhes(ok ? "probe OK" : "probe FAIL");
         pulseRepo.save(entry);
 
-        boolean hasExternalProbe = !"SIMULATOR".equalsIgnoreCase(ds.getTipo());
-        if (ok && hasExternalProbe) {
+        // Fontes self-pulse (SIMULATOR e, na F9, GTFS_RT/NETEX) NAO devem ter o
+        // last_sync atualizado pelo probe: a frescura vem apenas dos pulses
+        // internos/externos reais. Caso contrario o probe perpetuaria HEALTHY
+        // indefinidamente, mascarando a ausencia de geracoes de feed/export.
+        boolean selfPulse = isSelfPulse(ds.getTipo());
+        if (ok && !selfPulse) {
             ds.setLastSync(now);
         }
         if (next != previous) {
@@ -175,21 +199,36 @@ public class DataSourceHealthService {
         }
     }
 
+    /**
+     * Sprint 1 (F9): tipos cuja saude e' determinada por self-pulse (frescura do
+     * last_sync) e nao por um probe externo. SIMULATOR pulsa via POST /pulse;
+     * GTFS_RT/NETEX pulsam internamente a cada geracao de feed/export
+     * (recordPulseByName). Para estes, o probe NAO deve tocar no last_sync.
+     */
+    private static boolean isSelfPulse(String tipo) {
+        if (tipo == null) return false;
+        return switch (tipo.toUpperCase()) {
+            case "SIMULATOR", "GTFS_RT", "NETEX" -> true;
+            default -> false;
+        };
+    }
+
     private boolean probe(DataSource ds, OffsetDateTime now) {
         String tipo = ds.getTipo();
         if (tipo == null) return false;
+        // Fontes self-pulse: OK enquanto o ultimo pulse esta dentro do
+        // `degraded_threshold_seconds`; senao o calculator decide DEGRADED
+        // (idade ≥ degraded) ou DOWN (idade ≥ down).
+        if (isSelfPulse(tipo)) {
+            return ds.getLastSync() != null
+                    && Duration.between(ds.getLastSync(), now).getSeconds() < ds.getDegradedThresholdSeconds();
+        }
         return switch (tipo.toUpperCase()) {
             // Sprint 0 (F4 follow-up): probes especificos por componente.
             case "NIFI"      -> tcpReachable("nifi", 8443);
             case "MQTT"      -> tcpReachable("mosquitto", 1883);
             case "ORION"     -> orionReachable();
             case "GTFS"      -> hasGtfsImport();
-            // SIMULATOR depende de self-pulse via POST /pulse. OK enquanto o
-            // ultimo pulse esta dentro do `degraded_threshold_seconds` — caso
-            // contrario o probe falha, e o calculator de status decide
-            // DEGRADED (idade ≥ degraded) ou DOWN (idade ≥ down).
-            case "SIMULATOR" -> ds.getLastSync() != null
-                    && Duration.between(ds.getLastSync(), now).getSeconds() < ds.getDegradedThresholdSeconds();
             default          -> false;
         };
     }

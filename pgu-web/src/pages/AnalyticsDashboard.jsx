@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -56,18 +56,37 @@ const getOccupancyColor = (rate) => {
   return '#ef4444'; // high
 };
 
+// Heatmap de frequência: headway (min) -> cor. Verde = mais frequente
+// (headway baixo), vermelho = menos frequente (headway alto). Sem dados = cinza.
+const HEADWAY_MIN = 5;   // <= 5 min: muito frequente (verde)
+const HEADWAY_MAX = 60;  // >= 60 min: pouco frequente (vermelho)
+const getHeadwayColor = (headway) => {
+  if (headway == null || Number.isNaN(headway)) return 'var(--color-border)';
+  const clamped = Math.max(HEADWAY_MIN, Math.min(HEADWAY_MAX, headway));
+  // 0 (verde) -> 1 (vermelho)
+  const ratio = (clamped - HEADWAY_MIN) / (HEADWAY_MAX - HEADWAY_MIN);
+  const hue = 140 - ratio * 140; // 140 (verde) .. 0 (vermelho)
+  return `hsl(${hue}, 70%, 45%)`;
+};
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
 export default function AnalyticsDashboard() {
   const { t } = useTranslation();
   const TABS = [
     { key: 'fleet', label: t('pages.analytics.tabFleet') },
     { key: 'buses', label: t('pages.analytics.tabBuses') },
     { key: 'geo', label: t('pages.analytics.tabGeo') },
+    { key: 'coverage', label: t('pages.analytics.tabCoverage') },
   ];
   const [fleetData, setFleetData]             = useState([]);
   const [delayData, setDelayData]             = useState([]);
   const [efficiencyData, setEfficiencyData]   = useState([]);
   const [speedData, setSpeedData]             = useState([]);
   const [congestionData, setCongestionData]   = useState([]);
+  // Cobertura/frequência: baseada no horário planeado, não usa os filtros de
+  // data/hora. Carregada uma única vez ao montar o componente.
+  const [coverageData, setCoverageData]       = useState(null);
   const [loading, setLoading]                 = useState(true);
   const [activeTab, setActiveTab]             = useState('fleet');
   
@@ -138,6 +157,19 @@ export default function AnalyticsDashboard() {
     }
   }, [isFiltered]);
 
+  // Indicadores de cobertura/frequência: fetch único ao montar (sem filtros).
+  useEffect(() => {
+    const ctrl = new AbortController();
+    api.get('/analytics/coverage', { signal: ctrl.signal })
+      .then((res) => setCoverageData(res.data || null))
+      .catch((err) => {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Error fetching coverage indicators', err);
+        }
+      });
+    return () => ctrl.abort();
+  }, []);
+
   const handleFilter = (e) => {
     e?.preventDefault();
     setIsFiltered(true);
@@ -178,6 +210,42 @@ export default function AnalyticsDashboard() {
   const mostUtilizedBus = efficiencyData.length > 0
     ? efficiencyData.reduce((prev, current) => (prev.avgOccupancyRate > current.avgOccupancyRate) ? prev : current, efficiencyData[0])
     : null;
+
+  // 3. Cobertura / Frequência (R.IVT.06)
+  const geoCoveragePct = coverageData?.geographicCoveragePct ?? null;
+
+  // Frequência -> matriz [linha][hora] para o heatmap.
+  const freqRows = (() => {
+    const list = coverageData?.frequencyByRouteHour || [];
+    const byRoute = new Map();
+    list.forEach((f) => {
+      if (!byRoute.has(f.routeId)) {
+        byRoute.set(f.routeId, {
+          routeId: f.routeId,
+          routeCode: f.routeCode,
+          routeName: f.routeName,
+          cells: {}, // hour -> { headway, trips }
+        });
+      }
+      byRoute.get(f.routeId).cells[f.hour] = {
+        headway: f.avgHeadwayMinutes,
+        trips: f.tripCount,
+      };
+    });
+    return Array.from(byRoute.values()).sort((a, b) =>
+      String(a.routeCode).localeCompare(String(b.routeCode), undefined, { numeric: true }));
+  })();
+
+  const waitStops = coverageData?.waitTimeByStop || [];
+  const worstStops = waitStops.slice(0, 10); // já vem ordenado DESC do backend
+  const bestStops = waitStops.length > 0
+    ? [...waitStops].sort((a, b) => a.avgWaitMinutes - b.avgWaitMinutes).slice(0, 10)
+    : [];
+  const maxWait = waitStops.length > 0
+    ? Math.max(...waitStops.map(s => s.avgWaitMinutes || 0))
+    : 0;
+  const hasCoverage = !!coverageData &&
+    (freqRows.length > 0 || waitStops.length > 0 || geoCoveragePct != null);
 
   return (
     <div className="analytics-page">
@@ -508,6 +576,169 @@ export default function AnalyticsDashboard() {
                 )}
               </section>
             </div>
+          )}
+
+          {/* ═══ TAB COBERTURA E FREQUÊNCIA ═══ */}
+          {activeTab === 'coverage' && (
+            <>
+              <div className="analytics-card bus-card" style={{ marginBottom: 24 }}>
+                <h3>{t('pages.analytics.coverageTitle')}</h3>
+                <p className="analytics-subtitle">{t('pages.analytics.coverageSubtitle')}</p>
+              </div>
+
+              {!hasCoverage ? (
+                <p className="analytics-empty">{t('pages.analytics.noCoverageData')}</p>
+              ) : (
+                <div className="analytics-grid">
+                  {/* KPI: cobertura geográfica */}
+                  <section className="bus-card analytics-card">
+                    <h3>{t('pages.analytics.geoCoverageTitle')}</h3>
+                    <p className="analytics-subtitle">{t('pages.analytics.geoCoverageDesc')}</p>
+                    <div className="coverage-kpi">
+                      <span className="coverage-kpi-value">
+                        {geoCoveragePct != null ? fmt1(geoCoveragePct) : '—'}
+                        <small>{t('pages.analytics.coverageUnitPct')}</small>
+                      </span>
+                    </div>
+                    <div
+                      className="coverage-bar-track"
+                      role="progressbar"
+                      aria-label={t('pages.analytics.geoCoverageBarLabel')}
+                      aria-valuenow={geoCoveragePct != null ? Math.round(geoCoveragePct) : 0}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="coverage-bar-fill"
+                        style={{ width: `${Math.min(geoCoveragePct || 0, 100)}%` }}
+                      />
+                    </div>
+                  </section>
+
+                  {/* Heatmap linha x hora */}
+                  <section className="bus-card analytics-card">
+                    <h3>{t('pages.analytics.frequencyTitle')}</h3>
+                    <p className="analytics-subtitle">{t('pages.analytics.frequencyDesc')}</p>
+                    {freqRows.length === 0 ? (
+                      <p className="analytics-empty">{t('pages.analytics.noCoverageData')}</p>
+                    ) : (
+                      <>
+                        <div className="freq-heatmap-scroll">
+                          <div className="freq-heatmap">
+                            {/* Cabeçalho de horas */}
+                            <div className="freq-heatmap-corner">
+                              {t('pages.analytics.frequencyRouteHeader')}
+                            </div>
+                            {HOURS.map((h) => (
+                              <div key={`h-${h}`} className="freq-heatmap-hhead">{h}</div>
+                            ))}
+                            {/* Linhas */}
+                            {freqRows.map((row) => (
+                              <Fragment key={row.routeId}>
+                                <div
+                                  className="freq-heatmap-rowhead"
+                                  title={row.routeName || row.routeCode}
+                                >
+                                  {row.routeCode}
+                                </div>
+                                {HOURS.map((h) => {
+                                  const cell = row.cells[h];
+                                  const headway = cell?.headway;
+                                  const title = (cell && headway != null)
+                                    ? t('pages.analytics.frequencyCellTitle', {
+                                        route: row.routeCode,
+                                        hour: h,
+                                        headway: fmt1(headway),
+                                        trips: cell.trips,
+                                      })
+                                    : t('pages.analytics.frequencyCellTitleNone', {
+                                        route: row.routeCode,
+                                        hour: h,
+                                      });
+                                  return (
+                                    <div
+                                      key={`${row.routeId}-${h}`}
+                                      className="freq-heatmap-cell"
+                                      style={{ background: cell ? getHeadwayColor(headway) : 'transparent' }}
+                                      title={title}
+                                    >
+                                      {cell && headway != null ? Math.round(headway) : ''}
+                                    </div>
+                                  );
+                                })}
+                              </Fragment>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Legenda */}
+                        <div className="freq-legend">
+                          <span className="freq-legend-label">{t('pages.analytics.frequencyLegendMore')}</span>
+                          <span className="freq-legend-swatch" style={{ background: getHeadwayColor(HEADWAY_MIN) }} />
+                          <span className="freq-legend-swatch" style={{ background: getHeadwayColor((HEADWAY_MIN + HEADWAY_MAX) / 2) }} />
+                          <span className="freq-legend-swatch" style={{ background: getHeadwayColor(HEADWAY_MAX) }} />
+                          <span className="freq-legend-label">{t('pages.analytics.frequencyLegendLess')}</span>
+                          <span className="freq-legend-swatch" style={{ background: 'var(--color-border)' }} />
+                          <span className="freq-legend-label">{t('pages.analytics.frequencyLegendNone')}</span>
+                          <span className="freq-legend-unit">({t('pages.analytics.frequencyUnitMin')})</span>
+                        </div>
+                      </>
+                    )}
+                  </section>
+
+                  {/* Tempo de espera por paragem */}
+                  <section className="bus-card analytics-card">
+                    <h3>{t('pages.analytics.waitTitle')}</h3>
+                    <p className="analytics-subtitle">{t('pages.analytics.waitDesc')}</p>
+                    {waitStops.length === 0 ? (
+                      <p className="analytics-empty">{t('pages.analytics.noCoverageData')}</p>
+                    ) : (
+                      <div className="wait-lists">
+                        <div className="wait-list">
+                          <h4 className="wait-list-title">{t('pages.analytics.waitWorst')}</h4>
+                          {worstStops.map((s) => (
+                            <div key={`w-${s.stopId}`} className="wait-row">
+                              <span className="wait-row-name" title={s.stopName}>{s.stopName}</span>
+                              <div className="wait-row-barwrap">
+                                <div
+                                  className="wait-row-bar"
+                                  style={{
+                                    width: `${maxWait > 0 ? Math.min((s.avgWaitMinutes / maxWait) * 100, 100) : 0}%`,
+                                    background: getOccupancyColor((s.avgWaitMinutes / (maxWait || 1)) * 100),
+                                  }}
+                                />
+                              </div>
+                              <span className="wait-row-value">
+                                {fmt1(s.avgWaitMinutes)} {t('pages.analytics.frequencyUnitMin')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="wait-list">
+                          <h4 className="wait-list-title">{t('pages.analytics.waitBest')}</h4>
+                          {bestStops.map((s) => (
+                            <div key={`b-${s.stopId}`} className="wait-row">
+                              <span className="wait-row-name" title={s.stopName}>{s.stopName}</span>
+                              <div className="wait-row-barwrap">
+                                <div
+                                  className="wait-row-bar"
+                                  style={{
+                                    width: `${maxWait > 0 ? Math.min((s.avgWaitMinutes / maxWait) * 100, 100) : 0}%`,
+                                    background: '#10b981',
+                                  }}
+                                />
+                              </div>
+                              <span className="wait-row-value">
+                                {fmt1(s.avgWaitMinutes)} {t('pages.analytics.frequencyUnitMin')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

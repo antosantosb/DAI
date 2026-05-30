@@ -66,6 +66,14 @@ public class SecurityConfig
                 // Sprint 1 (F3): catalogo DCAT-AP aberto (R.IVT.09, R.INT.10)
                 // para harvest pelo dados.gov.pt / Catalogo Nacional.
                 .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
+                // Sprint 1 (F7): feed GTFS-Realtime aberto (R.IVT.01/04/07) para
+                // apps externas (Google Maps, Transit, Citymapper). TEM que vir
+                // ANTES do catch-all GET /api/v1/** autenticado abaixo.
+                .requestMatchers(HttpMethod.GET, "/api/v1/gtfs-rt/**").permitAll()
+                // Sprint 1 (F8): export NeTEx aberto (R.IVT.02/08/11) para
+                // ingestao por autoridades de transporte. TEM que vir ANTES do
+                // catch-all GET /api/v1/** autenticado abaixo.
+                .requestMatchers(HttpMethod.GET, "/api/v1/netex/**").permitAll()
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Ocorrências — Gestão e Escritas
