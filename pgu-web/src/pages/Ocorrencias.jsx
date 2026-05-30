@@ -1,14 +1,19 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
+import { Client } from '@stomp/stompjs';
+import api from '../services/api';
+import { getMensagens, enviarMensagem, reenviarMensagem, cancelarMensagem } from '../services/despachoApi';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
   getOcorrencias,
+  criarOcorrencia,
   getOcorrencia,
   assumirOcorrencia,
+  atribuirOcorrencia,
   fecharOcorrencia,
   marcarFalsoPositivo,
   registarAcaoCorretiva,
@@ -50,6 +55,76 @@ export default function Ocorrencias() {
   const [telemetryHistory, setTelemetryHistory] = useState([]);
   const [loadingTelemetry, setLoadingTelemetry] = useState(false);
 
+  // Chat with driver state
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [activeDriver, setActiveDriver] = useState(null);
+  const [loadingDriver, setLoadingDriver] = useState(false);
+  const chatEndRef = useRef(null);
+
+  // Create occurrence modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newAtivoId, setNewAtivoId] = useState('');
+  const [newTipoAtivo, setNewTipoAtivo] = useState('BUS');
+  const [newTipoAnomalia, setNewTipoAnomalia] = useState('SOBREAQUECIMENTO');
+  const [newPrioridade, setNewPrioridade] = useState('NORMAL');
+  const [newDescricao, setNewDescricao] = useState('');
+  const [newNotasIniciais, setNewNotasIniciais] = useState('');
+  const [submittingCreate, setSubmittingCreate] = useState(false);
+  const [technicians, setTechnicians] = useState([]);
+
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      try {
+        const res = await api.get('/users');
+        const maintenanceUsers = (res.data || []).filter(u => u.roles && u.roles.includes('maintenance'));
+        setTechnicians(maintenanceUsers);
+      } catch (err) {
+        console.warn('Erro ao carregar técnicos de manutenção:', err);
+      }
+    };
+    fetchTechnicians();
+  }, []);
+
+  const handleCreateOccurrence = async (e) => {
+    e.preventDefault();
+    if (!newAtivoId.trim()) {
+      toast.warn("Por favor, indique o ID do ativo.");
+      return;
+    }
+    setSubmittingCreate(true);
+    try {
+      const payload = {
+        ativoId: newAtivoId.trim(),
+        tipoAtivo: newTipoAtivo,
+        tipoAnomalia: newTipoAnomalia,
+        prioridade: newPrioridade,
+        descricao: newDescricao.trim(),
+        notasIniciais: newNotasIniciais.trim()
+      };
+      await criarOcorrencia(payload);
+      toast.success("Ocorrência registada com sucesso!");
+      setShowCreateModal(false);
+      // Reset form
+      setNewAtivoId('');
+      setNewTipoAtivo('BUS');
+      setNewTipoAnomalia('SOBREAQUECIMENTO');
+      setNewPrioridade('NORMAL');
+      setNewDescricao('');
+      setNewNotasIniciais('');
+      loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao registar ocorrência: " + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmittingCreate(false);
+    }
+  };
+
+  const isMsgFromDriver = (msg) => msg.operador?.startsWith('motorista:');
+
   const isSupervisorOrAdmin = roles.includes('admin') || roles.includes('maintenance') || roles.includes('operator');
   const isMaintenanceOrAdmin = roles.includes('admin') || roles.includes('maintenance');
 
@@ -72,7 +147,38 @@ export default function Ocorrencias() {
     loadData();
     // Auto-refresh lists every 10 seconds
     const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+
+    // Configurar WebSocket global
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
+    const client = new Client({
+      brokerURL: wsUrl,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        // Alertas de alteração/criação de ocorrências
+        client.subscribe('/topic/alertas', () => {
+          loadData();
+        });
+        // Alertas de escalamento
+        client.subscribe('/topic/alertas-escalada', (message) => {
+          if (message.body) {
+            toast.warn(message.body, {
+              position: "top-right",
+              autoClose: 10000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+          }
+        });
+      },
+    });
+    client.activate();
+
+    return () => {
+      clearInterval(interval);
+      client.deactivate();
+    };
   }, [loadData]);
 
   // Load single occurrence details if ID is present in URL
@@ -103,6 +209,131 @@ export default function Ocorrencias() {
       setAttachments([]);
     }
   }, [id, navigate]);
+
+  // Fetch associated driver and messages for the selected bus occurrence
+  useEffect(() => {
+    if (!selectedOcorrencia || selectedOcorrencia.tipoAtivo !== 'BUS') {
+      setActiveDriver(null);
+      setChatMessages([]);
+      return;
+    }
+
+    const busCode = selectedOcorrencia.ativoId;
+
+    // 1. Fetch associated driver
+    const fetchDriver = async () => {
+      setLoadingDriver(true);
+      try {
+        const res = await api.get('/drivers');
+        const found = (res.data || []).find(d => d.currentBusCode === busCode);
+        setActiveDriver(found || null);
+      } catch (err) {
+        console.warn('Erro ao obter motoristas:', err);
+      } finally {
+        setLoadingDriver(false);
+      }
+    };
+
+    // 2. Fetch chat messages
+    const fetchChatMessages = async () => {
+      try {
+        const res = await getMensagens(busCode);
+        const sorted = (res.data || [])
+          .slice(0, 50)
+          .sort((a, b) => new Date(a.timestampEnvio) - new Date(b.timestampEnvio));
+        setChatMessages(sorted);
+      } catch (err) {
+        console.warn('Erro ao obter mensagens do chat:', err);
+      }
+    };
+
+    fetchDriver();
+    fetchChatMessages();
+
+    // Mark messages as read when opening details
+    api.post(`/despacho/${busCode}/mensagens/marcar-lidas`).catch(() => { });
+
+    // 3. Setup real-time WS subscription
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws-telemetry`;
+    const client = new Client({
+      brokerURL: wsUrl,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/mensagens/${busCode}`, () => {
+          fetchChatMessages();
+        });
+      },
+    });
+    client.activate();
+
+    return () => {
+      client.deactivate();
+    };
+  }, [selectedOcorrencia]);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages.length]);
+
+  const handleSendChat = async (e) => {
+    e.preventDefault();
+    if (!selectedOcorrencia || sendingChat) return;
+    if (!chatInput.trim() || chatInput.length > 140) {
+      setChatError("Mensagem inválida: o conteúdo não pode estar vazio e deve ter no máximo 140 caracteres");
+      return;
+    }
+    setChatError('');
+    setSendingChat(true);
+    const busCode = selectedOcorrencia.ativoId;
+    try {
+      await enviarMensagem(busCode, chatInput.trim());
+      setChatInput('');
+      const res = await getMensagens(busCode);
+      const sorted = (res.data || [])
+        .slice(0, 50)
+        .sort((a, b) => new Date(a.timestampEnvio) - new Date(b.timestampEnvio));
+      setChatMessages(sorted);
+    } catch (err) {
+      toast.error('Erro ao enviar mensagem: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  const handleRetryMessage = async (msg) => {
+    if (!selectedOcorrencia || msg.estado !== 'FALHOU') return;
+    const busCode = selectedOcorrencia.ativoId;
+    try {
+      await reenviarMensagem(busCode, msg.id);
+      toast.success("Mensagem reenviada.");
+      const res = await getMensagens(busCode);
+      const sorted = (res.data || [])
+        .slice(0, 50)
+        .sort((a, b) => new Date(a.timestampEnvio) - new Date(b.timestampEnvio));
+      setChatMessages(sorted);
+    } catch (err) {
+      toast.error("Erro ao reenviar mensagem: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleCancelMessage = async (msg) => {
+    if (!selectedOcorrencia || msg.estado !== 'ENVIADA') return;
+    const busCode = selectedOcorrencia.ativoId;
+    try {
+      await cancelarMensagem(busCode, msg.id);
+      toast.success("Mensagem cancelada.");
+      const res = await getMensagens(busCode);
+      const sorted = (res.data || [])
+        .slice(0, 50)
+        .sort((a, b) => new Date(a.timestampEnvio) - new Date(b.timestampEnvio));
+      setChatMessages(sorted);
+    } catch (err) {
+      toast.error("Erro ao cancelar mensagem: " + (err.response?.data?.message || err.message));
+    }
+  };
 
   // Toggle telemetry subflow chart
   const handleToggleTelemetry = async () => {
@@ -190,7 +421,7 @@ export default function Ocorrencias() {
   // Handle Drag & Drop / File Input uploads
   const handleFileUpload = async (file) => {
     if (!file) return;
-    
+
     // Validations: 20MB limit
     const limit = 20 * 1024 * 1024;
     if (file.size > limit) {
@@ -259,11 +490,21 @@ export default function Ocorrencias() {
 
   return (
     <div className="ocorrencias-page">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1>{t('pages.ocorrencias.pageTitle')}</h1>
           <p className="page-subtitle">{t('pages.ocorrencias.pageSubtitle')}</p>
         </div>
+        {isSupervisorOrAdmin && (
+          <button
+            className="btn-action-primary"
+            style={{ width: 'auto', padding: '10px 16px', background: '#3b82f6' }}
+            onClick={() => setShowCreateModal(true)}
+            id="btn-registar-ocorrencia"
+          >
+            + Registar Ocorrência
+          </button>
+        )}
       </div>
 
       {/* ─── PAINEL DE ALARMES ATIVOS (Sempre visível no topo) ─── */}
@@ -467,6 +708,112 @@ export default function Ocorrencias() {
                 </div>
               )}
 
+              {/* Secção de Comunicação com o Motorista */}
+              {selectedOcorrencia.tipoAtivo === 'BUS' && (
+                <div className="ocorrencia-chat-section">
+                  <span className="panel-info-label">Comunicação com o Motorista</span>
+                  {loadingDriver ? (
+                    <p className="chat-loading-text">A verificar motorista ativo...</p>
+                  ) : activeDriver ? (
+                    <div className="ocorrencia-chat-box">
+                      <div className="chat-header-driver">
+                        <span className="driver-avatar-circle">
+                          {activeDriver.name.charAt(0).toUpperCase()}
+                        </span>
+                        <div className="driver-header-info">
+                          <strong>{activeDriver.name}</strong>
+                          <span className="driver-subtext">Nº Mec: {activeDriver.mechanographicNumber}</span>
+                        </div>
+                      </div>
+
+                      <div className="ocorrencia-chat-list">
+                        {chatMessages.length === 0 ? (
+                          <div className="ocorrencia-chat-empty">Sem mensagens. Envie a primeira mensagem para iniciar o contacto.</div>
+                        ) : (
+                          chatMessages.map(msg => {
+                            const fromDriver = isMsgFromDriver(msg);
+                            return (
+                              <div key={msg.id} className={`ocorrencia-msg ${fromDriver ? 'msg--driver' : 'msg--operator'}`}>
+                                <div className="ocorrencia-msg-content">{msg.conteudo}</div>
+                                <div className="ocorrencia-msg-meta">
+                                  <span>{new Date(msg.timestampEnvio).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+                                  {!fromDriver && (
+                                    <div className="ocorrencia-msg-state-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+                                      <span className={`ocorrencia-msg-state msg-state--${msg.estado?.toLowerCase()}`}>
+                                        {msg.estado === 'LIDA' && '✓✓ Lida'}
+                                        {msg.estado === 'ENTREGUE' && '✓✓ Entregue'}
+                                        {msg.estado === 'ENVIADA' && '✓ Enviada'}
+                                        {msg.estado === 'FALHOU' && '! Falhou'}
+                                        {msg.estado === 'CANCELADA' && '⚪ Cancelada'}
+                                      </span>
+                                      {msg.estado === 'FALHOU' && (
+                                        <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRetryMessage(msg)}
+                                            style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '3px', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                                          >
+                                            Reenviar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCancelMessage(msg)}
+                                            style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '3px', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      )}
+                                      {msg.estado === 'ENVIADA' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCancelMessage(msg)}
+                                          style={{ background: '#64748b', color: 'white', border: 'none', borderRadius: '3px', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                                        >
+                                          Cancelar
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
+
+                      <form className="ocorrencia-chat-form" onSubmit={handleSendChat}>
+                        <input
+                          type="text"
+                          placeholder={`Mensagem para ${activeDriver.name.split(' ')[0]}...`}
+                          value={chatInput}
+                          onChange={(e) => {
+                            setChatInput(e.target.value);
+                            if (chatError) setChatError('');
+                          }}
+                          maxLength={140}
+                          disabled={sendingChat}
+                          style={chatError ? { borderColor: '#ef4444', boxShadow: '0 0 0 1px #ef4444' } : {}}
+                        />
+                        <button type="submit" disabled={sendingChat}>
+                          {sendingChat ? '...' : 'Enviar'}
+                        </button>
+                      </form>
+                      {chatError && (
+                        <div className="chat-error-message" style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', textAlign: 'left' }}>
+                          {chatError}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="chat-no-driver">
+                      ⚠️ Nenhum motorista está em serviço neste autocarro no momento.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Subflow - Telemetria Histórica 24h */}
               <div>
                 <button className="btn-action-outline" onClick={handleToggleTelemetry} style={{ width: '100%' }}>
@@ -561,6 +908,38 @@ export default function Ocorrencias() {
               </div>
 
               {/* Secção de Ações Contextuais */}
+              {isSupervisorOrAdmin && (selectedOcorrencia.estado === 'ABERTA' || selectedOcorrencia.estado === 'EM_CURSO') && (
+                <div className="action-section" style={{ marginBottom: '16px' }}>
+                  <h4>{selectedOcorrencia.responsavel ? "Reatribuir Técnico" : "Atribuir Técnico"}</h4>
+                  <div className="form-group" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <select
+                      value={selectedOcorrencia.responsavel || ''}
+                      onChange={async (e) => {
+                        const targetUser = e.target.value;
+                        if (!targetUser) return;
+                        try {
+                          const res = await atribuirOcorrencia(selectedOcorrencia.id, targetUser);
+                          setSelectedOcorrencia(res.data);
+                          toast.success("Ocorrência atribuída com sucesso!");
+                          loadData();
+                        } catch (err) {
+                          console.error(err);
+                          toast.error("Erro ao atribuir ocorrência: " + (err.response?.data?.message || err.message));
+                        }
+                      }}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#1e293b' }}
+                    >
+                      <option value="">-- Selecione um técnico --</option>
+                      {technicians.map(u => (
+                        <option key={u.id} value={u.username}>
+                          {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.username} ({u.username})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {isMaintenanceOrAdmin && selectedOcorrencia.estado === 'ABERTA' && (
                 <div className="action-section">
                   <h4>{t('pages.ocorrencias.actions.availableTitle')}</h4>
@@ -608,7 +987,7 @@ export default function Ocorrencias() {
               {/* Secção de Anexos */}
               <div className="attachments-section">
                 <span className="panel-info-label" style={{ marginBottom: '10px', display: 'block' }}>{t('pages.ocorrencias.attach.sectionLabel')}</span>
-                
+
                 {/* Drag and Drop Zone */}
                 {selectedOcorrencia.estado !== 'RESOLVIDA' && selectedOcorrencia.estado !== 'FALSO_POSITIVO' && (
                   <div
@@ -664,6 +1043,112 @@ export default function Ocorrencias() {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para registar nova ocorrência manualmente */}
+      {showCreateModal && (
+        <div className="glass-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="glass-modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="panel-header">
+              <h2>Registar Nova Ocorrência (UC6)</h2>
+              <button className="btn-close-panel" onClick={() => setShowCreateModal(false)}>×</button>
+            </div>
+
+            <form onSubmit={handleCreateOccurrence} className="panel-body form-create-ocorrencia" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Código/ID do Ativo</label>
+                <input
+                  type="text"
+                  placeholder="Ex: TUB-42 ou Posto_Carga_01"
+                  value={newAtivoId}
+                  onChange={(e) => setNewAtivoId(e.target.value)}
+                  required
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Tipo de Ativo</label>
+                <select
+                  value={newTipoAtivo}
+                  onChange={(e) => setNewTipoAtivo(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white' }}
+                >
+                  <option value="BUS">Autocarro (BUS)</option>
+                  <option value="CHARGER">Carregador (CHARGER)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Tipo de Anomalia</label>
+                <select
+                  value={newTipoAnomalia}
+                  onChange={(e) => setNewTipoAnomalia(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white' }}
+                >
+                  <option value="SOBREAQUECIMENTO">SOBREAQUECIMENTO</option>
+                  <option value="FALHA_CARREGADOR">FALHA_CARREGADOR</option>
+                  <option value="BATERIA_CRITICA">BATERIA_CRITICA</option>
+                  <option value="PROBLEMA_PASSAGEIRO">PROBLEMA_PASSAGEIRO</option>
+                  <option value="AVARIA_MECANICA">AVARIA_MECANICA</option>
+                  <option value="DESVIO_ROTA">DESVIO_ROTA</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Prioridade</label>
+                <select
+                  value={newPrioridade}
+                  onChange={(e) => setNewPrioridade(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white' }}
+                >
+                  <option value="NORMAL">NORMAL</option>
+                  <option value="CRITICA">CRÍTICA</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Descrição Detalhada</label>
+                <textarea
+                  placeholder="Descreva a anomalia observada..."
+                  value={newDescricao}
+                  onChange={(e) => setNewDescricao(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', minHeight: '80px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontWeight: 600, fontSize: '13px', color: '#475569' }}>Notas Iniciais</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Alerta recebido via chamada"
+                  value={newNotasIniciais}
+                  onChange={(e) => setNewNotasIniciais(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+
+              <div className="action-row" style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  type="submit"
+                  className="btn-action-primary"
+                  style={{ flex: 1, background: '#3b82f6', width: 'auto' }}
+                  disabled={submittingCreate}
+                >
+                  {submittingCreate ? 'A registar...' : 'Confirmar e Registar'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-action-outline"
+                  style={{ flex: 1 }}
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

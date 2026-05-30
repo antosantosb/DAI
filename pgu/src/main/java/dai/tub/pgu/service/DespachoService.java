@@ -117,12 +117,9 @@ public class DespachoService {
         // 5. Agendar verificação de Timeout
         agendarTimeoutVerificacao(salva.getId());
 
-        // 6. Registar Auditoria (MENSAGEM_ENVIADA - truncado a 50 chars)
-        String conteudoTruncado = request.getConteudo();
-        if (conteudoTruncado != null && conteudoTruncado.length() > 50) {
-            conteudoTruncado = conteudoTruncado.substring(0, 50);
-        }
-        registrarAuditoria(operador, "MENSAGEM_ENVIADA", "enviarMensagem", true, conteudoTruncado);
+        // 6. Registar Auditoria (MENSAGEM_ENVIADA - apenas tamanho por motivos de privacidade/RGPD)
+        int len = request.getConteudo() != null ? request.getConteudo().length() : 0;
+        registrarAuditoria(operador, "MENSAGEM_ENVIADA", "enviarMensagem", true, "Tamanho da mensagem: " + len + " caracteres");
 
         return dto;
     }
@@ -253,12 +250,9 @@ public class DespachoService {
         // Agendar novo timeout
         agendarTimeoutVerificacao(salva.getId());
 
-        // Registar Auditoria (MENSAGEM_ENVIADA - truncado a 50 chars)
-        String conteudoTruncado = salva.getConteudo();
-        if (conteudoTruncado != null && conteudoTruncado.length() > 50) {
-            conteudoTruncado = conteudoTruncado.substring(0, 50);
-        }
-        registrarAuditoria(operador, "MENSAGEM_ENVIADA", "reenviarMensagem", true, conteudoTruncado);
+        // Registar Auditoria (MENSAGEM_ENVIADA - apenas tamanho por motivos de privacidade/RGPD)
+        int len = salva.getConteudo() != null ? salva.getConteudo().length() : 0;
+        registrarAuditoria(operador, "MENSAGEM_ENVIADA", "reenviarMensagem", true, "Tamanho da mensagem: " + len + " caracteres");
 
         return dto;
     }

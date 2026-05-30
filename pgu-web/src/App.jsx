@@ -15,7 +15,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GlobalToastListener from './components/GlobalToastListener';
 import ProjectDisclaimer from './components/ProjectDisclaimer';
 import { routes } from './routes';
-
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './toast-overrides.css';

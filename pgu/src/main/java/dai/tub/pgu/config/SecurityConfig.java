@@ -89,7 +89,8 @@ public class SecurityConfig
                 // (admin-only), senao o admin tambem ganhava acesso.
                 .requestMatchers(HttpMethod.POST, "/api/v1/users/drivers/batch").hasRole("developer")
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/batch").hasRole("developer")
-                // Gestão de utilizadores — apenas admin
+                // Gestão de utilizadores — apenas admin (GET disponível para operadores/manutenção verem a lista)
+                .requestMatchers(HttpMethod.GET, "/api/v1/users").hasAnyRole("admin", "developer", "operator", "funcionario", "maintenance")
                 .requestMatchers("/api/v1/users/**").hasAnyRole("admin", "developer")
                 // Escrita em recursos de gestão — apenas admin
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/**").hasAnyRole("admin", "developer")

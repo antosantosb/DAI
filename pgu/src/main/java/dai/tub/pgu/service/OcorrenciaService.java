@@ -114,6 +114,26 @@ public class OcorrenciaService {
         return dto;
     }
 
+    @LogActivity(action = "Atribuir Ocorrência")
+    public OcorrenciaDTO atribuirOcorrencia(Long id, String responsavel, String username) {
+        Ocorrencia o = ocorrenciaRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ocorrência não encontrada."));
+
+        o.setResponsavel(responsavel);
+        if (o.getEstado() == EstadoOcorrencia.ABERTA) {
+            o.setEstado(EstadoOcorrencia.EM_CURSO);
+            o.setTimestampAssumida(Instant.now());
+        }
+
+        Ocorrencia saved = ocorrenciaRepository.save(o);
+        OcorrenciaDTO dto = mapToDTO(saved);
+
+        // Notificar via WebSocket
+        messagingTemplate.convertAndSend("/topic/alertas", dto);
+
+        return dto;
+    }
+
     @LogActivity(action = "Registar Ação Corretiva")
     public OcorrenciaDTO registarAcaoCorretiva(Long id, String acao, String username) {
         Ocorrencia o = ocorrenciaRepository.findById(id)

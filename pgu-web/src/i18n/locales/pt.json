@@ -790,8 +790,8 @@
         "falsePositiveJustifRequired": "Indica a justificação para falso positivo",
         "falsePositiveClosed": "Ocorrência fechada como falso positivo",
         "falsePositiveFailed": "Falha a registar falso positivo",
-        "attachTooBig": "Ficheiro excede 20 MB",
-        "attachBadType": "Formato não suportado (apenas JPG, PNG, PDF)",
+        "attachTooBig": "O ficheiro excede o tamanho máximo permitido de 20 MB.",
+        "attachBadType": "Formato de ficheiro não suportado. Formatos permitidos: JPG, PNG, PDF.",
         "attachOk": "Anexo enviado",
         "attachFailed": "Falha ao enviar anexo"
       },
