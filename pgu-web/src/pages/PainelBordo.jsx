@@ -33,6 +33,26 @@ export default function PainelBordo() {
   const chatEndRef = useRef(null);
   const currentStopRef = useRef(null);
 
+  // Fase E (E-front-2): escala do dia + Iniciar/Terminar Servico.
+  // duties: lista ordenada (BusDutyDTO) com status PLANNED/RUNNING/DONE/CANCELLED/INTERRUPTED.
+  // hasSensor: gate de Iniciar (precisa de main sensor atribuido).
+  // serviceAction: 'start' | 'end' | null (loading flag dos CTAs).
+  const [duties, setDuties] = useState([]);
+  const [dutiesLoaded, setDutiesLoaded] = useState(false);
+  // Paragens da trip actual (modelo Transmodel): carregadas a partir do
+  // pattern da duty RUNNING (fallback: primeira PLANNED). O bus ja' nao
+  // tem rota fixa, portanto a lista de paragens vem da trip activa.
+  const [patternStops, setPatternStops] = useState([]);
+  const [hasSensor, setHasSensor] = useState(false);
+  const [serviceAction, setServiceAction] = useState(null);
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
+
+  // "Hora X": instante em que o motorista deve sair da central TUB para
+  // chegar a tempo a primeira paragem. departure: DTO do backend.
+  // tick: ref-time para o cronometro decrescente (1s).
+  const [departure, setDeparture] = useState(null);
+  const [tickNow, setTickNow] = useState(Date.now());
+
   // Carrega dados da conta (1x ao autenticar) para popular o avatar do header.
   // Antes era on-demand; mudei para eager por causa do avatar no header.
   useEffect(() => {
@@ -174,6 +194,145 @@ export default function PainelBordo() {
     stompRef.current = client;
     return () => client.deactivate();
   }, [busCode, fetchMessages]);
+
+  // Fase E: data de hoje na timezone de Lisboa, em YYYY-MM-DD.
+  const todayISO = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Lisbon' });
+
+  // Carrega a escala do dia (BusDuty). Best-effort: em caso de falha, deixa a
+  // lista anterior para nao "piscar" o painel.
+  const fetchDuties = useCallback(async () => {
+    if (!bus?.id) return;
+    try {
+      const { data } = await api.get(`/buses/${bus.id}/duties`, { params: { date: todayISO() } });
+      setDuties(Array.isArray(data) ? data : []);
+    } catch {
+      // best-effort
+    } finally {
+      setDutiesLoaded(true);
+    }
+  }, [bus?.id]);
+
+  // O motorista nao tem acesso a /api/v1/sensors (endpoint admin-only).
+  // O gate de sensor passou a ser validado APENAS pelo backend em /start —
+  // se faltar, o backend devolve 409 com mensagem clara e mostramos toast.
+  useEffect(() => { fetchDuties(); }, [fetchDuties]);
+
+  // Carrega as paragens nominais do pattern da trip actual sempre que a
+  // duty RUNNING (ou a proxima PLANNED) muda. Mantem o cache enquanto o
+  // patternId for o mesmo, evitando refetch em cada poll de duties.
+  const loadedPatternIdRef = useRef(null);
+  useEffect(() => {
+    if (!duties || duties.length === 0) {
+      setPatternStops([]);
+      loadedPatternIdRef.current = null;
+      return;
+    }
+    const target = duties.find(d => d.status === 'RUNNING')
+                || duties.find(d => d.status === 'PLANNED');
+    const patternId = target?.patternId;
+    if (!patternId) {
+      setPatternStops([]);
+      loadedPatternIdRef.current = null;
+      return;
+    }
+    if (loadedPatternIdRef.current === patternId) return;
+    loadedPatternIdRef.current = patternId;
+    api.get(`/patterns/${patternId}/stops`)
+      .then(({ data }) => {
+        // Endpoint devolve {stopId, stopName, stopCode, sequence}. Mapear
+        // `sequence` para `stopOrder` para reutilizar o render que usa
+        // .stopOrder; manter restante shape igual.
+        const list = (Array.isArray(data) ? data : []).map(s => ({
+          stopId:   s.stopId,
+          stopName: s.stopName,
+          stopCode: s.stopCode,
+          stopOrder: s.sequence,
+        }));
+        setPatternStops(list);
+      })
+      .catch(() => setPatternStops([]));
+  }, [duties]);
+
+  // Polling 10s quando o servico esta em curso ou em deadhead para a central.
+  // STOPPED nao precisa porque a escala so muda por acao do motorista.
+  useEffect(() => {
+    const st = bus?.status;
+    if (st !== 'EM_SERVICO' && st !== 'STOPPING') return undefined;
+    const iv = setInterval(() => { fetchDuties(); fetchData(); }, 10000);
+    return () => clearInterval(iv);
+  }, [bus?.status, fetchDuties, fetchData]);
+
+  // "Hora X": fetch 1x quando o bus carrega e esta em STOPPED. Sem polling
+  // (a Hora X e' fixa para o dia; o cronometro decrescente roda localmente).
+  useEffect(() => {
+    if (!bus?.id) return;
+    if (bus.status !== 'STOPPED') { setDeparture(null); return; }
+    api.get('/drivers/me/departure')
+      .then(({ data }) => setDeparture(data))
+      .catch(() => setDeparture(null));
+  }, [bus?.id, bus?.status]);
+
+  // Tick a cada 1s para o cronometro / minutos de atraso. So' enquanto
+  // o bus esta STOPPED e ha Hora X conhecida (poupa renders).
+  useEffect(() => {
+    if (bus?.status !== 'STOPPED') return undefined;
+    if (!departure || !departure.horaX) return undefined;
+    const iv = setInterval(() => setTickNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [bus?.status, departure]);
+
+  // Acoes de servico. POST /api/v1/buses/{id}/start | /end.
+  // Em 409, mostra a mensagem do servidor; backend valida tudo a serio.
+  // Tipo de partida (EARLY / ON_TIME / LATE) baseado em "agora vs Hora X".
+  // Janela de tolerancia de 30s para considerar "no segundo zero" (ON_TIME).
+  const computeDepartureType = () => {
+    if (!departure || !departure.horaX) return null;
+    const diff = (new Date(departure.horaX).getTime() - Date.now()) / 1000;
+    if (diff > 30) return 'EARLY';
+    if (diff < -30) return 'LATE';
+    return 'ON_TIME';
+  };
+
+  const handleStart = async () => {
+    if (serviceAction || !bus?.id) return;
+    setServiceAction('start');
+    try {
+      const departureType = computeDepartureType();
+      const body = departureType ? { departureType } : {};
+      const { data } = await api.post(`/buses/${bus.id}/start`, body);
+      setBus(data);
+      // Feedback do tipo de partida (cedo / pontual / atrasado).
+      if (departureType) {
+        const key = departureType === 'EARLY' ? 'pages.painelBordo.service.departureEarly'
+                  : departureType === 'LATE'  ? 'pages.painelBordo.service.departureLate'
+                  :                              'pages.painelBordo.service.departureOnTime';
+        toast.success(t(key));
+      } else {
+        toast.success(t('pages.painelBordo.service.startSuccess'));
+      }
+      fetchDuties();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || t('toasts.operationFailed'));
+    } finally {
+      setServiceAction(null);
+    }
+  };
+
+  const handleEnd = async () => {
+    if (serviceAction || !bus?.id) return;
+    setServiceAction('end');
+    try {
+      const { data } = await api.post(`/buses/${bus.id}/end`);
+      setBus(data);
+      toast.success(t('pages.painelBordo.service.endSuccess'));
+      fetchDuties();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || t('toasts.operationFailed'));
+    } finally {
+      setServiceAction(null);
+      setConfirmEndOpen(false);
+    }
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -319,25 +478,78 @@ export default function PainelBordo() {
     );
   }
 
+  // Guard "sem escala": se o bus esta STOPPED e o backend ja respondeu sem
+  // duties para hoje, bloqueia o painel (operacao requer escala). Igual ao
+  // padrao "sem autocarro": pagina minima com mensagem + logout.
+  if (bus.status === 'STOPPED' && dutiesLoaded && duties.length === 0) {
+    return (
+      <div className="pb-container">
+        <div className="pb-error">
+          <div className="pb-error-icon">!</div>
+          <h2>{t('pages.painelBordo.noScheduleTitle')}</h2>
+          <p>{t('pages.painelBordo.noScheduleText', { code: bus.busCode })}</p>
+          <div className="pb-error-actions">
+            {accountButton}
+            <button className="pb-btn pb-btn--secondary" onClick={logout}>{t('pages.painelBordo.logout')}</button>
+          </div>
+        </div>
+        {accountModal}
+      </div>
+    );
+  }
+
   const speed = telemetry?.speed?.toFixed(0) ?? '—';
   const passengers = telemetry?.passengers ?? telemetry?.passengerCount ?? '—';
   const status = telemetry?.status ?? bus.status ?? 'STOPPED';
   const nextStop = telemetry?.nextStop ?? '—';
-  const stops = route?.stops || [];
+  // Preferir as paragens do pattern da trip actual (modelo Transmodel).
+  // Fallback ao route.stops legado (bus com routeId fixo, pre-Fase 1).
+  const stops = patternStops.length > 0 ? patternStops : (route?.stops || []);
 
+  // Fase E: estados canonicos do autocarro vem de bus.status. Mantemos as
+  // chaves legacy ('active', 'at-stop', etc.) para tolerar telemetria intermedia.
+  const busStatus = bus?.status || status;
   const statusLabels = {
     'active': t('pages.painelBordo.status.active'),
     'at-stop': t('pages.painelBordo.status.atStop'),
     'stopping': t('pages.painelBordo.status.stopping'),
     'delayed': t('pages.painelBordo.status.delayed'),
     'stopped': t('pages.painelBordo.status.stopped'),
-    'STOPPED': t('pages.painelBordo.status.stopped'),
+    'STOPPED': t('pages.painelBordo.status.stoppedBadge'),
+    'STARTING': t('pages.painelBordo.status.startingBadge'),
+    'EM_SERVICO': t('pages.painelBordo.status.emServico'),
+    'STOPPING': t('pages.painelBordo.status.stoppingBadge'),
+    'DECOMMISSIONED': t('pages.painelBordo.status.decommissioned'),
     'ACTIVE': t('pages.painelBordo.status.active'),
   };
   const statusColors = {
     'active': '#10b981', 'at-stop': '#009BDB', 'stopping': '#f59e0b',
-    'delayed': '#ef4444', 'stopped': '#94a3b8', 'STOPPED': '#94a3b8', 'ACTIVE': '#10b981',
+    'delayed': '#ef4444', 'stopped': '#94a3b8',
+    'STOPPED': '#94a3b8', 'STARTING': '#0ea5e9', 'EM_SERVICO': '#10b981', 'STOPPING': '#f59e0b', 'DECOMMISSIONED': '#ef4444',
+    'ACTIVE': '#10b981',
   };
+
+  // Helpers para badges de duty (escala).
+  const dutyStatusLabel = (s) => ({
+    'PLANNED': t('pages.painelBordo.duty.statusPlanned'),
+    'RUNNING': t('pages.painelBordo.duty.statusRunning'),
+    'DONE': t('pages.painelBordo.duty.statusDone'),
+    'CANCELLED': t('pages.painelBordo.duty.statusCancelled'),
+    'INTERRUPTED': t('pages.painelBordo.duty.statusInterrupted'),
+  }[s] || s);
+  const fmtHM = (iso) => {
+    try { return new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' }); }
+    catch { return '—'; }
+  };
+
+  // Razao de bloqueio do Iniciar (apenas para UX clara; o backend valida tudo
+  // a serio no /start, incluindo escala e estado). Aqui so' bloqueamos pelo
+  // sensor (esse e' garantido localmente). A escala/Hora X passa a depender
+  // sempre do backend para evitar dessincronizacoes entre /duties e /departure.
+  // Gate frontend dispensado: motorista nao tem acesso a /api/v1/sensors
+  // (esse endpoint e admin/funcionario/developer). O backend valida tudo
+  // a serio em /start (motorista, sensor, escala, hora). Aqui nao bloqueamos.
+  const startDisabledReason = null;
 
   const isFromDriver = (msg) => msg.operador?.startsWith('motorista:');
 
@@ -348,7 +560,12 @@ export default function PainelBordo() {
         <div className="pb-header-left">
           <div className="pb-bus-code">{busCode}</div>
           <div className="pb-route-name">
-            {route ? `${route.code} — ${route.name}` : t('pages.painelBordo.noRouteAssigned')}
+            {/* Prefere a linha actual derivada da duty RUNNING (vinda no BusDTO):
+                a escala pode ter varias linhas, por isso o header tem de
+                mostrar a linha que esta' a decorrer, nao a 1a do dia. */}
+            {bus?.currentRouteCode
+              ? `${bus.currentRouteCode}${bus.currentRouteName ? ` , ${bus.currentRouteName}` : ''}`
+              : (route ? `${route.code} , ${route.name}` : t('pages.painelBordo.noRouteAssigned'))}
           </div>
         </div>
         <div className="pb-header-center">
@@ -356,10 +573,24 @@ export default function PainelBordo() {
           <div className="pb-date">{dateStr}</div>
         </div>
         <div className="pb-header-right">
-          <span className="pb-status-badge" style={{ background: statusColors[status] || '#94a3b8' }}>
-            {statusLabels[status] || status}
+          <span className="pb-status-badge" style={{ background: statusColors[busStatus] || '#94a3b8' }}>
+            {statusLabels[busStatus] || busStatus}
           </span>
           {accountButton}
+          <button
+            type="button"
+            className="pb-logout-btn"
+            onClick={logout}
+            title={t('pages.painelBordo.logout')}
+            aria-label={t('pages.painelBordo.logout')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span>{t('pages.painelBordo.logout')}</span>
+          </button>
           <div className="pb-theme">
             <LanguageSwitcher />
             <ThemeSwitcher />
@@ -367,9 +598,9 @@ export default function PainelBordo() {
         </div>
       </header>
 
-      {/* Main content */}
+      {/* Main content — layout em 3 colunas via CSS grid + display:contents.
+          Ordem visual: Servico (col 1) | Info-Rota-Stats (col 2) | Chat-Alertas (col 3). */}
       <div className="pb-main">
-        {/* Left: Route progress */}
         <section className="pb-section pb-route-section">
           <h3 className="pb-section-title">{t('pages.painelBordo.route.title')}</h3>
           <div className="pb-route-list">
@@ -397,9 +628,10 @@ export default function PainelBordo() {
           </div>
         </section>
 
-        {/* Right column */}
+        {/* Wrapper "transparente" via display:contents — os filhos viram
+            celulas directas do grid e ganham grid-column via CSS. */}
         <div className="pb-right-col">
-          {/* Stats */}
+          {/* Stats — COLUNA 2 (info), acima da rota. */}
           <section className="pb-section pb-stats">
             <div className="pb-stat">
               <span className="pb-stat-value">{speed}</span>
@@ -412,6 +644,114 @@ export default function PainelBordo() {
             <div className="pb-stat pb-stat--next">
               <span className="pb-stat-label">{t('pages.painelBordo.tele.nextStop')}</span>
               <span className="pb-stat-value pb-stat-value--small">{nextStop}</span>
+            </div>
+          </section>
+
+          {/* Fase E: Escala de hoje + CTAs Iniciar/Terminar Servico */}
+          <section className="pb-section pb-service">
+            {/* "Hora X": cronometro ou alerta de atraso. Apenas STOPPED. */}
+            {bus?.status === 'STOPPED' && departure && departure.mode !== 'NO_SCHEDULE' && (() => {
+              const horaXMs = new Date(departure.horaX).getTime();
+              const remainSec = Math.round((horaXMs - tickNow) / 1000);
+              const isBefore = remainSec > 0;
+              const fmtHHMM = (iso) => {
+                try { return new Date(iso).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' }); }
+                catch { return '—'; }
+              };
+              const fmtCountdown = (s) => {
+                const sign = s < 0 ? '+' : '−';
+                const abs = Math.abs(s);
+                const h = Math.floor(abs / 3600);
+                const m = Math.floor((abs % 3600) / 60);
+                const ss = abs % 60;
+                if (h > 0) return `${sign}${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+                return `${sign}${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+              };
+              return (
+                <div className={`pb-hora-x ${isBefore ? 'pb-hora-x--before' : 'pb-hora-x--after'}`}>
+                  <div className="pb-hora-x-head">
+                    <span className="pb-hora-x-label">{t('pages.painelBordo.horaX.label')}</span>
+                    <span className="pb-hora-x-time">{fmtHHMM(departure.horaX)}</span>
+                  </div>
+                  <div className="pb-hora-x-countdown">
+                    {fmtCountdown(remainSec)}
+                  </div>
+                  <div className="pb-hora-x-context">
+                    {isBefore
+                      ? t('pages.painelBordo.horaX.beforeMsg', {
+                          stop: departure.firstStopName || '—',
+                          plannedStart: fmtHHMM(departure.plannedStart),
+                        })
+                      : t('pages.painelBordo.horaX.afterMsg', {
+                          delay: Math.max(1, Math.ceil(Math.abs(remainSec) / 60)),
+                          stop: departure.firstStopName || '—',
+                        })}
+                  </div>
+                </div>
+              );
+            })()}
+            <h3 className="pb-section-title">{t('pages.painelBordo.duty.title')}</h3>
+            <div className="pb-duty-list">
+              {duties.length === 0 ? (
+                <div className="pb-empty pb-empty--centered">{t('pages.painelBordo.duty.empty')}</div>
+              ) : (
+                duties.map((d) => {
+                  const isRunning = d.status === 'RUNNING';
+                  const tripName = d.tripHeadsign || d.displayName || `Trip ${d.tripId}`;
+                  return (
+                    <div key={d.id} className={`pb-duty ${isRunning ? 'pb-duty--running' : ''} pb-duty--${(d.status || '').toLowerCase()}`}>
+                      <div className="pb-duty-time">{fmtHM(d.plannedStart)}</div>
+                      <div className="pb-duty-main">
+                        {d.routeShortName && <span className="pb-duty-route">{d.routeShortName}</span>}
+                        <span className="pb-duty-name">{tripName}</span>
+                      </div>
+                      <span className={`pb-duty-badge pb-duty-badge--${(d.status || '').toLowerCase()}`}>
+                        {dutyStatusLabel(d.status)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="pb-service-actions">
+              {busStatus === 'STOPPED' && (
+                <button
+                  type="button"
+                  className="pb-service-btn pb-service-btn--start"
+                  onClick={handleStart}
+                  disabled={!!serviceAction || !!startDisabledReason}
+                  title={startDisabledReason || ''}
+                >
+                  {serviceAction === 'start'
+                    ? t('pages.painelBordo.service.starting')
+                    : t('pages.painelBordo.service.start')}
+                </button>
+              )}
+              {busStatus === 'EM_SERVICO' && (
+                <button
+                  type="button"
+                  className="pb-service-btn pb-service-btn--end"
+                  onClick={() => setConfirmEndOpen(true)}
+                  disabled={!!serviceAction}
+                >
+                  {serviceAction === 'end'
+                    ? t('pages.painelBordo.service.ending')
+                    : t('pages.painelBordo.service.end')}
+                </button>
+              )}
+              {busStatus === 'STARTING' && (
+                <div className="pb-service-notice pb-service-notice--starting">
+                  {t('pages.painelBordo.service.startingNotice')}
+                </div>
+              )}
+              {busStatus === 'STOPPING' && (
+                <div className="pb-service-notice">{t('pages.painelBordo.service.stoppingNotice')}</div>
+              )}
+              {busStatus === 'DECOMMISSIONED' && (
+                <div className="pb-service-notice pb-service-notice--decommissioned">
+                  {t('pages.painelBordo.service.decommissionedNotice')}
+                </div>
+              )}
             </div>
           </section>
 
@@ -490,6 +830,21 @@ export default function PainelBordo() {
           </section>
         </div>
       </div>
+      <Modal
+        open={confirmEndOpen}
+        onClose={() => setConfirmEndOpen(false)}
+        title={t('pages.painelBordo.service.end')}
+      >
+        <p style={{ margin: '8px 0 16px' }}>{t('pages.painelBordo.service.endConfirm')}</p>
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={() => setConfirmEndOpen(false)} disabled={serviceAction === 'end'}>
+            {t('common.cancel')}
+          </button>
+          <button className="btn btn-danger" onClick={handleEnd} disabled={serviceAction === 'end'}>
+            {serviceAction === 'end' ? t('pages.painelBordo.service.ending') : t('pages.painelBordo.service.end')}
+          </button>
+        </div>
+      </Modal>
       {accountModal}
     </div>
   );

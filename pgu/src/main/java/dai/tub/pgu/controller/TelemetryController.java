@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.dto.BusHealthDTO;
+import dai.tub.pgu.dto.SensorFrameDTO;
 import dai.tub.pgu.service.TelemetryService;
+import dai.tub.pgu.service.SensorIngestService;
 
 /**
  * Sprint -1 (BE-9): controller fica thin. Broadcast WS moveu-se para o service
@@ -23,10 +25,13 @@ import dai.tub.pgu.service.TelemetryService;
 public class TelemetryController
 {
     private final TelemetryService telemetryService;
+    private final SensorIngestService sensorIngestService;
 
-    public TelemetryController(TelemetryService telemetryService)
+    public TelemetryController(TelemetryService telemetryService,
+                               SensorIngestService sensorIngestService)
     {
         this.telemetryService = telemetryService;
+        this.sensorIngestService = sensorIngestService;
     }
 
     // GET — Usado pelo Frontend para obter telemetria histórica
@@ -56,12 +61,24 @@ public class TelemetryController
         return data.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(data);
     }
 
-    // POST — Usado pelo NiFi (InvokeHTTP) para ingerir dados transformados
+    // POST — Usado pelo NiFi (InvokeHTTP) para ingerir dados transformados.
+    // Caminho LEGADO keyed por autocarro (busId). Mantido intacto.
     @PostMapping("/ingest")
     public ResponseEntity<Void> ingestTelemetry(@RequestBody TelemetryDTO telemetry)
     {
         // Service trata de persistir + broadcast WS atomicamente
         telemetryService.processAndSaveTelemetry(telemetry);
+        return ResponseEntity.ok().build();
+    }
+
+    // POST — Fase C (Passo 1): ingestao keyed pelo MAIN SENSOR (sensorId + bloco
+    // de sub-sensores). O backend resolve o autocarro pela atribuicao sensor->bus
+    // e reaproveita o mesmo caminho de persistencia (posicao, APC, livemap).
+    @PostMapping("/ingest/sensor")
+    public ResponseEntity<Void> ingestSensorFrame(@RequestBody SensorFrameDTO frame)
+    {
+        // Tolerante: sensor desconhecido/nao atribuido e' ignorado com seguranca.
+        sensorIngestService.ingestSensorFrame(frame);
         return ResponseEntity.ok().build();
     }
 }

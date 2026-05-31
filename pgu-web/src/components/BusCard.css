@@ -216,3 +216,22 @@
     0 0 0 6px var(--color-primary-light),
     var(--shadow-md);
 }
+
+/* Estado terminal — autocarro descomissionado. Card "inert": sem hover, sem
+   cursor, sem foco. Tom esbatido para o tornar visualmente diferente. */
+.buscard--inert {
+  cursor: default;
+  opacity: 0.6;
+  filter: saturate(0.65);
+}
+.buscard--inert:hover {
+  transform: none;
+  box-shadow: none;
+}
+.buscard--decommissioned .buscard-status-dot {
+  background: var(--color-danger, #ef4444);
+}
+.buscard--decommissioned .buscard-status-label {
+  color: var(--color-danger, #ef4444);
+  font-weight: 700;
+}

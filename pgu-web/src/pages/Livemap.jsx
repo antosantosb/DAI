@@ -43,8 +43,6 @@ export default function Livemap() {
   const busClusterGroup = useRef(null);
   const busMarkersRef = useRef({});
   const busStatusRef = useRef({});
-  const trailsRef = useRef({});
-  const trailLayerRef = useRef(null);
   const followingBusRef = useRef(null);
   const hasInitialFit = useRef(false);
   const prevSelectedRouteRef = useRef(null);
@@ -308,7 +306,6 @@ export default function Livemap() {
         cluster.removeLayer(existing);
         if (map.hasLayer(existing)) map.removeLayer(existing);
         delete busMarkersRef.current[telemetry.busId];
-        delete trailsRef.current[telemetry.busId];
       }
       return;
     }
@@ -375,15 +372,11 @@ export default function Livemap() {
       busStatusRef.current[telemetry.busId] = displayStatus;
     }
 
-    // ─── Trail (rasto) do autocarro selecionado ───
+    // ─── Follow do autocarro selecionado (sem rasto) ───
+    // O rasto/trail foi removido a pedido do user: pollui o mapa com
+    // segmentos que se sobrepoem a' polyline do pattern destacado. O follow
+    // (centrar a vista a' medida que o bus se move) mantem-se util.
     if (followingBusRef.current === telemetry.busId) {
-      const trail = trailsRef.current[telemetry.busId] || [];
-      trail.push([telemetry.latitude, telemetry.longitude]);
-      if (trail.length > 20) trail.shift();
-      trailsRef.current[telemetry.busId] = trail;
-      if (trailLayerRef.current && map.hasLayer(trailLayerRef.current)) {
-        trailLayerRef.current.setLatLngs(trail);
-      }
       map.setView(newLatLng, map.getZoom(), { animate: true, duration: 0.8 });
     }
   }, []);
@@ -419,7 +412,6 @@ export default function Livemap() {
         if (map.hasLayer(marker)) map.removeLayer(marker);
         delete busMarkersRef.current[busId];
         delete busStatusRef.current[busId];
-        delete trailsRef.current[busId];
       }
     });
     setBuses(prev => {
@@ -479,7 +471,6 @@ export default function Livemap() {
         if (mapInstance.current && mapInstance.current.hasLayer(m)) mapInstance.current.removeLayer(m);
       });
       busMarkersRef.current = {};
-      trailsRef.current = {};
     };
   }, [updateBusMarker]);
 
@@ -1001,16 +992,25 @@ export default function Livemap() {
       selectedRouteRef.current = prevRoute;
       followingBusRef.current = null;
       prevRouteBeforeBusRef.current = null;
+      // Limpa o realce do pattern desenhado para este bus.
+      if (patternHighlightLayerRef.current) {
+        patternHighlightLayerRef.current.clearLayers();
+      }
+      drawnPatternRef.current = null;
+      setSelectedPattern(null);
+      // Restaura layers globais (paragens + rotas) conforme o toggle do user.
+      if (map) {
+        if (stopLayerGroup.current && visibleLayers.stops && !map.hasLayer(stopLayerGroup.current)) {
+          map.addLayer(stopLayerGroup.current);
+        }
+        if (routeLayerGroup.current && visibleLayers.routes && !map.hasLayer(routeLayerGroup.current)) {
+          map.addLayer(routeLayerGroup.current);
+        }
+      }
       // Sprint 1 (F2 fix): fechar o popup standalone do bus desselecionado
       if (map && activePopupRef.current && activePopupBusIdRef.current === bus.busId) {
         map.closePopup(activePopupRef.current);
       }
-      // Limpar trail do bus desselecionado
-      if (trailLayerRef.current && map) {
-        if (map.hasLayer(trailLayerRef.current)) map.removeLayer(trailLayerRef.current);
-        trailLayerRef.current = null;
-      }
-      trailsRef.current[bus.busId] = [];
       if (map && cluster) {
         Object.entries(busMarkersRef.current).forEach(([busId, m]) => {
           if (!prevRoute) {
@@ -1029,11 +1029,6 @@ export default function Livemap() {
       if (!selectedBus) {
         prevRouteBeforeBusRef.current = selectedRoute;
       }
-      // Limpar trail anterior (se mudou de bus seleccionado)
-      if (trailLayerRef.current && map) {
-        if (map.hasLayer(trailLayerRef.current)) map.removeLayer(trailLayerRef.current);
-        trailLayerRef.current = null;
-      }
       setSelectedBus(bus.busId);
       followingBusRef.current = bus.busId;
       const backendBus = backendBuses[bus.busId];
@@ -1043,6 +1038,39 @@ export default function Livemap() {
       } else {
         setSelectedRoute(null);
         selectedRouteRef.current = null;
+      }
+      // Esconde paragens e polylines globais — fica so' o pattern destacado
+      // (que e' adicionado em drawPattern abaixo) + o marker do bus.
+      if (map) {
+        if (stopLayerGroup.current && map.hasLayer(stopLayerGroup.current)) {
+          map.removeLayer(stopLayerGroup.current);
+        }
+        if (routeLayerGroup.current && map.hasLayer(routeLayerGroup.current)) {
+          map.removeLayer(routeLayerGroup.current);
+        }
+      }
+      // Realce do pattern da trip RUNNING. Modelo Transmodel: o bus nao tem
+      // rota fixa, por isso vamos a' escala buscar a duty RUNNING e o seu
+      // patternId. Sem RUNNING, cai no fallback PLANNED mais proxima.
+      if (backendBus?.id) {
+        const todayISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Lisbon' });
+        api.get(`/buses/${backendBus.id}/duties?date=${todayISO}`)
+          .then(({ data }) => {
+            const duties = Array.isArray(data) ? data : [];
+            const running = duties.find(d => d.status === 'RUNNING')
+                          || duties.find(d => d.status === 'PLANNED');
+            if (running?.patternId) {
+              setSelectedPattern(running.patternId);
+              drawPattern(running.patternId);
+            } else if (patternHighlightLayerRef.current) {
+              // Sem duty activa: limpa qualquer realce anterior.
+              patternHighlightLayerRef.current.clearLayers();
+              drawnPatternRef.current = null;
+            }
+          })
+          .catch(() => {
+            // Falha silenciosa: o highlight do pattern e' opcional.
+          });
       }
       // Esconder todos os markers excepto o selecionado (via cluster)
       if (map && cluster) {
@@ -1054,19 +1082,9 @@ export default function Livemap() {
           }
         });
       }
-      // Inicializar trail com a posição actual e criar polyline
+      // flyTo + popup no bus seleccionado. O rasto/trail foi removido.
       if (map && bus.latitude && bus.longitude) {
         const lat = bus.latitude, lng = bus.longitude, busId = bus.busId;
-        const initialTrail = [[lat, lng]];
-        trailsRef.current[busId] = initialTrail;
-        const primaryColor =
-          getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#009BDB';
-        trailLayerRef.current = L.polyline(initialTrail, {
-          color: primaryColor,
-          weight: 4,
-          opacity: 0.7,
-          smoothFactor: 1,
-        }).addTo(map);
         // Sprint 1 (F2 fix): abrir o popup (bound) APOS o flyTo terminar.
         setTimeout(() => {
           map.flyTo([lat, lng], 16, { duration: 1.2, easeLinearity: 0.25 });
@@ -1076,7 +1094,7 @@ export default function Livemap() {
         }, 0);
       }
     }
-  }, [selectedBus, selectedRoute, backendBuses, openBusPopup]);
+  }, [selectedBus, selectedRoute, backendBuses, openBusPopup, drawPattern, visibleLayers]);
 
 
   const subscribeToMessages = useCallback((busId, callback) => {

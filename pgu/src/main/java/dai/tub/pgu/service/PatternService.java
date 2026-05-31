@@ -124,16 +124,20 @@ public class PatternService
         return out;
     }
 
-    /** Trips (viagens) de um padrão, agregadas: 1ª partida, última chegada, nº paragens. */
+    /** Trips (viagens) de um padrão, agregadas: 1ª partida, última chegada, nº paragens.
+     *  Fase E (E-front-1): inclui também `id` (PK numerica de trip), necessario
+     *  para criar bus_duty via POST /buses/{id}/duties (tripIds[] sao numericos).
+     *  O campo legado `tripId` (gtfs_trip_id) e' mantido para retrocompatibilidade. */
     public List<Map<String, Object>> getTrips(Long patternId)
     {
         return jdbcTemplate.query(
-            "SELECT t.gtfs_trip_id AS trip_id, MIN(tst.departure_time) AS first_departure, "
+            "SELECT t.id AS id, t.gtfs_trip_id AS trip_id, MIN(tst.departure_time) AS first_departure, "
             + "MAX(tst.arrival_time) AS last_arrival, COUNT(*) AS stop_count "
             + "FROM trip t JOIN trip_stop_time tst ON tst.trip_id = t.id "
-            + "WHERE t.pattern_id = ? GROUP BY t.gtfs_trip_id ORDER BY first_departure",
+            + "WHERE t.pattern_id = ? GROUP BY t.id, t.gtfs_trip_id ORDER BY first_departure",
             (rs, i) -> {
                 Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", rs.getLong("id"));
                 m.put("tripId", rs.getString("trip_id"));
                 m.put("firstDeparture", rs.getString("first_departure"));
                 m.put("lastArrival", rs.getString("last_arrival"));

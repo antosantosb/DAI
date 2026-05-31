@@ -169,6 +169,46 @@
   gap: 24px;
 }
 
+/* Numero mecanografico (M-001) a seguir ao nome do motorista (chip discreto). */
+.bdp-driver-mech {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* Footer da seccao Escala: link + botao remover lado a lado. */
+.bdp-schedule-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.bdp-inline-action {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-danger, #ef4444);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bdp-inline-action:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-danger, #ef4444);
+}
+
 .bdp-section-title {
   font-size: 12px;
   font-weight: 700;
@@ -176,6 +216,17 @@
   letter-spacing: 0.08em;
   color: var(--color-text-secondary, #64748b);
   margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bdp-section-date {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--color-text-light, #94a3b8);
 }
 
 /* Motorista card */
@@ -213,6 +264,12 @@
 .bdp-driver-status--on_duty { background: #d1fae5; color: #065f46; }
 .bdp-driver-status--available { background: #e0e7ff; color: #3730a3; }
 .bdp-driver-status--offline { background: #fee2e2; color: #991b1b; }
+
+/* Estado do main sensor (mesmo formato de pill do motorista) */
+.bdp-driver-status--sensor-ativo { background: #d1fae5; color: #065f46; }
+.bdp-driver-status--sensor-inativo { background: #e2e8f0; color: #475569; }
+.bdp-driver-status--sensor-avaria { background: #fee2e2; color: #991b1b; }
+.bdp-driver-status--sensor-desconhecido { background: #f1f5f9; color: #64748b; }
 
 .bdp-driver-missing {
   display: flex;

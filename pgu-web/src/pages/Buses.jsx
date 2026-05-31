@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthProvider';
 import Modal from '../components/Modal';
 import BusCard from '../components/BusCard';
 import BusDetailPanel from '../components/BusDetailPanel';
+import BusScheduleModal from '../components/BusScheduleModal';
 import './Buses.css';
 
 export default function Buses() {
@@ -20,12 +21,18 @@ export default function Buses() {
   const [routes, setRoutes] = useState([]);
   const [telemetry, setTelemetry] = useState({});
   const [drivers, setDrivers] = useState([]);
+  const [sensors, setSensors] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [selectedBus, setSelectedBus] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ busCode: '', licensePlate: '', capacity: '', routeId: '' });
+  const [form, setForm] = useState({ busCode: '', licensePlate: '', capacity: '' });
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState('');
+  // Pre-preenche a pesquisa a partir de ?q= no URL (deep-link vindo, p.ex., do
+  // painel de detalhe do sensor: "Ver autocarro"). Aditivo: sem ?q= comporta-se na boa.
+  const [search, setSearch] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
   const [filter, setFilter] = useState('all');
   const [modal, setModal] = useState({ open: false });
   const [showBatch, setShowBatch] = useState(false);
@@ -35,6 +42,9 @@ export default function Buses() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  // Fase E (E-front-1): planeamento de escala (cascata linha->padrao->data->trips).
+  const [scheduleModal, setScheduleModal] = useState({ open: false, bus: null });
+  const [scheduleRefresh, setScheduleRefresh] = useState(0);
 
   // Toggle do modo selecao. Sair sempre limpa selecao.
   const toggleSelectionMode = () => {
@@ -52,6 +62,10 @@ export default function Buses() {
     api.get('/buses').then(r => setBuses(r.data || [])).catch(() => setBuses([]));
     api.get('/routes').then(r => setRoutes(r.data || [])).catch(() => setRoutes([]));
     api.get('/drivers').then(r => setDrivers(r.data || [])).catch(() => setDrivers([]));
+    // Main sensor (gateway de telematica) por autocarro. O bus DTO nao traz o
+    // sensor, por isso buscamos o inventario e fazemos o lookup por busId,
+    // espelhando o que ja' fazemos com os motoristas (driverByBusId).
+    api.get('/sensors').then(r => setSensors(Array.isArray(r.data) ? r.data : [])).catch(() => setSensors([]));
   }, []);
 
   const loadTelemetry = useCallback(() => {
@@ -85,6 +99,12 @@ export default function Buses() {
     if (d.currentBusId) driverByBusId[d.currentBusId] = d;
   });
 
+  // Lookup: main sensor atribuído a cada bus (busId -> sensor).
+  const sensorByBusId = {};
+  sensors.forEach(s => {
+    if (s.busId != null) sensorByBusId[s.busId] = s;
+  });
+
   const formatPlate = (raw) => {
     const clean = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
     if (clean.length <= 2) return clean;
@@ -109,7 +129,7 @@ export default function Buses() {
   };
 
   const resetForm = () => {
-    setForm({ busCode: '', licensePlate: '', capacity: '', routeId: '' });
+    setForm({ busCode: '', licensePlate: '', capacity: '' });
     setEditing(null);
     setShowForm(false);
   };
@@ -120,7 +140,7 @@ export default function Buses() {
       busCode: formatBusCode(form.busCode),
       licensePlate: form.licensePlate,
       capacity: parseInt(form.capacity),
-      routeId: form.routeId ? parseInt(form.routeId) : null,
+      // routeId removido: a linha vem da escala/trip, ja' nao e' propriedade do bus.
     };
 
     const req = editing
@@ -145,7 +165,6 @@ export default function Buses() {
       busCode: bus.busCode.replace(/\D/g, ''),
       licensePlate: bus.licensePlate,
       capacity: bus.capacity,
-      routeId: bus.routeId || '',
     });
     setEditing(bus.id);
     setShowForm(true);
@@ -188,8 +207,37 @@ export default function Buses() {
       .finally(() => setBatchLoading(false));
   };
 
+  // Remover a escala do dia para um autocarro. So' valido com bus STOPPED.
+  // Usa o modal generico do projeto (igual a Descomissionar), nao window.confirm.
+  const handleRemoveSchedule = (bus) => {
+    const todayISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Lisbon' });
+    showModal({
+      type: 'danger',
+      title: t('pages.buses.removeSchedule'),
+      message: t('pages.buses.removeScheduleConfirm'),
+      confirmText: t('pages.buses.removeSchedule'),
+      onConfirm: async () => {
+        closeModal();
+        try {
+          await api.delete(`/buses/${bus.id}/duties`, { params: { date: todayISO } });
+          await load();
+          setSelectedBus(null);
+          showModal({ type: 'success', title: t('toasts.successGeneric'), message: t('pages.buses.removeSchedule') });
+        } catch (err) {
+          showModal({
+            type: 'warning',
+            title: t('toasts.errorGeneric'),
+            message: err?.response?.data?.message || err?.message || t('toasts.operationFailed'),
+          });
+        }
+      },
+    });
+  };
+
   const handleDecommission = (bus) => {
-    if (bus.routeId && bus.status !== 'STOPPED') {
+    // So' permite descomissionar se o autocarro estiver STOPPED (parado).
+    // Estados EM_SERVICO/STOPPING bloqueados; DECOMMISSIONED ja terminal.
+    if (bus.status !== 'STOPPED') {
       showModal({ type: 'warning', title: t('pages.buses.actionUnavailable'), message: t('pages.buses.mustBeStoppedToDecommission') });
       return;
     }
@@ -290,7 +338,33 @@ export default function Buses() {
     if (action === 'stop')         handleStop(bus);
     else if (action === 'activate') handleActivate(bus);
     else if (action === 'edit')     { startEdit(bus); setSelectedBus(null); }
+    // Refresh: o painel acabou de mudar algo (ex.: unassign motorista/sensor)
+    // e precisa que a lista volte a buscar dados frescos.
+    else if (action === 'refresh') { load(); }
     else if (action === 'decommission') handleDecommission(bus);
+    else if (action === 'removeSchedule') handleRemoveSchedule(bus);
+    else if (action === 'planSchedule') {
+      // Fase E (E-front-1): so' STOPPED pode receber uma nova escala.
+      if (bus.status !== 'STOPPED') {
+        showModal({ type: 'warning', title: t('pages.buses.actionUnavailable'), message: t('pages.buses.planScheduleTooltip') });
+        return;
+      }
+      setScheduleModal({ open: true, bus });
+    }
+  };
+
+  const closeScheduleModal = () => setScheduleModal({ open: false, bus: null });
+  const onScheduleCreated = (duties) => {
+    setScheduleRefresh(k => k + 1);
+    load();
+    showModal({
+      type: 'success',
+      title: t('toasts.successGeneric'),
+      message: t('pages.buses.scheduleCreatedSuccess', { count: (duties || []).length }),
+    });
+  };
+  const onScheduleError = (msg) => {
+    showModal({ type: 'danger', title: t('toasts.errorGeneric'), message: msg });
   };
 
   const getStatusInfo = (bus) => {
@@ -307,6 +381,10 @@ export default function Buses() {
 
   const filtered = buses
     .filter(bus => {
+      // O filtro "decommissioned" e o UNICO que mostra autocarros descomissionados.
+      // Os outros (all/active/stopped) excluem-nos sempre.
+      if (filter === 'decommissioned') return bus.status === 'DECOMMISSIONED';
+      if (bus.status === 'DECOMMISSIONED') return false;
       if (filter === 'active') return bus.status !== 'STOPPED';
       if (filter === 'stopped') return bus.status === 'STOPPED';
       return true;
@@ -325,9 +403,12 @@ export default function Buses() {
       return (a.busCode || '').localeCompare(b.busCode || '');
     });
 
-  const activeCount = buses.filter(b => b.routeId && (b.status === 'ACTIVE' || b.status === 'STOPPING')).length;
+  const activeCount = buses.filter(b => b.status === 'ACTIVE' || b.status === 'EM_SERVICO' || b.status === 'STOPPING').length;
   const stoppingCount = buses.filter(b => b.status === 'STOPPING').length;
   const stoppedCount = buses.filter(b => b.status === 'STOPPED').length;
+  const decommissionedCount = buses.filter(b => b.status === 'DECOMMISSIONED').length;
+  // Total visivel exclui DECOMMISSIONED (so' aparecem no filtro proprio).
+  const visibleTotal = buses.length - decommissionedCount;
 
   return (
     <div>
@@ -391,13 +472,16 @@ export default function Buses() {
         </div>
         <div className="bus-filters">
           <button className={`btn btn-filter${filter === 'all' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('all')}>
-            {t('pages.buses.filterAll', { count: buses.length })}
+            {t('pages.buses.filterAll', { count: visibleTotal })}
           </button>
           <button className={`btn btn-filter${filter === 'active' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('active')}>
-            {t('pages.buses.filterActive', { count: buses.length - stoppedCount })}
+            {t('pages.buses.filterActive', { count: activeCount })}
           </button>
           <button className={`btn btn-filter${filter === 'stopped' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('stopped')}>
             {t('pages.buses.filterStopped', { count: stoppedCount })}
+          </button>
+          <button className={`btn btn-filter${filter === 'decommissioned' ? ' btn-filter--active' : ''}`} onClick={() => setFilter('decommissioned')}>
+            {t('pages.buses.filterDecommissioned', { count: decommissionedCount })}
           </button>
         </div>
       </div>
@@ -453,13 +537,8 @@ export default function Buses() {
                 <label>{t('pages.buses.capacity')}</label>
                 <input type="number" value={form.capacity} onChange={e => setForm({...form, capacity: e.target.value})} required />
               </div>
-              <div className="form-group">
-                <label>{t('pages.buses.route')}</label>
-                <select value={form.routeId} onChange={e => setForm({...form, routeId: e.target.value})}>
-                  <option value="">{t('pages.buses.noRoute')}</option>
-                  {routes.map(r => <option key={r.id} value={r.id}>{r.code} - {r.name}</option>)}
-                </select>
-              </div>
+              {/* "Linha" deixou de ser propriedade do autocarro. A linha vem
+                  da escala/trip atribuida (ver "Planear escala"). */}
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.create')}</button>
@@ -511,19 +590,23 @@ export default function Buses() {
       )}
 
       <div className="bus-grid">
-        {filtered.map((bus, idx) => (
-          <BusCard
-            key={bus.id}
-            bus={bus}
-            driver={driverByBusId[bus.id]}
-            unreadCount={unreadCounts[bus.busCode] || 0}
-            onClick={() => setSelectedBus(bus)}
-            animationDelay={idx * 0.04}
-            selectionMode={selectionMode}
-            selected={selectedIds.has(bus.id)}
-            onToggleSelect={toggleSelection}
-          />
-        ))}
+        {filtered.map((bus, idx) => {
+          const isDecommissioned = bus.status === 'DECOMMISSIONED';
+          return (
+            <BusCard
+              key={bus.id}
+              bus={bus}
+              driver={driverByBusId[bus.id]}
+              unreadCount={unreadCounts[bus.busCode] || 0}
+              // Descomissionado: abre uma vista minima so' com codigo/matricula/capacidade.
+              onClick={() => setSelectedBus(bus)}
+              animationDelay={idx * 0.04}
+              selectionMode={selectionMode && !isDecommissioned}
+              selected={selectedIds.has(bus.id)}
+              onToggleSelect={toggleSelection}
+            />
+          );
+        })}
         {filtered.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">
@@ -549,12 +632,23 @@ export default function Buses() {
         <BusDetailPanel
           bus={buses.find(b => b.id === selectedBus.id) || selectedBus}
           driver={driverByBusId[selectedBus.id]}
+          sensor={sensorByBusId[selectedBus.id]}
           telemetry={telemetry[selectedBus.busCode]}
           isAdmin={canManage}
           onClose={() => { setSelectedBus(null); loadUnreadCounts(); }}
           onAction={handlePanelAction}
+          scheduleRefreshKey={scheduleRefresh}
         />
       )}
+
+      {/* Fase E (E-front-1): modal de planeamento de escala */}
+      <BusScheduleModal
+        open={scheduleModal.open}
+        bus={scheduleModal.bus}
+        onClose={closeScheduleModal}
+        onCreated={onScheduleCreated}
+        onError={onScheduleError}
+      />
     </div>
   );
 }

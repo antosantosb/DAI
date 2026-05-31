@@ -26,7 +26,6 @@ import dai.tub.pgu.dto.AnalyticsDTOs.*;
 import dai.tub.pgu.dto.AnalyticsDTOs.FleetOccupancyData;
 import dai.tub.pgu.dto.AnalyticsDTOs.RouteDelayData;
 import dai.tub.pgu.dto.StopScheduleDTO;  // DTO real do serviço (proveniente de Trip + TripStopTime)
-import dai.tub.pgu.service.AlertaService;
 import dai.tub.pgu.service.AnalyticsService;
 import dai.tub.pgu.service.GtfsService;
 import dai.tub.pgu.service.OcorrenciaService;
@@ -36,7 +35,6 @@ public class AiTools {
 
     @Autowired private AnalyticsService analyticsService;
     @Autowired private OcorrenciaService ocorrenciaService;
-    @Autowired private AlertaService alertaService;
     @Autowired private GtfsService gtfsService;
 
     // -------------------------------------------------------------

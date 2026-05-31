@@ -8,12 +8,17 @@ export const WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}:/
 export const STATUS_CONFIG = {
   active:      { color: '#22c55e', label: 'Em Viagem',   ring: 'rgba(34,197,94,0.3)' },
   'at-stop':   { color: '#009BDB', label: 'Em Paragem',  ring: 'rgba(0, 155, 219,0.3)' },
+  starting:    { color: '#0ea5e9', label: 'A Sair',      ring: 'rgba(14,165,233,0.3)' },
   stopping:    { color: '#f59e0b', label: 'A Parar',     ring: 'rgba(245,158,11,0.3)' },
   deactivated: { color: '#94a3b8', label: 'Desativado',  ring: 'rgba(148,163,184,0.3)' },
 };
 
 export function getBusDisplayStatus(backendStatus, telemetryStatus) {
+  // STARTING e STOPPING tem cores e labels proprios — sao "deadheads"
+  // entre central e 1a paragem (ida) ou ultima paragem e central (volta).
+  // STOPPED so' aparece como deactivated (filtrado/ocultado a montante).
   if (backendStatus === 'STOPPED') return 'deactivated';
+  if (backendStatus === 'STARTING') return 'starting';
   if (backendStatus === 'STOPPING') return 'stopping';
   if (telemetryStatus === 'stopped') return 'at-stop';
   return 'active';

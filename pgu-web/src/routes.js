@@ -64,27 +64,22 @@ export const routes = [
     layout: 'backoffice',
     access: ['admin', 'funcionario', 'developer'],
     children: [
-      // ---- PRINCIPAL (cockpit do dia-a-dia) ----
+      // ---- OPERACAO (cockpit do dia-a-dia) ----
       // Sprint 0 (F6): labelKey/sectionKey resolvidos via i18n no Layout.
       {
         index: true,
         loader: () => import('./pages/Dashboard'),
-        nav: { sectionKey: 'sections.main', labelKey: 'nav.dashboard', iconKey: 'IconDashboard' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.dashboard', iconKey: 'IconDashboard' },
       },
       {
         path: 'health',
         loader: () => import('./pages/BusHealthDashboard'),
-        nav: { sectionKey: 'sections.main', labelKey: 'nav.health', iconKey: 'IconHealth' },
-      },
-      {
-        path: 'buses',
-        loader: () => import('./pages/Buses'),
-        nav: { sectionKey: 'sections.main', labelKey: 'nav.buses', iconKey: 'IconBus' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.health', iconKey: 'IconHealth' },
       },
       {
         path: 'ocorrencias',
         loader: () => import('./pages/Ocorrencias'),
-        nav: { sectionKey: 'sections.main', labelKey: 'nav.ocorrencias', iconKey: 'IconAlarm', badge: 'alarms' },
+        nav: { sectionKey: 'sections.operations', labelKey: 'nav.ocorrencias', iconKey: 'IconAlarm', badge: 'alarms' },
       },
       // Sprint 1 follow-up: variante com :id para deep-link a uma ocorrencia
       // (corrige bug #6 — clicar num alerta abria tab em branco porque a
@@ -93,16 +88,31 @@ export const routes = [
         path: 'ocorrencias/:id',
         loader: () => import('./pages/Ocorrencias'),
       },
-      // ---- OPERAÇÕES (planeamento) ----
+      // ---- FROTA (autocarros, motoristas, sensores) ----
       {
-        path: 'analytics',
-        loader: () => import('./pages/AnalyticsDashboard'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.analytics', iconKey: 'IconAnalytics' },
+        path: 'buses',
+        loader: () => import('./pages/Buses'),
+        nav: { sectionKey: 'sections.fleet', labelKey: 'nav.buses', iconKey: 'IconBus' },
       },
+      {
+        path: 'drivers',
+        loader: () => import('./pages/Drivers'),
+        access: ['admin', 'developer'],
+        nav: { sectionKey: 'sections.fleet', labelKey: 'nav.drivers', iconKey: 'IconDriver' },
+      },
+      // Sprint 2 (Vertical 3.4, R.ICP.07): inventario de sensores de contagem
+      // de passageiros (APC). CRUD restrito a admin/funcionario.
+      {
+        path: 'sensors',
+        loader: () => import('./pages/Sensors'),
+        access: ['admin', 'funcionario', 'developer'],
+        nav: { sectionKey: 'sections.fleet', labelKey: 'nav.sensors', iconKey: 'IconSensor' },
+      },
+      // ---- REDE (linhas, paragens, operadores, calendario, horarios) ----
       {
         path: 'routes',
         loader: () => import('./pages/Routes'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.routes', iconKey: 'IconRoute' },
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.routes', iconKey: 'IconRoute' },
       },
       {
         // Sprint 2 (redesign): editor manual de padrao (sem nav; deep link da aba Linhas).
@@ -119,7 +129,7 @@ export const routes = [
       {
         path: 'stops',
         loader: () => import('./pages/Stops'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.stops', iconKey: 'IconStop' },
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.stops', iconKey: 'IconStop' },
       },
       // Sprint 1 (F0): Operadores de transporte (R.IVT.03).
       // GET aberto a qualquer autenticado; mutacoes restritas a admin/developer
@@ -128,61 +138,36 @@ export const routes = [
         path: 'operators',
         loader: () => import('./pages/Operators'),
         access: ['admin', 'developer'],
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.operators', iconKey: 'IconOperator' },
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.operators', iconKey: 'IconOperator' },
       },
       // Sprint 1 (F4): Calendario operacional (R.IVT.05).
       {
         path: 'calendar',
         loader: () => import('./pages/Calendar'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.calendar', iconKey: 'IconCalendar' },
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.calendar', iconKey: 'IconCalendar' },
       },
       // Sprint 1 (F4): Horarios planeados (trips do GTFS) (R.IVT.05).
       {
         path: 'schedules',
         loader: () => import('./pages/Schedules'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.schedules', iconKey: 'IconSchedule' },
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.schedules', iconKey: 'IconSchedule' },
       },
+      // ---- DADOS & IA (analytics, fontes, GTFS, chatbot, exports) ----
       {
-        path: 'exports',
-        loader: () => import('./pages/Exports'),
-        nav: { sectionKey: 'sections.operations', labelKey: 'nav.exports', iconKey: 'IconExport' },
-      },
-      // ---- ADMINISTRAÇÃO (pessoas + fontes + config) ----
-      {
-        path: 'users',
-        loader: () => import('./pages/Users'),
-        access: ['admin', 'developer'],
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.users', iconKey: 'IconUsers' },
-      },
-      {
-        path: 'drivers',
-        loader: () => import('./pages/Drivers'),
-        access: ['admin', 'developer'],
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.drivers', iconKey: 'IconDriver' },
+        path: 'analytics',
+        loader: () => import('./pages/AnalyticsDashboard'),
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.analytics', iconKey: 'IconAnalytics' },
       },
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),
         nav: { sectionKey: 'sections.data', labelKey: 'nav.dataSources', iconKey: 'IconDataSource' },
       },
-      // Sprint 2 (Vertical 3.4, R.ICP.07): inventario de sensores de contagem
-      // de passageiros (APC). CRUD restrito a admin/funcionario.
-      {
-        path: 'sensors',
-        loader: () => import('./pages/Sensors'),
-        access: ['admin', 'funcionario', 'developer'],
-        nav: { sectionKey: 'sections.data', labelKey: 'nav.sensors', iconKey: 'IconSensor' },
-      },
       {
         path: 'gtfs',
         loader: () => import('./pages/GtfsManager'),
         access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.data', labelKey: 'nav.gtfs', iconKey: 'IconGtfs' },
-      },
-      {
-        path: 'audit',
-        loader: () => import('./pages/AuditLogs'),
-        nav: { sectionKey: 'sections.administration', labelKey: 'nav.audit', iconKey: 'IconAudit' },
       },
       // Chatbot IA (Rúben): assistente conversacional + dashboard de monitorizacao.
       // Sprint 7: o chatbot e' uma rota standalone (/chatbot) para ter chat
@@ -198,6 +183,23 @@ export const routes = [
         loader: () => import('./pages/AiMonitoring'),
         access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.data', labelKey: 'nav.aiMonitoring', iconKey: 'IconAiMonitoring' },
+      },
+      {
+        path: 'exports',
+        loader: () => import('./pages/Exports'),
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.exports', iconKey: 'IconExport' },
+      },
+      // ---- ADMINISTRACAO (utilizadores, auditoria, configuracoes) ----
+      {
+        path: 'users',
+        loader: () => import('./pages/Users'),
+        access: ['admin', 'developer'],
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.users', iconKey: 'IconUsers' },
+      },
+      {
+        path: 'audit',
+        loader: () => import('./pages/AuditLogs'),
+        nav: { sectionKey: 'sections.administration', labelKey: 'nav.audit', iconKey: 'IconAudit' },
       },
       {
         path: 'configuracoes',

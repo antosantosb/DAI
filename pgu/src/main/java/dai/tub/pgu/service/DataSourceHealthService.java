@@ -21,7 +21,6 @@ import org.springframework.web.client.RestClient;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.List;
 
 /**
  * Sprint 0 (F4): saude das DataSources.

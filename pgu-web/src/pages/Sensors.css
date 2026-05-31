@@ -1,0 +1,670 @@
+/* Sprint 2 (refactor): pagina de MAIN SENSORS.
+ * Reutiliza o padrao global .data-table / .form-overlay / .form-card (App.css)
+ * e os tokens de tema (--color-*). Aqui ficam apenas os estilos especificos:
+ * toolbar, badges de estado, chip de saude, painel de detalhe (sdp-*),
+ * barras de saude dos sub-sensores e grelha de atribuicao.
+ */
+
+/* ─── Toolbar ─── */
+.sensors-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sensors-toolbar .search-bar {
+  flex: 1;
+  min-width: 240px;
+  max-width: 380px;
+}
+.sensor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ─── Tabela ─── */
+.sensors-table .col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.sensor-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.sensor-row:hover {
+  background: var(--color-bg-subtle);
+}
+.sensor-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.sensors-table .actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* Codigo do gateway (pill monospace) */
+.sensor-gateway {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill, 999px);
+  font-family: 'SFMono-Regular', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+/* Codigo do autocarro atribuido */
+.sensor-buscode {
+  font-weight: 700;
+  color: var(--color-text-heading, var(--color-text));
+}
+.sensor-buscode--lg {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.sensor-reading {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ─── Badge de estado / Livre ─── */
+.sensor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.sensor-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+.sensor-badge--ativo {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-hover, #047857);
+}
+.sensor-badge--inativo {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+}
+.sensor-badge--avaria {
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger-hover, #b91c1c);
+}
+.sensor-badge--desconhecido {
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning-hover, #b45309);
+}
+/* DISPONIVEL: sensor livre, sem avaria manual. Tom cinza-azulado (info), bem
+   distinto do verde ATIVO e do vermelho AVARIA. */
+.sensor-badge--disponivel {
+  background: var(--color-info-light, #e0e7ff);
+  color: var(--color-info-hover, #4338ca);
+}
+.sensor-badge--free {
+  background: var(--color-primary-light, #e0f2fe);
+  color: var(--color-primary, #0369a1);
+}
+
+/* Traco neutro para representar "sem autocarro" na coluna BUS e no detalhe.
+   Substitui o badge "Free" por algo mais discreto, como o utilizador pediu. */
+.sensor-bus-empty {
+  display: inline-block;
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Chip de saude (resumo na tabela) ─── */
+.sensor-health-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sensor-health-chip--good {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-hover, #047857);
+}
+.sensor-health-chip--warn {
+  background: var(--color-warning-light, #fef3c7);
+  color: var(--color-warning-hover, #b45309);
+}
+.sensor-health-chip--bad {
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger-hover, #b91c1c);
+}
+.sensor-health-chip--none {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
+}
+
+/* Botao "ghost" discreto para Editar na linha */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+/* ───────────────────────── Painel de detalhe (slide-in) ───────────────── */
+.sdp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  animation: sdp-fade 0.2s ease;
+}
+.sdp-backdrop--closing { animation: sdp-fade-out 0.22s ease forwards; }
+@keyframes sdp-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sdp-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.sdp-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(520px, 95vw);
+  background: var(--color-bg, #f8fafc);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -20px 0 50px -10px rgba(15, 23, 42, 0.25);
+  animation: sdp-slide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sdp-panel--closing { animation: sdp-slide-out 0.22s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
+@keyframes sdp-slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes sdp-slide-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+.sdp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--color-surface, #fff);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  flex-shrink: 0;
+}
+.sdp-header-code {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-text-heading, #0f172a);
+  letter-spacing: -0.02em;
+  font-family: 'SFMono-Regular', ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+.sdp-header-sub {
+  font-size: 13px;
+  color: var(--color-text-secondary, #64748b);
+  margin-top: 2px;
+}
+.sdp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sdp-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sdp-close:hover {
+  background: var(--color-border, #e2e8f0);
+  color: var(--color-text-heading, #0f172a);
+}
+
+.sdp-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.sdp-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary, #64748b);
+  margin: 0 0 12px;
+}
+.sdp-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sdp-reading {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+.sdp-assign-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+}
+
+/* Empty state: aguarda telemetria */
+.sdp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 28px 18px;
+  background: var(--color-surface, #fff);
+  border: 1px dashed var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+.sdp-empty > svg { color: var(--color-text-light, #94a3b8); margin-bottom: 4px; }
+.sdp-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-heading, #0f172a);
+}
+.sdp-empty-sub { font-size: 13px; line-height: 1.45; max-width: 320px; }
+
+/* Lista de saude dos sub-sensores */
+.sdp-health-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sdp-health-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.sdp-health-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-heading, #0f172a);
+  text-transform: capitalize;
+}
+/* Valor da leitura crua do sub-sensor (rpm, bateria %, km, passageiros).
+   Fica no centro entre o nome e a saude, com tabular-nums para alinhar. */
+.sdp-health-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sdp-health-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sdp-health-val--good { color: var(--color-success-hover, #047857); }
+.sdp-health-val--warn { color: var(--color-warning-hover, #b45309); }
+.sdp-health-val--bad { color: var(--color-danger-hover, #b91c1c); }
+.sdp-health-val--none { color: var(--color-text-secondary, #64748b); }
+
+.sdp-health-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle, #f1f5f9);
+  overflow: hidden;
+}
+.sdp-health-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.sdp-health-fill--good { background: var(--color-success, #10b981); }
+.sdp-health-fill--warn { background: var(--color-warning, #f59e0b); }
+.sdp-health-fill--bad { background: var(--color-danger, #ef4444); }
+.sdp-health-fill--none { background: var(--color-border-medium, #cbd5e1); }
+
+/* Nota informativa legada (mantida para retrocompat se algum CSS herdado a usar). */
+.sensor-status-note {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+}
+
+/* ───────────────────────── Modal Novo/Editar sensor (liquid-glass) ─────────
+ * Variante glass coerente com a sidebar/painel do produto. Usa tokens *-glass
+ * para o vidro e tokens *-color para o conteudo, ambos com fallback dark/light.
+ * Fica entre o sdp-panel (1001) e o modal global (.modal-backdrop = 2000). */
+.sensor-form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: var(--color-overlay, rgba(15, 23, 42, 0.4));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: sensor-form-fade 0.18s ease;
+}
+@keyframes sensor-form-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sensor-form-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sensor-form-card {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-sheen, none), var(--glass-bg-strong, var(--color-surface));
+  border: 1px solid var(--glass-border, var(--color-border));
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--glass-shadow, var(--shadow-lg)), var(--glass-highlight, none);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 28px)) saturate(var(--glass-saturate, 180%));
+  backdrop-filter: blur(var(--glass-blur, 28px)) saturate(var(--glass-saturate, 180%));
+  animation: sensor-form-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.sensor-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--glass-hairline, var(--color-border));
+}
+.sensor-form-heading { min-width: 0; }
+.sensor-form-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-heading, var(--color-text));
+  line-height: 1.25;
+}
+.sensor-form-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+.sensor-form-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition, 200ms ease), color var(--transition, 200ms ease), border-color var(--transition, 200ms ease);
+}
+.sensor-form-close:hover {
+  background: var(--glass-hover, var(--color-bg-subtle));
+  color: var(--color-text-heading, var(--color-text));
+  border-color: var(--glass-hairline, var(--color-border));
+}
+.sensor-form-close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.sensor-form-body {
+  padding: 20px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Meta-bloco "Autocarro: <busCode>" (so leitura, modo editar atribuido). */
+.sensor-form-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 10px);
+}
+.sensor-form-meta-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.sensor-form-meta-chip {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+/* Campos */
+.sensor-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sensor-form-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.sensor-form-req { color: var(--color-warning, #f59e0b); margin-left: 2px; }
+.sensor-form-input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm, 10px);
+  transition: border-color var(--transition, 200ms ease), box-shadow var(--transition, 200ms ease);
+  outline: none;
+}
+.sensor-form-input::placeholder { color: var(--color-text-light); }
+.sensor-form-input:hover { border-color: var(--color-border-medium); }
+.sensor-form-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+select.sensor-form-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+}
+[data-theme="dark"] select.sensor-form-input {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+.sensor-form-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-light);
+}
+
+/* Separador subtil entre o campo gateway e o seletor de estado. */
+.sensor-form-divider {
+  height: 1px;
+  background: var(--glass-hairline, var(--color-border));
+  margin: 4px -24px 0;
+}
+
+/* Callout compacto (1 linha curta): "Estado automatico". */
+.sensor-form-callout {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm, 10px);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.sensor-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--glass-hairline, var(--color-border));
+  background: var(--color-bg-subtle);
+}
+.sensor-form-footer .btn { min-width: 110px; }
+
+@media (max-width: 520px) {
+  .sensor-form-overlay { padding: 12px; align-items: flex-end; }
+  .sensor-form-card { max-width: 100%; border-radius: var(--radius-lg, 16px) var(--radius-lg, 16px) 0 0; }
+  .sensor-form-footer { flex-direction: column-reverse; align-items: stretch; }
+  .sensor-form-footer .btn { width: 100%; }
+}
+
+/* ─── Modal de atribuicao ─── */
+.sensor-assign-search {
+  position: relative;
+  margin-bottom: 14px;
+}
+.sensor-assign-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary, #64748b);
+  pointer-events: none;
+}
+.sensor-assign-search input {
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.sensor-assign-search input:focus { border-color: var(--color-primary, #009BDB); }
+
+.sensor-assign-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.sensor-assign-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+.sensor-assign-card:hover {
+  border-color: var(--color-primary, #009BDB);
+  background: var(--color-primary-light, #e0f2fe);
+}
+.sensor-assign-code {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-heading, #0f172a);
+}
+.sensor-assign-route {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+.sensor-assign-empty {
+  color: var(--color-text-secondary, #64748b);
+  font-size: 14px;
+  text-align: center;
+  padding: 12px 0;
+  margin: 0;
+}
+
+/* ─── Dark mode: ajustes de badges (tokens *-light podem nao existir em dark) ── */
+[data-theme="dark"] .sensor-badge--ativo { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+[data-theme="dark"] .sensor-badge--avaria { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+[data-theme="dark"] .sensor-badge--desconhecido { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+[data-theme="dark"] .sensor-badge--disponivel { background: rgba(129, 140, 248, 0.18); color: #a5b4fc; }
+[data-theme="dark"] .sensor-badge--free { background: rgba(56, 189, 248, 0.16); color: #38bdf8; }
+[data-theme="dark"] .sensor-health-chip--good { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+[data-theme="dark"] .sensor-health-chip--warn { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+[data-theme="dark"] .sensor-health-chip--bad { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+[data-theme="dark"] .sdp-health-val--good { color: #34d399; }
+[data-theme="dark"] .sdp-health-val--warn { color: #fbbf24; }
+[data-theme="dark"] .sdp-health-val--bad { color: #f87171; }
+
+/* ─── Responsive ─── */
+@media (max-width: 640px) {
+  .sdp-panel { width: 100vw; }
+  .sensor-assign-grid { grid-template-columns: 1fr; }
+  .sensors-table .col-actions,
+  .sensors-table td.col-actions { display: none; }
+}

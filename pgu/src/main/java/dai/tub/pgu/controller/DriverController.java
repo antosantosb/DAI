@@ -20,7 +20,9 @@ import dai.tub.pgu.dto.DriverAssignmentDTO;
 import dai.tub.pgu.dto.DriverDetailDTO;
 import dai.tub.pgu.dto.UnassignRequestDTO;
 import dai.tub.pgu.dto.UserRepresentationDTO;
+import dai.tub.pgu.dto.DriverDepartureDTO;
 import dai.tub.pgu.service.AvatarService;
+import dai.tub.pgu.service.DriverDepartureService;
 import dai.tub.pgu.service.DriverService;
 import dai.tub.pgu.service.KeycloakAdminService;
 
@@ -31,13 +33,16 @@ public class DriverController {
     private final DriverService driverService;
     private final AvatarService avatarService;
     private final KeycloakAdminService keycloakAdminService;
+    private final DriverDepartureService driverDepartureService;
 
     public DriverController(DriverService driverService,
                             AvatarService avatarService,
-                            KeycloakAdminService keycloakAdminService) {
+                            KeycloakAdminService keycloakAdminService,
+                            DriverDepartureService driverDepartureService) {
         this.driverService = driverService;
         this.avatarService = avatarService;
         this.keycloakAdminService = keycloakAdminService;
+        this.driverDepartureService = driverDepartureService;
     }
 
     /**
@@ -67,6 +72,17 @@ public class DriverController {
         String username = jwt.getClaimAsString("preferred_username");
         String busCode = driverService.getAssignedBusCode(username);
         return ResponseEntity.ok(Map.of("busCode", busCode));
+    }
+
+    /**
+     * "Hora X" do motorista: instante em que tem de sair da central TUB para
+     * chegar a tempo a' primeira paragem da primeira trip de hoje. Combina
+     * distancia OSRM com a velocidade media da frota (ultimos 7 dias).
+     */
+    @GetMapping("/me/departure")
+    public ResponseEntity<DriverDepartureDTO> getMyDeparture(@AuthenticationPrincipal Jwt jwt) {
+        String username = jwt.getClaimAsString("preferred_username");
+        return ResponseEntity.ok(driverDepartureService.computeForDriver(username));
     }
 
     @GetMapping

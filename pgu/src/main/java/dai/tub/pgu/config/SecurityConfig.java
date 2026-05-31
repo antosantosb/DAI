@@ -59,12 +59,16 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/data-sources/**").hasAnyRole("admin", "developer")
-                // Sprint 2 (Vertical 3.4, R.ICP.07): inventario de sensores APC.
-                // admin/funcionario gerem o CRUD. TEM que vir ANTES do catch-all
+                // Inventario de main sensors (gateways de telematica a bordo).
+                // admin/funcionario/developer gerem o CRUD e a atribuicao a
+                // autocarros (PUT .../assign e .../unassign). O developer herda
+                // tudo o que o admin tem. TEM que vir ANTES do catch-all
                 // GET /api/v1/** abaixo, senao o GET cairia em authenticated().
                 .requestMatchers(HttpMethod.GET, "/api/v1/sensors").hasAnyRole("admin", "funcionario", "developer")
                 .requestMatchers(HttpMethod.GET, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/sensors").hasAnyRole("admin", "funcionario", "developer")
                 .requestMatchers(HttpMethod.POST, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/sensors/**").hasAnyRole("admin", "funcionario", "developer")
                 // Sprint 2 (Vertical 3.4): ingestao interna de validacoes de
                 // bilhetica (fundacao stub, implementada por outra tarefa). E'
@@ -91,6 +95,27 @@ public class SecurityConfig
                 // ingestao por autoridades de transporte. TEM que vir ANTES do
                 // catch-all GET /api/v1/** autenticado abaixo.
                 .requestMatchers(HttpMethod.GET, "/api/v1/netex/**").permitAll()
+                // Fase E (E-back-1): gestao da escala (bus_duty). admin/funcionario/developer.
+                // TEM de vir ANTES dos matchers genericos /api/v1/buses/** mais a frente,
+                // para que o funcionario tambem possa criar/apagar escalas (os matchers
+                // genericos abaixo limitam POST/DELETE em /api/v1/buses/** a admin/developer).
+                // Fase E (#4a): proxy OSRM para o frontend desenhar deadheads.
+                .requestMatchers(HttpMethod.GET, "/api/v1/osrm/**").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/duties").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.GET,  "/api/v1/buses/*/duties").hasAnyRole("admin", "funcionario", "developer", "motorista")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/buses/*/duties").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.GET,  "/api/v1/duties").hasAnyRole("admin", "funcionario", "developer")
+                .requestMatchers(HttpMethod.GET,  "/api/v1/duties/**").hasAnyRole("admin", "funcionario", "developer")
+                // Fase E (E-back-2): operacoes de estado do autocarro. TEM de vir ANTES
+                // do matcher generico POST /api/v1/buses/** (admin/developer apenas).
+                // start / end: motorista (painel de bordo) + admin/developer (devtools).
+                // arrived / duties/*/complete / duties-complete: m2m via X-API-Key.
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/start").hasAnyRole("motorista", "admin", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/end").hasAnyRole("motorista", "admin", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/arrived").permitAll() // protegido pelo InternalApiKeyFilter
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/in-service").permitAll() // idem (STARTING -> EM_SERVICO)
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/duties/*/complete").permitAll() // idem
+                .requestMatchers(HttpMethod.POST, "/api/v1/buses/*/duties-complete").permitAll() // idem
                 // Leituras — qualquer utilizador autenticado
                 .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                 // Ocorrências — Gestão e Escritas

@@ -48,7 +48,10 @@ export default function Drivers() {
   const busesAlreadyAssigned = new Set(
     drivers.map(d => d.currentBusId).filter(Boolean)
   );
-  const availableBuses = allBuses.filter(b => !busesAlreadyAssigned.has(b.id));
+  // Descomissionados nao sao operacionais; nunca aparecem na lista de assign.
+  const availableBuses = allBuses
+    .filter(b => b.status !== 'DECOMMISSIONED')
+    .filter(b => !busesAlreadyAssigned.has(b.id));
 
   // Sprint 1 follow-up: filtered list (search + status filter) para a tabela.
   const filteredDrivers = useMemo(() => {

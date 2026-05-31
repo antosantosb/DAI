@@ -53,10 +53,11 @@ const ICON_COMPONENTS = {
 };
 
 // Ordem fixa das sections (chaves i18n, para o sidebar nao reordenar).
-// Sprint 2 (redesign): MAIN no topo (cockpit do dia-a-dia), depois Operacoes,
-// Dados e IA, Administracao, e DEV no fundo (so' role developer, menos usada).
+// Sprint 2 (cleanup): 6 grupos coerentes na ordem Operacao (cockpit), Frota
+// (autocarros/motoristas/sensores), Rede (linhas/paragens/calendario/horarios),
+// Dados & IA, Administracao, e Dev no fundo (so' role developer).
 // 'sections.personal' fica como catch-all no fim.
-const SECTION_ORDER = ['sections.main', 'sections.operations', 'sections.data', 'sections.administration', 'sections.dev', 'sections.personal'];
+const SECTION_ORDER = ['sections.operations', 'sections.fleet', 'sections.network', 'sections.data', 'sections.administration', 'sections.dev', 'sections.personal'];
 
 /**
  * Constroi a lista de nav items visiveis para um determinado authState.

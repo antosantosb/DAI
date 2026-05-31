@@ -36,6 +36,14 @@ public class GlobalConfig {
     @Column(name = "occupancy_no_data_minutes")
     private Integer occupancyNoDataMinutes;
 
+    // Fase E (E-back-1): ponto geografico da central TUB (deadhead destino
+    // quando o bus passa a STOPPING). Editavel via /api/v1/config.
+    @Column(name = "tub_central_lat")
+    private Double tubCentralLat;
+
+    @Column(name = "tub_central_lon")
+    private Double tubCentralLon;
+
     public GlobalConfig() {}
 
     public Long getId() {
@@ -124,5 +132,21 @@ public class GlobalConfig {
 
     public void setOccupancyNoDataMinutes(Integer occupancyNoDataMinutes) {
         this.occupancyNoDataMinutes = occupancyNoDataMinutes;
+    }
+
+    public Double getTubCentralLat() {
+        return tubCentralLat;
+    }
+
+    public void setTubCentralLat(Double tubCentralLat) {
+        this.tubCentralLat = tubCentralLat;
+    }
+
+    public Double getTubCentralLon() {
+        return tubCentralLon;
+    }
+
+    public void setTubCentralLon(Double tubCentralLon) {
+        this.tubCentralLon = tubCentralLon;
     }
 }

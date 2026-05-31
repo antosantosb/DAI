@@ -39,9 +39,6 @@ public class AiChatService {
     @Value("${pgu.ai.max-prompt-length:500}")
     private int maxPromptLength;
 
-    @Value("${pgu.ai.timeout-seconds:60}")
-    private int timeoutSeconds;
-
     public AiChatService(OllamaChatModel chatModel,
                          AiTools aiTools,
                          AiInteractionLogRepository logRepo,

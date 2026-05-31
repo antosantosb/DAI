@@ -123,6 +123,27 @@ public class GlobalExceptionHandler {
      * Catch-all. RuntimeException é usada na codebase como exceção de negócio (legacy).
      * Devolve 400 em vez de 500 para erros de validação de regra.
      */
+    // NPE (e outras runtime imprevisiveis): mostra origem para poder
+    // diagnosticar. Antes era catch-all silencioso ("Business rule rejected:
+    // NullPointerException") que escondia o sitio onde rebentava.
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ErrorResponse> handleNpe(NullPointerException ex, HttpServletRequest req) {
+        // Encontra o 1o frame fora do JDK/Spring para apontar para o nosso codigo.
+        String origem = "?";
+        for (StackTraceElement el : ex.getStackTrace()) {
+            String cn = el.getClassName();
+            if (cn.startsWith("dai.tub.pgu")) {
+                origem = cn + "." + el.getMethodName() + ":" + el.getLineNumber();
+                break;
+            }
+        }
+        log.error("[NPE] {} {} -> {} | msg={}",
+                req.getMethod(), req.getRequestURI(), origem, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ErrorResponse.of("INTERNAL", "Erro interno (NPE em " + origem + ").",
+                        req.getRequestURI()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex, HttpServletRequest req) {
         log.warn("Business rule rejected: {}", ex.getClass().getSimpleName());

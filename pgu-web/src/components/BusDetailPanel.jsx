@@ -6,18 +6,58 @@ import { createStompClient } from '../services/stompClient';
 import MessageStatusIcon from './MessageStatusIcon';
 import './BusDetailPanel.css';
 
+// Fase E (E-front-1): "hoje" em Europe/Lisbon (YYYY-MM-DD).
+function todayLisbonISO()
+{
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Lisbon',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return fmt.format(new Date());
+}
+function formatPlannedTime(iso)
+{
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleTimeString('pt-PT', {
+      timeZone: 'Europe/Lisbon',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
+
 /**
  * Painel lateral semi-fullscreen com detalhes do autocarro + chat com motorista.
  * Aberto ao clicar num BusCard.
  */
-export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClose, onAction }) {
-  const { t } = useTranslation();
+// Estado do main sensor -> classe do badge (alinhado com a pagina Sensors).
+// Tolerante a maiusculas/minusculas e a valores desconhecidos.
+function sensorStatusKey(status) {
+  const s = String(status || '').toUpperCase();
+  if (s === 'ATIVO') return 'ativo';
+  if (s === 'INATIVO') return 'inativo';
+  if (s === 'AVARIA') return 'avaria';
+  return 'desconhecido';
+}
+
+export default function BusDetailPanel({ bus, driver, sensor, telemetry, isAdmin, onClose, onAction, scheduleRefreshKey }) {
+  const { t, i18n } = useTranslation();
   const [tab, setTab] = useState('info'); // info | chat
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
   const chatEndRef = useRef(null);
+
+  // Fase E (E-front-1): escala do dia (bus_duty) para este autocarro.
+  const [duties, setDuties] = useState([]);
+  const [loadingDuties, setLoadingDuties] = useState(false);
+  const todayISO = todayLisbonISO();
 
   // Animação de fechar: aplica classe --closing, espera o transition acabar, depois chama onClose real
   const requestClose = useCallback(() => {
@@ -60,6 +100,16 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
     }
   }, [tab, messages.length]);
 
+  // Fase E (E-front-1): carrega escala de HOJE para este bus (best-effort).
+  useEffect(() => {
+    if (!bus?.id) return;
+    setLoadingDuties(true);
+    api.get(`/buses/${bus.id}/duties`, { params: { date: todayISO } })
+      .then(r => setDuties(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDuties([]))
+      .finally(() => setLoadingDuties(false));
+  }, [bus?.id, todayISO, scheduleRefreshKey]);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || sending) return;
@@ -88,6 +138,48 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
   // Sprint 1 follow-up: renomeado de `t` para `tele` para nao colidir com
   // o `t` do useTranslation (i18n) introduzido neste componente.
   const tele = telemetry || {};
+
+  // Estado terminal: vista MINIMA so' com matricula + capacidade. Sem motorista,
+  // sem sensor, sem escala, sem tabs, sem chat, sem acoes. O autocarro deixou
+  // de operar; nao faz sentido expor controlos nem dados operacionais.
+  if (bus.status === 'DECOMMISSIONED') {
+    return (
+      <>
+        <div className={`bdp-backdrop ${closing ? 'bdp-backdrop--closing' : ''}`} onClick={requestClose} />
+        <aside className={`bdp-panel ${closing ? 'bdp-panel--closing' : ''}`} role="dialog" aria-modal="true">
+          <header className="bdp-header">
+            <div>
+              <div className="bdp-header-code">{bus.busCode}</div>
+              <div className="bdp-header-route">{t('pages.buses.decommissionedBadge')}</div>
+            </div>
+            <div className="bdp-header-right">
+              <span className="bdp-status-badge" style={{ background: '#ef4444' }}>
+                {t('pages.buses.decommissionedBadge')}
+              </span>
+              <button className="bdp-close" onClick={requestClose} aria-label={t('common.close') || 'Fechar'}>×</button>
+            </div>
+          </header>
+          <div className="bdp-content">
+            <div className="bdp-info">
+              <section className="bdp-section">
+                <h4 className="bdp-section-title">Informação</h4>
+                <dl className="bdp-info-grid">
+                  <div><dt>Matrícula</dt><dd>{bus.licensePlate || '—'}</dd></div>
+                  <div><dt>Capacidade</dt><dd>{bus.capacity || '—'} lugares</dd></div>
+                  {bus.decommissionedAt && (
+                    <div>
+                      <dt>Descomissionado em</dt>
+                      <dd>{new Date(bus.decommissionedAt).toLocaleString(i18n.language === 'pt' ? 'pt-PT' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</dd>
+                    </div>
+                  )}
+                </dl>
+              </section>
+            </div>
+          </div>
+        </aside>
+      </>
+    );
+  }
 
   return (
     <>
@@ -137,13 +229,40 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                 <h4 className="bdp-section-title">Motorista</h4>
                 {driver ? (
                   <div className="bdp-driver-card">
-                    <div className="bdp-driver-name">{driver.name}</div>
+                    <div className="bdp-driver-name">
+                      <span>{driver.name}</span>
+                      {driver.mechanographicNumber && (
+                        <span className="bdp-driver-mech">{driver.mechanographicNumber}</span>
+                      )}
+                    </div>
                     <div className="bdp-driver-meta">
-                      <span>{driver.mechanographicNumber}</span>
                       {driver.phoneNumber && <span>{driver.phoneNumber}</span>}
-                      <span className={`bdp-driver-status bdp-driver-status--${driver.status?.toLowerCase()}`}>
-                        {driver.status === 'ON_DUTY' ? 'Em serviço' : 'Disponível'}
-                      </span>
+                      <a
+                        href={`/backoffice/drivers?q=${encodeURIComponent(driver.mechanographicNumber || '')}`}
+                        className="inline-link"
+                      >
+                        {t('pages.buses.driverOpen')}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </a>
+                      {/* Desatribuir motorista: SO' visivel se o bus estiver STOPPED. */}
+                      {bus.status === 'STOPPED' && (
+                        <button
+                          type="button"
+                          className="bdp-inline-action"
+                          onClick={async () => {
+                            try {
+                              await api.post('/drivers/unassign', { driverId: driver.id });
+                              onAction?.('refresh', bus);
+                            } catch (err) {
+                              alert(err?.response?.data?.message || err?.message || 'Erro');
+                            }
+                          }}
+                        >
+                          {t('pages.buses.unassignDriverAction')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -157,6 +276,63 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                       {t('pages.buses.driverMissing')}{' '}
                       <a href="/backoffice/drivers" className="inline-link">
                         {t('pages.buses.assignInDrivers')}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </a>
+                    </span>
+                  </div>
+                )}
+              </section>
+
+              {/* Main sensor */}
+              <section className="bdp-section">
+                <h4 className="bdp-section-title">{t('pages.buses.sensorTitle')}</h4>
+                {sensor ? (
+                  <div className="bdp-driver-card">
+                    <div className="bdp-driver-name">{sensor.gateway}</div>
+                    <div className="bdp-driver-meta">
+                      {/* Pill de estado removida: o estado do sensor pertence
+                          a pagina Sensores. Aqui basta o gateway + link + acao. */}
+                      <a
+                        href={`/backoffice/sensors?q=${encodeURIComponent(sensor.gateway || '')}`}
+                        className="inline-link"
+                      >
+                        {t('pages.buses.sensorOpen')}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </a>
+                      {/* Libertar sensor: SO' visivel se o bus estiver STOPPED. */}
+                      {bus.status === 'STOPPED' && (
+                        <button
+                          type="button"
+                          className="bdp-inline-action"
+                          onClick={async () => {
+                            try {
+                              await api.put(`/sensors/${sensor.id}/unassign`);
+                              onAction?.('refresh', bus);
+                            } catch (err) {
+                              alert(err?.response?.data?.message || err?.message || 'Erro');
+                            }
+                          }}
+                        >
+                          {t('pages.buses.unassignSensorAction')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bdp-driver-missing">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>
+                      {t('pages.buses.sensorMissing')}{' '}
+                      <a href="/backoffice/sensors" className="inline-link">
+                        {t('pages.buses.assignInSensors')}
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <polyline points="9 18 15 12 9 6" />
                         </svg>
@@ -195,8 +371,58 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                 <dl className="bdp-info-grid">
                   <div><dt>Matrícula</dt><dd>{bus.licensePlate || '—'}</dd></div>
                   <div><dt>Capacidade</dt><dd>{bus.capacity || '—'} lugares</dd></div>
-                  <div><dt>Linha</dt><dd>{bus.routeName || 'Sem linha'}</dd></div>
                 </dl>
+              </section>
+
+              {/* Fase E (E-front-1): Escala (data corrente — o painel mostra a do dia de hoje). */}
+              <section className="bdp-section">
+                <h4 className="bdp-section-title">
+                  {t('pages.buses.scheduleListTitle')}
+                  <span className="bdp-section-date">{new Date(todayISO).toLocaleDateString(i18n.language === 'pt' ? 'pt-PT' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </h4>
+                {loadingDuties ? (
+                  <div className="bdp-schedule-empty">{t('common.loading')}</div>
+                ) : duties.length === 0 ? (
+                  <div className="bdp-schedule-empty">{t('pages.buses.scheduleEmpty')}</div>
+                ) : (
+                  <>
+                    <div className="bdp-schedule-list">
+                      {duties.map(d => (
+                        <div key={d.id} className="bdp-schedule-row">
+                          <span className="bdp-schedule-time">{formatPlannedTime(d.plannedStart)}</span>
+                          <span className="bdp-schedule-route">{d.routeShortName || '—'}</span>
+                          <span className="bdp-schedule-headsign" title={d.tripHeadsign || d.tripDisplayName || ''}>
+                            {d.tripHeadsign || d.tripDisplayName || `trip #${d.tripId}`}
+                          </span>
+                          <span className={`bdp-schedule-status bdp-schedule-status--${d.status}`}>{d.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bdp-schedule-footer">
+                      <a
+                        href={`/backoffice/calendar?bus=${encodeURIComponent(bus.busCode || '')}`}
+                        className="bdp-schedule-link"
+                      >
+                        {t('pages.buses.scheduleOpenCalendar')}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </a>
+                      {/* Remover escala: só visível com bus STOPPED. Delega
+                          ao parent (Buses.jsx) que mostra o modal de confirmacao
+                          consistente com o resto do produto. */}
+                      {bus.status === 'STOPPED' && (
+                        <button
+                          type="button"
+                          className="bdp-inline-action"
+                          onClick={() => onAction?.('removeSchedule', bus)}
+                        >
+                          {t('pages.buses.removeSchedule')}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </section>
 
               {/* Ações */}
@@ -211,17 +437,48 @@ export default function BusDetailPanel({ bus, driver, telemetry, isAdmin, onClos
                     Cancelar Paragem
                   </button>
                 )}
-                {bus.status === 'STOPPED' && (
+                {bus.status === 'STOPPED' && (() => {
+                  // Ativar exige motorista + main sensor + escala com 1a trip
+                  // PLANNED com inicio no futuro (espelha o backend /start).
+                  const nextPlanned = duties.find(d => d.status === 'PLANNED' && new Date(d.plannedStart).getTime() > Date.now());
+                  const blockReason = !driver
+                    ? t('pages.buses.activateNeedsDriver')
+                    : !sensor
+                      ? t('pages.buses.activateNeedsSensor')
+                      : !nextPlanned
+                        ? t('pages.buses.activateNeedsSchedule')
+                        : '';
+                  return (
+                    <button
+                      className="btn btn-success"
+                      onClick={() => onAction('activate', bus)}
+                      disabled={!!blockReason}
+                      title={blockReason}
+                    >
+                      ▶ Ativar Autocarro
+                    </button>
+                  );
+                })()}
+                {/* Fase E (E-front-1): Planear escala (apenas STOPPED). */}
+                {isAdmin && (
                   <button
-                    className="btn btn-success"
-                    onClick={() => onAction('activate', bus)}
-                    disabled={!driver}
-                    title={!driver ? 'É preciso atribuir motorista antes de ativar' : ''}
+                    className="btn btn-primary"
+                    onClick={() => onAction('planSchedule', bus)}
+                    disabled={bus.status !== 'STOPPED'}
+                    title={bus.status !== 'STOPPED' ? t('pages.buses.planScheduleTooltip') : ''}
                   >
-                    ▶ Ativar Autocarro
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 6, verticalAlign: 'middle' }}>
+                      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    {t('pages.buses.planSchedule')}
                   </button>
                 )}
-                {isAdmin && (!bus.routeId || bus.status === 'STOPPED') && (
+                {/* Editar e Descomissionar so' fazem sentido com o autocarro
+                    PARADO. Em STARTING/EM_SERVICO/STOPPING ha' motorista e/ou
+                    passageiros a bordo e qualquer alteracao a metadata (capacidade,
+                    matricula, sensor) ou retirar o veiculo de servico em pleno
+                    seria operacionalmente errado. */}
+                {isAdmin && bus.status === 'STOPPED' && (
                   <>
                     <button className="btn btn-secondary" onClick={() => onAction('edit', bus)}>
                       Editar

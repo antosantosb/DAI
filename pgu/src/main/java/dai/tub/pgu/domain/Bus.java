@@ -35,6 +35,11 @@ public class Bus
     @Column(name = "last_sync")
     private Instant lastSync;
 
+    // Fase E: instante em que o autocarro foi descomissionado (soft-delete).
+    // Null se ainda nao foi descomissionado.
+    @Column(name = "decommissioned_at")
+    private Instant decommissionedAt;
+
     public Bus() {}
 
     // GET
@@ -46,6 +51,7 @@ public class Bus
     public Block   getBlock()        { return this.block; }
     public String  getStatus()       { return this.status; }
     public Instant getLastSync()     { return this.lastSync; }
+    public Instant getDecommissionedAt() { return this.decommissionedAt; }
 
     // SET
     public void setId(Long id)                     { this.id = id; }
@@ -56,4 +62,5 @@ public class Bus
     public void setBlock(Block block)              { this.block = block; }
     public void setStatus(String status)           { this.status = status; }
     public void setLastSync(Instant lastSync)      { this.lastSync = lastSync; }
+    public void setDecommissionedAt(Instant when)  { this.decommissionedAt = when; }
 }

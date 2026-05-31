@@ -1,0 +1,1128 @@
+/* Fase E (E-front-1): Modal "Planear escala" — cascata em 4 steps.
+ * Usa tokens de tema, sem cores hardcoded. Mantém coerência com BusDetailPanel
+ * e o Modal generico (.modal-backdrop / .modal-dialog) ja existentes.
+ */
+
+.bsm-dialog {
+  width: min(720px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Variante larga (redesign #4a v1): layout em 2 colunas com mapa do padrao. */
+.bsm-dialog--wide {
+  width: min(1100px, 96vw);
+}
+
+/* ─── Redesign #4a v2 (FULL-SCREEN) ──────────────────────────────────────
+   O modal sai do conceito de "popup" e passa a ocupar o ecra todo:
+   header sticky + grid 3 colunas (decisoes / mapa grande / viagens) + footer
+   com resumo. Justificado pelo peso da decisao (atribuir uma escala a um bus). */
+.bsm-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--color-bg, #0b1622);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  animation: bsm-fs-in 0.18s ease-out both;
+}
+@keyframes bsm-fs-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* HEADER */
+.bsm-fs-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+}
+.bsm-fs-headtext h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-heading);
+}
+.bsm-fs-headtext p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Progress: chips horizontais com numero + label */
+.bsm-fs-progress {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bsm-fs-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bsm-fs-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.bsm-fs-step--active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.bsm-fs-step--active .bsm-fs-step-num {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.bsm-fs-step--done {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #059669;
+}
+[data-theme="dark"] .bsm-fs-step--done { color: #34d399; }
+.bsm-fs-step--done .bsm-fs-step-num {
+  background: #10b981;
+  border-color: #10b981;
+  color: #fff;
+}
+
+.bsm-fs-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bsm-fs-close:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  border-color: var(--color-border-medium);
+}
+
+/* GRID 3 COLUNAS */
+.bsm-fs-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) 1fr minmax(360px, 460px);
+  gap: 16px;
+  padding: 16px 24px;
+  min-height: 0; /* permite scroll dos paineis */
+}
+.bsm-fs-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.bsm-fs-panel--map {
+  padding: 18px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Mapa: ocupa o resto da coluna central */
+.bsm-fs-map-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-light);
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+}
+.bsm-fs-map { width: 100%; height: 100%; }
+.bsm-fs-map-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-style: italic;
+  pointer-events: none;
+  z-index: 600;
+}
+.bsm-fs-pattern-tag {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Filtros de periodo (Manha/Tarde/Noite/Tudo) */
+.bsm-fs-period {
+  display: inline-flex;
+  padding: 4px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+  border-radius: 9999px;
+  gap: 2px;
+}
+.bsm-fs-period-btn {
+  border: 0;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.bsm-fs-period-btn:hover { color: var(--color-text); }
+.bsm-fs-period-btn.is-active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Lista de viagens mais alta na coluna direita */
+.bsm-trips--tall { max-height: none; flex: 1; }
+
+/* Preview do horario em construcao (por baixo da lista). */
+.bsm-fs-preview {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--color-bg-subtle);
+  border: 1px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bsm-fs-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.bsm-fs-preview-title {
+  color: var(--color-text-light);
+  font-weight: 700;
+}
+.bsm-fs-preview-total {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+}
+.bsm-fs-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.bsm-fs-preview-row {
+  display: grid;
+  grid-template-columns: 28px auto 16px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.bsm-fs-preview-row:hover { background: var(--color-surface); }
+.bsm-fs-preview-idx {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-light);
+  text-align: right;
+}
+.bsm-fs-preview-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.bsm-fs-preview-time--end { color: var(--color-text-secondary); }
+.bsm-fs-preview-arrow {
+  color: var(--color-text-light);
+  text-align: center;
+}
+/* Preview enriquecido: chips de linha + padrao por trip. */
+.bsm-fs-preview-row {
+  grid-template-columns: 28px auto 16px auto auto 1fr;
+}
+.bsm-fs-preview-route {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.bsm-fs-preview-pattern {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Vista de REVISAO (sobreposta ao grid no full-screen) ──────────── */
+.bsm-fs-review {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1300;
+  overflow-y: auto;
+}
+.bsm-fs-review-card {
+  width: min(1320px, 100%);
+  max-height: 94vh;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.4);
+  animation: bsm-fs-in 0.18s ease-out both;
+  overflow: hidden;
+}
+.bsm-fs-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.bsm-fs-review-header h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-heading);
+}
+.bsm-fs-review-header p {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+.bsm-fs-review-totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+.bsm-fs-review-totals strong {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.bsm-fs-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  /* Mais espaco para a lista, mas com cap para nao crescer alem da viewport. */
+  max-height: min(420px, 38vh);
+  flex: 1 1 auto;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+  background: var(--color-bg-subtle);
+}
+.bsm-fs-review-row {
+  display: grid;
+  grid-template-columns: 32px auto 18px auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.bsm-fs-review-row:hover { background: var(--color-surface); }
+.bsm-fs-review-idx {
+  text-align: right;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+.bsm-fs-review-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-text);
+}
+.bsm-fs-review-time--end { color: var(--color-text-secondary); font-weight: 600; }
+.bsm-fs-review-arrow { color: var(--color-text-light); text-align: center; }
+.bsm-fs-review-route {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.bsm-fs-review-pattern {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bsm-fs-review-duration {
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-text-light);
+  font-variant-numeric: tabular-nums;
+}
+.bsm-fs-review-confirm {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  background: var(--color-bg-subtle);
+  border-radius: 10px;
+  border-left: 3px solid var(--color-primary);
+}
+.bsm-fs-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Mapa da escala completa na vista de revisao (polylines color-coded). */
+.bsm-fs-review-map-wrap {
+  width: 100%;
+  /* Altura razoavel mas a deixar espaco para a lista nao ser cortada. */
+  height: min(440px, 46vh);
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-light);
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+}
+
+/* Marcadores S (start) e E (end) da escala completa. */
+.bsm-fs-review-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0;
+}
+.bsm-fs-review-pin span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.bsm-fs-review-pin--start { background: #10b981; }
+.bsm-fs-review-pin--end   { background: #ef4444; }
+/* Marker preto nas junções de deadhead, com a ordem da trip que se segue. */
+.bsm-fs-review-pin--deadhead {
+  background: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+}
+.bsm-fs-review-map { width: 100%; height: 100%; }
+
+/* Legenda em grid (linhas alinhadas, nao wrap aleatorio). */
+.bsm-fs-review-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+}
+.bsm-fs-review-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.bsm-fs-review-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+/* Swatch tracejado para os caminhos de ligacao (deadhead). */
+.bsm-fs-review-legend-swatch--deadhead {
+  background: transparent;
+  border: 0;
+  border-top: 2.5px dashed #0f172a;
+  border-radius: 0;
+  height: 0;
+  align-self: center;
+}
+[data-theme="dark"] .bsm-fs-review-legend-swatch--deadhead {
+  border-top-color: #e2e8f0;
+}
+.bsm-fs-review-legend-route {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* FOOTER com resumo */
+.bsm-fs-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border-light);
+}
+.bsm-fs-summary {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bsm-fs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.bsm-fs-chip strong {
+  color: var(--color-text-light);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.bsm-fs-chip--strong {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.bsm-fs-actions {
+  display: inline-flex;
+  gap: 10px;
+}
+
+/* Responsive: <1100px o mapa central encolhe; <850px stack vertical. */
+@media (max-width: 1100px) {
+  .bsm-fs-grid { grid-template-columns: 320px 1fr 360px; }
+}
+@media (max-width: 900px) {
+  .bsm-fs-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(220px, auto);
+  }
+  .bsm-fs-progress { display: none; }
+  .bsm-fs-map-wrap { min-height: 220px; }
+}
+
+/* Body em 2 colunas: esquerda (decisoes) + direita (mapa + trips). */
+.bsm-body--two-cols {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 20px;
+  padding: 18px 22px;
+  overflow-y: auto;
+}
+.bsm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0; /* permite truncate em filhos */
+}
+.bsm-col--left { border-right: 1px solid var(--color-border-light); padding-right: 20px; }
+
+/* Step numerico/icone (sem estados active/done — o feedback agora vem do conteudo). */
+.bsm-step--num {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.bsm-step--icon {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+}
+
+/* ─── Padrao: cards verticais ─── */
+.bsm-pattern-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.bsm-pattern-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.bsm-pattern-card:hover {
+  border-color: var(--color-primary-light, #bae6fd);
+  background: var(--color-bg-subtle);
+}
+.bsm-pattern-card--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+.bsm-pattern-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bsm-pattern-direction {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+}
+.bsm-pattern-card--active .bsm-pattern-direction {
+  background: var(--color-primary);
+  color: #fff;
+}
+.bsm-pattern-trips {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.bsm-pattern-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  line-height: 1.3;
+}
+.bsm-pattern-meta {
+  font-size: 12px;
+  color: var(--color-text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Data: legenda por extenso abaixo do input ─── */
+.bsm-date-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* ─── Mapa do padrao ─── */
+.bsm-section--map { gap: 6px; }
+.bsm-map-wrap {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+}
+.bsm-map { width: 100%; height: 100%; }
+.bsm-map-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  pointer-events: none;
+  z-index: 600;
+}
+.bsm-map-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.bsm-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.bsm-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+.bsm-legend-dot--start { background: #10b981; }
+.bsm-legend-dot--end   { background: #ef4444; }
+
+/* Pins do mapa (divIcon do Leaflet). */
+.bsm-map-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bsm-map-pin span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.bsm-map-pin--start span { background: #10b981; }
+.bsm-map-pin--end span   { background: #ef4444; }
+
+/* ─── Trip meta (duracao + paragens, lado direito) ─── */
+.bsm-trip-meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.bsm-trip-duration {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+/* Quando ha trip-meta, o trip-stops dentro dele nao precisa de margin-left auto. */
+.bsm-trip-meta .bsm-trip-stops { margin-left: 0; }
+
+/* Responsive: <900px volta a 1 coluna. */
+@media (max-width: 900px) {
+  .bsm-dialog--wide { width: min(720px, 96vw); }
+  .bsm-body--two-cols {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .bsm-col--left {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-light);
+    padding-right: 0;
+    padding-bottom: 18px;
+  }
+  .bsm-map-wrap { height: 220px; }
+}
+
+/* ─── Header ─── */
+.bsm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-subtle);
+}
+.bsm-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-heading);
+}
+.bsm-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.bsm-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bsm-close:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  border-color: var(--color-border-medium);
+}
+
+/* ─── Body ─── */
+.bsm-body {
+  padding: 16px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ─── Step section ─── */
+.bsm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bsm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bsm-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Step chip (numeral) */
+.bsm-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+.bsm-step--active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.bsm-step--done {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+}
+
+/* Inputs */
+.bsm-select,
+.bsm-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.bsm-select:focus,
+.bsm-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.bsm-loading,
+.bsm-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+
+.bsm-hint {
+  font-size: 12px;
+  color: var(--color-text-light);
+  padding: 6px 10px;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+/* ─── Bulk select bar ─── */
+.bsm-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+}
+.bsm-bulk-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-xs, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bsm-bulk-btn:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.bsm-bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bsm-bulk-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Trips list ─── */
+.bsm-trips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.bsm-trip {
+  border-bottom: 1px solid var(--color-border-light);
+}
+.bsm-trip:last-child { border-bottom: 0; }
+.bsm-trip-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.bsm-trip-label:hover { background: var(--color-bg-subtle); }
+.bsm-trip--checked .bsm-trip-label { background: var(--color-primary-light); }
+.bsm-trip--past .bsm-trip-label {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.bsm-trip--overlap .bsm-trip-label {
+  cursor: not-allowed;
+  opacity: 0.7;
+  background: var(--color-warning-soft, rgba(245, 158, 11, 0.08));
+}
+.bsm-trip-overlap-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+[data-theme="dark"] .bsm-trip-overlap-tag {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+}
+.bsm-trip-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 48px;
+}
+.bsm-trip-time--end { color: var(--color-text-secondary); }
+.bsm-trip-arrow { color: var(--color-text-light); display: inline-flex; }
+.bsm-trip-stops {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.bsm-trip-past-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--color-border-light);
+  color: var(--color-text-light);
+}
+
+/* ─── Footer ─── */
+.bsm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-subtle);
+}
+
+/* ─── Schedule list (in BusDetailPanel) ─── */
+.bdp-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bdp-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+.bdp-schedule-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 44px;
+}
+.bdp-schedule-route {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.bdp-schedule-headsign {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bdp-schedule-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--color-border-light);
+  color: var(--color-text-light);
+}
+.bdp-schedule-status--RUNNING { background: var(--color-success-light, var(--color-primary-light)); color: var(--color-success, var(--color-primary)); }
+.bdp-schedule-status--DONE { background: var(--color-border-light); color: var(--color-text-light); }
+.bdp-schedule-empty {
+  font-size: 12px;
+  color: var(--color-text-light);
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+.bdp-schedule-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  margin-top: 4px;
+}
+.bdp-schedule-link:hover { text-decoration: underline; }

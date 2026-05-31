@@ -15,28 +15,47 @@ export default function BusesTab({
   setBusSort,
 }) {
   const { t } = useTranslation();
-  const busList = useMemo(() =>
-    Object.values(buses)
-      .filter(bus => {
-        const backend = backendBuses[bus.busId];
-        return backend && backend.status !== 'STOPPED';
-      })
-      .map(bus => {
-        const backend = backendBuses[bus.busId];
-        const displayStatus = getBusDisplayStatus(backend?.status, bus.status);
-        return { ...bus, displayStatus, backend };
-      }),
-    [buses, backendBuses]
-  );
+  // Fonte primaria: backendBuses (autocarros em operacao no backend, mesmo
+  // antes da 1a telemetria chegar). Telemetria, quando existe, enriquece
+  // o card com speed/passengers/nextStop. Antes filtravamos por
+  // Object.values(buses) (so' buses ja' a publicar), o que dava 0 Ativos
+  // enquanto o simulador resolvia a polyline da pattern.
+  const busList = useMemo(() => {
+    const ACTIVE_STATES = new Set(['STARTING', 'EM_SERVICO', 'STOPPING']);
+    return Object.values(backendBuses)
+      .filter(b => ACTIVE_STATES.has(b.status))
+      .map(backend => {
+        const tel = buses[backend.busCode] || {};
+        const displayStatus = getBusDisplayStatus(backend.status, tel.status);
+        return {
+          // shape compativel com BusCard/popup: prefere campos da telemetria
+          // quando existem (lat/lon/speed/passengers); fallback aos do backend.
+          busId: backend.busCode,
+          latitude: tel.latitude,
+          longitude: tel.longitude,
+          speed: tel.speed,
+          passengers: tel.passengers,
+          nextStop: tel.nextStop,
+          stopsRemaining: tel.stopsRemaining,
+          status: tel.status,
+          timestamp: tel.timestamp,
+          // metadata derivada
+          displayStatus,
+          backend,
+        };
+      });
+  }, [buses, backendBuses]);
 
+  // Modelo Transmodel: routeId no Bus e' sempre null. A linha actual vem
+  // de `currentRouteCode` (derivada da duty RUNNING/PLANNED).
   const activeRouteIds = useMemo(() =>
     new Set(
       busList
         .filter(b => b.displayStatus !== 'deactivated')
-        .map(b => backendBuses[b.busId]?.routeId)
+        .map(b => b.backend?.currentRouteCode || b.backend?.routeId)
         .filter(Boolean)
     ),
-    [busList, backendBuses]
+    [busList]
   );
 
   const activeBusCount = useMemo(() =>
@@ -48,14 +67,20 @@ export default function BusesTab({
     busSearch
       ? busList.filter(bus => {
           const q = busSearch.toLowerCase();
-          const backend = backendBuses[bus.busId];
-          const route = backend?.routeId ? routes.find(r => r.id === backend.routeId) : null;
+          const backend = bus.backend;
+          // Modelo Transmodel: routeId pode ser null; usa o currentRouteCode
+          // como chave de pesquisa primaria.
+          const routeCode = backend?.currentRouteCode;
+          const routeName = backend?.currentRouteName;
+          const fallbackRoute = backend?.routeId ? routes.find(r => r.id === backend.routeId) : null;
           return bus.busId.toLowerCase().includes(q)
-            || (route?.name?.toLowerCase().includes(q))
-            || (route?.code?.toLowerCase().includes(q));
+            || (routeCode?.toLowerCase().includes(q))
+            || (routeName?.toLowerCase().includes(q))
+            || (fallbackRoute?.name?.toLowerCase().includes(q))
+            || (fallbackRoute?.code?.toLowerCase().includes(q));
         })
       : busList,
-    [busList, busSearch, backendBuses, routes]
+    [busList, busSearch, routes]
   );
 
   const sortedBusList = useMemo(() =>
@@ -72,10 +97,17 @@ export default function BusesTab({
     if (busSort !== 'route') return null;
     const groups = {};
     filteredBusList.forEach(bus => {
-      const backend = backendBuses[bus.busId];
-      const route = backend?.routeId ? routes.find(r => r.id === backend.routeId) : null;
-      const key = route ? route.id : 'unassigned';
+      const backend = bus.backend;
+      // Modelo Transmodel: agrupa pelo currentRouteCode (linha actual da
+      // duty RUNNING) em vez do routeId fixo. Fallback ao route por id
+      // se ainda houver buses legados com routeId.
+      const code = backend?.currentRouteCode;
+      const fallbackRoute = backend?.routeId ? routes.find(r => r.id === backend.routeId) : null;
+      const key = code || (fallbackRoute ? fallbackRoute.id : 'unassigned');
       if (!groups[key]) {
+        const route = code
+          ? { id: code, code, name: backend?.currentRouteName || code, color: '#009BDB' }
+          : fallbackRoute;
         groups[key] = {
           route,
           routeName: route ? route.name : t('livemap.noRouteFallback'),
@@ -91,7 +123,7 @@ export default function BusesTab({
       if (!a.route && b.route) return 1;
       return a.routeName.localeCompare(b.routeName);
     });
-  }, [filteredBusList, backendBuses, routes, busSort]);
+  }, [filteredBusList, routes, busSort, t]);
 
   const checkIfOnline = (bus) => {
     if (!bus.timestamp) return false;

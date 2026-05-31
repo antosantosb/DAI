@@ -151,3 +151,48 @@
   .config-actions { flex-direction: column-reverse; align-items: stretch; }
   .config-btn-primary { width: 100%; }
 }
+
+/* Central TUB — picker de localizacao no mapa Leaflet. Substitui o input
+   manual de lat/lon: e' menos error-prone clicar e arrastar do que decorar
+   coordenadas. */
+.config-central-map {
+  height: 360px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  margin-top: 12px;
+  cursor: crosshair;
+}
+
+.config-central-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--color-bg-subtle);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.config-btn-secondary {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.config-btn-secondary:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+  color: #ef4444;
+}

@@ -70,6 +70,25 @@ public class GlobalConfigController {
             config.setOccupancyNoDataMinutes(noData);
         }
 
+        // Localizacao da Central TUB (ponto de partida/regresso dos deadheads
+        // no simulador e no DriverDepartureService). Aceita ambos preenchidos
+        // (define a central) ou ambos null (mantem fallback Braga).
+        Double clat = req.getTubCentralLat();
+        Double clon = req.getTubCentralLon();
+        if (clat != null && clon != null) {
+            if (clat < -90.0 || clat > 90.0 || clon < -180.0 || clon > 180.0) {
+                return ResponseEntity.badRequest().build();
+            }
+            config.setTubCentralLat(clat);
+            config.setTubCentralLon(clon);
+        } else if (clat == null && clon == null) {
+            config.setTubCentralLat(null);
+            config.setTubCentralLon(null);
+        } else {
+            // Inconsistente: so' um dos dois preenchido.
+            return ResponseEntity.badRequest().build();
+        }
+
         config.setUpdatedAt(Instant.now());
 
         if (jwt != null) {
