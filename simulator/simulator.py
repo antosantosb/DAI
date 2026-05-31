@@ -24,6 +24,11 @@ TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
 # Sprint 5 (3.3): topico de validacoes de bilhetica. Cada bus em EM_SERVICO
 # gera N validacoes em paragens (proporcional a' ocupacao a bordo).
 TOPIC_TICKET = os.getenv("MQTT_TOPIC_TICKET", "tub/ticket")
+# Sprint 3 (3.5): topico dos paineis DMS. O simulador faz poll periodico
+# a GET /api/v1/panels e publica heartbeats para cada painel existente.
+TOPIC_PANEL  = os.getenv("MQTT_TOPIC_PANEL", "tub/panels/heartbeat")
+PANEL_HEARTBEAT_SEC = float(os.getenv("E_PANEL_HEARTBEAT_SEC", 30))
+PANEL_POLL_SEC      = float(os.getenv("E_PANEL_POLL_SEC", 60))
 # Probabilidade de uma paragem gerar 1+ validacoes neste tick (heuristica
 # simples para a defesa academica; em real, viria do APC).
 TICKET_AT_STOP_PROB = float(os.getenv("E_TICKET_AT_STOP_PROB", 0.85))
@@ -1445,6 +1450,45 @@ def main():
         time.sleep(INTERVAL)
 
 
+def _panels_heartbeat_loop(mqtt_client_ref):
+    """Sprint 3 (3.5): publica heartbeats MQTT para cada painel DMS existente.
+    Faz poll de GET /api/v1/panels (a cada PANEL_POLL_SEC) para descobrir
+    novos paineis, e a cada PANEL_HEARTBEAT_SEC publica payload com bateria
+    (so' EPAPER), temperatura, firmware. O NiFi encaminha para o backend.
+    O simulador NUNCA cria/elimina paineis — esses fluem pelo CRUD admin."""
+    print("[SIM] Thread paneis DMS iniciada.")
+    panels = []
+    last_poll = 0.0
+    while True:
+        now = time.time()
+        if now - last_poll >= PANEL_POLL_SEC or not panels:
+            data = api_get("/api/v1/panels") or []
+            panels = data if isinstance(data, list) else []
+            last_poll = now
+        for p in panels:
+            if not p.get("enabled", True): continue
+            ptype = p.get("type", "EPAPER")
+            battery = None
+            if ptype == "EPAPER":
+                # painel solar: bateria desce devagar, oscilacao -1 a +2%
+                base = p.get("batteryPct")
+                if base is None or base <= 0: base = 80
+                battery = max(5, min(100, base + random.randint(-1, 2)))
+            payload = {
+                "panelCode":   p["code"],
+                "ts":          datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "status":      "ONLINE",  # backend re-deriva consoante bateria
+                "batteryPct":  battery,
+                "temperatureC": round(random.uniform(18.0, 32.0), 1),
+                "firmware":    p.get("firmwareVersion") or "1.0.0",
+            }
+            try:
+                mqtt_client_ref.publish(TOPIC_PANEL, json.dumps(payload))
+            except Exception as e:
+                print(f"[SIM] panel heartbeat falhou {p.get('code')}: {e}")
+        time.sleep(PANEL_HEARTBEAT_SEC)
+
+
 def _self_pulse_loop():
     """Sprint 0 (F4 follow-up): self-pulse periódico para a DataSource
     'Simulador de Telemetria'. Sem isto, o probe do backend não consegue
@@ -1491,4 +1535,6 @@ def _self_pulse_loop():
 if __name__ == "__main__":
     import threading
     threading.Thread(target=_self_pulse_loop, daemon=True).start()
+    # Sprint 3 (3.5): thread paralela para heartbeats dos paineis DMS.
+    threading.Thread(target=_panels_heartbeat_loop, args=(client,), daemon=True).start()
     main()

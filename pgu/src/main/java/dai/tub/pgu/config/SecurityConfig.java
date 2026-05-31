@@ -76,6 +76,11 @@ public class SecurityConfig
                 // pelo InternalApiKeyFilter (X-API-Key), nao exige role de user.
                 .requestMatchers(HttpMethod.POST, "/api/v1/validations").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/validations/**").permitAll()
+                // Sprint 3 (3.5): Paineis DMS — heartbeat M2M (X-API-Key).
+                .requestMatchers(HttpMethod.POST,   "/api/v1/panels/heartbeat").permitAll()
+                .requestMatchers(HttpMethod.POST,   "/api/v1/panels").hasAnyRole("admin", "developer")
+                .requestMatchers(HttpMethod.PUT,    "/api/v1/panels/**").hasAnyRole("admin", "developer")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/panels/**").hasAnyRole("admin", "developer")
                 // Sprint 2: activity feed (implementado por outra tarefa).
                 // admin/funcionario. TEM que vir ANTES do catch-all GET /api/v1/**.
                 .requestMatchers(HttpMethod.GET, "/api/v1/activity").hasAnyRole("admin", "funcionario", "developer")

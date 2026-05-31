@@ -164,6 +164,13 @@ export const routes = [
         loader: () => import('./pages/TicketingDashboard'),
         nav: { sectionKey: 'sections.data', labelKey: 'nav.ticketing', iconKey: 'IconAnalytics' },
       },
+      // Sprint 3 (3.5): Paineis DMS
+      {
+        path: 'panels',
+        loader: () => import('./pages/Panels'),
+        access: ['admin', 'developer'],
+        nav: { sectionKey: 'sections.network', labelKey: 'nav.panels', iconKey: 'IconDataSource' },
+      },
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),
