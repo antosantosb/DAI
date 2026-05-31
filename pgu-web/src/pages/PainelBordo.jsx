@@ -506,6 +506,7 @@ export default function PainelBordo() {
   // Fallback ao route.stops legado (bus com routeId fixo, pre-Fase 1).
   const stops = patternStops.length > 0 ? patternStops : (route?.stops || []);
 
+
   // Fase E: estados canonicos do autocarro vem de bus.status. Mantemos as
   // chaves legacy ('active', 'at-stop', etc.) para tolerar telemetria intermedia.
   const busStatus = bus?.status || status;
@@ -692,10 +693,18 @@ export default function PainelBordo() {
             })()}
             <h3 className="pb-section-title">{t('pages.painelBordo.duty.title')}</h3>
             <div className="pb-duty-list">
-              {duties.length === 0 ? (
-                <div className="pb-empty pb-empty--centered">{t('pages.painelBordo.duty.empty')}</div>
-              ) : (
-                duties.map((d) => {
+              {(() => {
+                // Sprint 5: o motorista so' vê o que falta fazer. Esconde
+                // DONE/CANCELLED/INTERRUPTED para nao poluir o painel quando
+                // ja completou trips/escala da manha e tem nova escala
+                // planeada para a tarde. Calendar continua a mostrar tudo.
+                const activeDuties = duties.filter(d =>
+                  d.status === 'PLANNED' || d.status === 'RUNNING'
+                );
+                if (activeDuties.length === 0) {
+                  return <div className="pb-empty pb-empty--centered">{t('pages.painelBordo.duty.empty')}</div>;
+                }
+                return activeDuties.map((d) => {
                   const isRunning = d.status === 'RUNNING';
                   const tripName = d.tripHeadsign || d.displayName || `Trip ${d.tripId}`;
                   return (
@@ -710,8 +719,8 @@ export default function PainelBordo() {
                       </span>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
             </div>
             <div className="pb-service-actions">
               {busStatus === 'STOPPED' && (

@@ -380,14 +380,23 @@ export default function BusDetailPanel({ bus, driver, sensor, telemetry, isAdmin
                   {t('pages.buses.scheduleListTitle')}
                   <span className="bdp-section-date">{new Date(todayISO).toLocaleDateString(i18n.language === 'pt' ? 'pt-PT' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </h4>
-                {loadingDuties ? (
-                  <div className="bdp-schedule-empty">{t('common.loading')}</div>
-                ) : duties.length === 0 ? (
-                  <div className="bdp-schedule-empty">{t('pages.buses.scheduleEmpty')}</div>
-                ) : (
+                {(() => {
+                  // Sprint 5: vista operacional — esconde duties concluidas
+                  // (DONE/CANCELLED/INTERRUPTED). O Calendar continua a
+                  // mostrar tudo (incluindo historico) para auditoria.
+                  const activeDuties = duties.filter(d =>
+                    d.status === 'PLANNED' || d.status === 'RUNNING'
+                  );
+                  if (loadingDuties) {
+                    return <div className="bdp-schedule-empty">{t('common.loading')}</div>;
+                  }
+                  if (activeDuties.length === 0) {
+                    return <div className="bdp-schedule-empty">{t('pages.buses.scheduleEmpty')}</div>;
+                  }
+                  return (
                   <>
                     <div className="bdp-schedule-list">
-                      {duties.map(d => (
+                      {activeDuties.map(d => (
                         <div key={d.id} className="bdp-schedule-row">
                           <span className="bdp-schedule-time">{formatPlannedTime(d.plannedStart)}</span>
                           <span className="bdp-schedule-route">{d.routeShortName || '—'}</span>
@@ -422,7 +431,8 @@ export default function BusDetailPanel({ bus, driver, sensor, telemetry, isAdmin
                       )}
                     </div>
                   </>
-                )}
+                  );
+                })()}
               </section>
 
               {/* Ações */}

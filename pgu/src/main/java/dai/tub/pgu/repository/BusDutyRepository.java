@@ -71,11 +71,17 @@ public interface BusDutyRepository extends JpaRepository<BusDuty, Long>
          + "ORDER BY b.busCode ASC, d.sequence ASC")
     List<BusDuty> findByServiceDateFull(@Param("serviceDate") LocalDate serviceDate);
 
-    /** Apagar a escala de um bus num dia (usado em deleteDuty). */
+    /** Apagar APENAS duties PLANNED de um bus num dia.
+     *
+     * Sprint 5: nao mexe em DONE (historico operacional preservado para
+     * auditoria/Calendar), nem em RUNNING (escala em curso nao pode ser
+     * eliminada — o motorista tem de a terminar primeiro), nem em
+     * CANCELLED/INTERRUPTED (auditoria). So' as PLANNED futuras saem.
+     */
     @Modifying
-    @Query("DELETE FROM BusDuty d WHERE d.bus.id = :busId AND d.serviceDate = :serviceDate")
-    void deleteByBusIdAndServiceDate(@Param("busId") Long busId,
-                                     @Param("serviceDate") LocalDate serviceDate);
+    @Query("DELETE FROM BusDuty d WHERE d.bus.id = :busId AND d.serviceDate = :serviceDate AND d.status = 'PLANNED'")
+    int deletePlannedByBusIdAndServiceDate(@Param("busId") Long busId,
+                                           @Param("serviceDate") LocalDate serviceDate);
 
     /** Sumario para o Calendar (#4a follow-up: substitui o GTFS calendar):
      *  por cada dia/bus no intervalo, devolve [date, busCode, tripCount].

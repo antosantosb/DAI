@@ -160,6 +160,23 @@ public class BusDutyService
             }
         }
 
+        // 5) Sprint 5: cada trip tem de COMECAR no dia da escala (serviceDate).
+        // Trips podem terminar depois da meia-noite (e.g. trip 23:30 -> 00:30
+        // do dia seguinte e' aceitavel — pertence a escala do dia em que
+        // arrancou). O que nao pode e' uma trip arrancar noutro dia.
+        ZoneId LISBON = ZoneId.of("Europe/Lisbon");
+        for (Trip t : filteredTrips) {
+            Instant ps = plannedStartByTrip.get(t.getId());
+            if (ps == null) continue;
+            LocalDate startDay = ps.atZone(LISBON).toLocalDate();
+            if (!startDay.equals(serviceDate)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "A trip " + t.getId() + " arranca em " + startDay +
+                        " mas a escala e' do dia " + serviceDate +
+                        ". Cada trip deve comecar no dia da escala.");
+            }
+        }
+
         // Ordena por planned_start e grava com sequence 1..N.
         filteredTrips.sort(Comparator.comparing(t -> plannedStartByTrip.get(t.getId())));
 
@@ -247,7 +264,11 @@ public class BusDutyService
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "So e' possivel apagar a escala com o autocarro em STOPPED. Estado actual: " + bus.getStatus());
         }
-        dutyRepository.deleteByBusIdAndServiceDate(busId, serviceDate);
+        // Sprint 5: apaga APENAS as duties PLANNED (futuras). Preserva
+        // historico (DONE/CANCELLED/INTERRUPTED) para auditoria e Calendar.
+        // Permite que o admin re-planeie a tarde mesmo depois de a manha
+        // ter sido completada — sem perder o registo do que foi feito.
+        dutyRepository.deletePlannedByBusIdAndServiceDate(busId, serviceDate);
     }
 
     // ============================================================
