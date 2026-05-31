@@ -130,6 +130,31 @@ def wait_for_backend():
     return False
 
 
+OSRM_URL = os.getenv("OSRM_URL", "http://osrm:5000")
+
+def osrm_route_points(lat1, lon1, lat2, lon2):
+    """Sprint 5 (follow-up): pede ao OSRM uma polyline que segue as estradas
+    entre (lat1,lon1) e (lat2,lon2). Devolve lista de (lat,lon).
+    Fallback: [] se OSRM indisponivel — o caller deve cair em linha recta."""
+    try:
+        url = (f"{OSRM_URL}/route/v1/driving/"
+               f"{lon1:.6f},{lat1:.6f};{lon2:.6f},{lat2:.6f}"
+               f"?overview=full&geometries=geojson")
+        with urllib.request.urlopen(url, timeout=5) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        if data.get("code") != "Ok":
+            return []
+        routes = data.get("routes") or []
+        if not routes:
+            return []
+        coords = routes[0].get("geometry", {}).get("coordinates") or []
+        # OSRM devolve [lon,lat]; o resto do simulador usa (lat,lon).
+        return [(p[1], p[0]) for p in coords if len(p) >= 2]
+    except Exception as e:
+        print(f"[SIM] OSRM route falhou: {e}")
+        return []
+
+
 def haversine_km(lat1, lon1, lat2, lon2):
     """Distância aproximada em km."""
     dlat = math.radians(lat2 - lat1)
@@ -462,6 +487,10 @@ class SimBus:
         # STARTING: alvo (lat, lon) da 1a paragem da 1a duty PLANNED.
         # Resolvido na entrada em STARTING, limpo ao sair.
         self.starting_target = None
+        # Sprint 5 (follow-up): polyline OSRM para STARTING/STOPPING (segue
+        # a estrada real em vez de linha recta). None = carregar na 1a passagem.
+        self.deadhead_polyline = None
+        self.deadhead_idx = 0
         # Duty actualmente RUNNING (BusDutyDTO) ou None se nao ha escala viva.
         self.running_duty = None
         # Conta de viagens completadas nesta sessao (uma volta ida+volta = 1).
@@ -940,7 +969,10 @@ class SimBus:
     def tick_starting(self, tub_central_lat, tub_central_lon):
         """Avanca 1 tick em modo STARTING: deadhead da central -> 1a paragem.
         Ao chegar (<ARRIVAL_RADIUS_M) chama /in-service para o backend
-        transitar STARTING -> EM_SERVICO + marcar a 1a duty como RUNNING."""
+        transitar STARTING -> EM_SERVICO + marcar a 1a duty como RUNNING.
+
+        Sprint 5 (follow-up): segue polyline OSRM (estrada real) em vez de
+        linha recta. Fallback haversine se OSRM nao responder."""
         # Defensive: autocarro sem rota inicial (modelo Transmodel) entra
         # com self.lat/self.lon = None. Inicializa na central da TUB antes
         # de qualquer calculo de distancia.
@@ -958,6 +990,10 @@ class SimBus:
             # Posicao inicial = central (parte de onde estava parado).
             self.lat = tub_central_lat
             self.lon = tub_central_lon
+            # Carrega a polyline OSRM uma vez ao iniciar o deadhead.
+            self.deadhead_polyline = osrm_route_points(
+                self.lat, self.lon, self.starting_target[0], self.starting_target[1])
+            self.deadhead_idx = 0
 
         target_lat, target_lon = self.starting_target
 
@@ -967,8 +1003,8 @@ class SimBus:
         if self.passengers > 0:
             self.passengers = 0
 
-        dist_km = haversine_km(self.lat, self.lon, target_lat, target_lon)
-        dist_m = dist_km * 1000.0
+        dist_km_target = haversine_km(self.lat, self.lon, target_lat, target_lon)
+        dist_m = dist_km_target * 1000.0
 
         if dist_m <= ARRIVAL_RADIUS_M:
             # Chegamos a 1a paragem. Snap + /in-service.
@@ -976,6 +1012,8 @@ class SimBus:
             self.lon = target_lon
             self.current_speed = 0.0
             self.status = "active"
+            self.deadhead_polyline = None
+            self.deadhead_idx = 0
             resp = api_post(f"/api/v1/buses/{self.db_id}/in-service", {})
             if resp is not None:
                 new_status = resp.get("status", self.db_status)
@@ -985,22 +1023,14 @@ class SimBus:
                     self.starting_target = None
             return
 
-        # Velocidade realista no deadhead: rampa de aceleracao na saida,
-        # cruzeiro com variacao de transito, travagem ao aproximar do alvo.
+        # Velocidade realista no deadhead.
         target_speed = self._deadhead_target_speed(dist_m)
-        # Inercia: 60% velocidade antiga + 40% nova (suaviza transicao).
         prev = self.current_speed if self.current_speed > 0 else 0.0
         self.current_speed = round(prev * 0.6 + target_speed * 0.4, 1)
-        # Avanco baseado na velocidade INSTANTANEA (nao na constante), assim
-        # a posicao acompanha o ritmo de aceleracao/travagem percebido no UI.
         km_per_tick = self.current_speed * (INTERVAL / 3600.0)
-        if km_per_tick <= 0 or dist_km <= 0:
+        if km_per_tick <= 0:
             return
-        frac = min(1.0, km_per_tick / dist_km)
-        self.lat = self.lat + (target_lat - self.lat) * frac
-        self.lon = self.lon + (target_lon - self.lon) * frac
-        self.lat += random.uniform(-0.00002, 0.00002)
-        self.lon += random.uniform(-0.00002, 0.00002)
+        self._advance_along(km_per_tick, target_lat, target_lon)
         self.status = "active"
         self.odometer_km = round(self.odometer_km + km_per_tick, 3)
 
@@ -1020,31 +1050,38 @@ class SimBus:
         return cruise * random.uniform(0.85, 1.15)
 
     def tick_deadhead(self, tub_central_lat, tub_central_lon):
-        """Avanca 1 tick em modo deadhead (STOPPING): linha recta para a central.
+        """Avanca 1 tick em modo deadhead (STOPPING): segue OSRM (estrada
+        real) ate' a central. Quando chega a < ARRIVAL_RADIUS_M, chama
+        /arrived. Idempotente: chamar mais do que uma vez em STOPPED nao
+        parte nada (o backend trata).
 
-        Quando chega a < ARRIVAL_RADIUS_M, chama /arrived. Idempotente: chamar
-        mais do que uma vez em STOPPED nao parte nada (o backend trata).
-        """
+        Sprint 5 (follow-up): polyline OSRM em vez de linha recta. Fallback
+        haversine se OSRM nao responder."""
         # Reseta APC: nao recolhe passageiros, vai vazio para a central.
         self.last_boarded = 0
         self.last_alighted = 0
-        # Garantir que o frame nao mostra passageiros "presos" do servico.
         if self.passengers > 0:
             self.passengers = 0
 
-        # Distancia em km e em metros para o criterio de chegada.
-        dist_km = haversine_km(self.lat, self.lon, tub_central_lat, tub_central_lon)
-        dist_m = dist_km * 1000.0
+        # Carrega polyline na 1a passagem do ciclo de STOPPING (one-shot).
+        if not getattr(self, 'deadhead_polyline', None):
+            self.deadhead_polyline = osrm_route_points(
+                self.lat, self.lon, tub_central_lat, tub_central_lon)
+            self.deadhead_idx = 0
+
+        dist_km_target = haversine_km(self.lat, self.lon, tub_central_lat, tub_central_lon)
+        dist_m = dist_km_target * 1000.0
 
         if dist_m <= ARRIVAL_RADIUS_M:
-            # Chegamos. Lock na posicao da central (evita drift) e chama /arrived.
+            # Chegamos. Lock + /arrived.
             self.lat = tub_central_lat
             self.lon = tub_central_lon
             self.current_speed = 0.0
             self.status = "stopped"
+            self.deadhead_polyline = None
+            self.deadhead_idx = 0
             resp = api_post(f"/api/v1/buses/{self.db_id}/arrived", {})
             if resp is not None:
-                # O backend retorna BusDTO com status atualizado (deve ficar STOPPED).
                 new_status = resp.get("status", self.db_status)
                 if new_status != self.db_status:
                     print(f"[SIM] {self.bus_id} chegou a central ({new_status})")
@@ -1056,18 +1093,48 @@ class SimBus:
         prev = self.current_speed if self.current_speed > 0 else 0.0
         self.current_speed = round(prev * 0.6 + target_speed * 0.4, 1)
         km_per_tick = self.current_speed * (INTERVAL / 3600.0)
-        if km_per_tick <= 0 or dist_km <= 0:
+        if km_per_tick <= 0:
             return
-        # Fraccao de avanco no segmento; clamp a 1.0 para nao ultrapassar.
-        frac = min(1.0, km_per_tick / dist_km)
-        self.lat = self.lat + (tub_central_lat - self.lat) * frac
-        self.lon = self.lon + (tub_central_lon - self.lon) * frac
-        # Ruido GPS pequeno para coerencia com o resto da simulacao.
+        self._advance_along(km_per_tick, tub_central_lat, tub_central_lon)
+        self.status = "active"
+        self.odometer_km = round(self.odometer_km + km_per_tick, 3)
+
+    def _advance_along(self, km_per_tick, final_lat, final_lon):
+        """Sprint 5 (follow-up): avanca self.lat/self.lon ao longo da
+        polyline OSRM (self.deadhead_polyline). Se nao houver polyline ou
+        ja ultrapassou o ultimo waypoint, cai em linha recta para o final."""
+        poly = getattr(self, 'deadhead_polyline', None) or []
+        idx = getattr(self, 'deadhead_idx', 0) or 0
+        remaining_km = km_per_tick
+
+        while remaining_km > 0 and idx < len(poly) - 1:
+            nlat, nlon = poly[idx + 1]
+            seg_km = haversine_km(self.lat, self.lon, nlat, nlon)
+            if seg_km <= remaining_km:
+                # Consome o segmento inteiro e avanca para o proximo.
+                self.lat, self.lon = nlat, nlon
+                remaining_km -= seg_km
+                idx += 1
+            else:
+                frac = remaining_km / seg_km
+                self.lat += (nlat - self.lat) * frac
+                self.lon += (nlon - self.lon) * frac
+                remaining_km = 0
+                break
+        self.deadhead_idx = idx
+
+        # Se ja' nao ha polyline (fallback) ou ja' esgotamos os waypoints
+        # mas ainda nao chegamos, faz a aproximacao final em linha recta.
+        if remaining_km > 0:
+            dist_km = haversine_km(self.lat, self.lon, final_lat, final_lon)
+            if dist_km > 0:
+                frac = min(1.0, remaining_km / dist_km)
+                self.lat += (final_lat - self.lat) * frac
+                self.lon += (final_lon - self.lon) * frac
+
+        # Ruido GPS pequeno para coerencia.
         self.lat += random.uniform(-0.00002, 0.00002)
         self.lon += random.uniform(-0.00002, 0.00002)
-        self.status = "active"
-        # Odometro continua a contar em deadhead (km reais percorridos).
-        self.odometer_km = round(self.odometer_km + km_per_tick, 3)
 
     def _subsensors(self, speed):
         """Fase C (Passo 2): bloco de sub-sensores do MAIN SENSOR, todos saudaveis
@@ -1218,6 +1285,9 @@ def main():
             print(f"[SIM] Ligado ao broker MQTT ({BROKER}:{PORT})")
             c.subscribe("tub/dispatch/+")
             print("[SIM] Subscrito ao tópico de despacho: tub/dispatch/+")
+            # Sprint 5 (follow-up): conteudo dos paineis DMS empurrado pelo backend.
+            c.subscribe("tub/panels/+/content")
+            print("[SIM] Subscrito ao tópico de conteúdo dos paineis: tub/panels/+/content")
         else:
             print(f"[SIM] Falha na ligação MQTT. Código: {rc}")
 
@@ -1226,6 +1296,24 @@ def main():
             topic = msg.topic
             payload = json.loads(msg.payload.decode("utf-8"))
             parts = topic.split("/")
+            # Sprint 5 (follow-up): conteudo do painel DMS empurrado pelo backend
+            # via tub/panels/{panelCode}/content. O simulador apenas regista
+            # (na vida real, o painel renderiza as proximas chegadas no e-paper).
+            if len(parts) == 4 and parts[0] == "tub" and parts[1] == "panels" and parts[3] == "content":
+                panel_code = parts[2]
+                arrivals = payload.get("arrivals") or []
+                stop_name = payload.get("stopName") or "?"
+                if not arrivals:
+                    print(f"[PANEL {panel_code} @ {stop_name}] Sem aproximações neste momento.")
+                else:
+                    summary = ", ".join([
+                        f"{a.get('routeCode','?')}:{a.get('busCode','?')} em {a.get('etaMinutes','?')}min"
+                        + (f" (sched {a['scheduledArrival']}, {('+' if (a.get('delayMinutes') or 0) >= 0 else '')}{a.get('delayMinutes')}m)"
+                           if a.get('scheduledArrival') else "")
+                        for a in arrivals
+                    ])
+                    print(f"[PANEL {panel_code} @ {stop_name}] {summary}")
+                return
             if len(parts) >= 3 and parts[0] == "tub" and parts[1] == "dispatch":
                 bus_id = parts[2]
                 message_id = payload.get("messageId")
@@ -1261,6 +1349,11 @@ def main():
     client.on_message = on_message
     client.connect(BROKER, PORT)
     client.loop_start()
+
+    # Sprint 3 (3.5): thread paralela para heartbeats dos paineis DMS.
+    # Iniciada AQUI (depois do client MQTT existir, antes do loop principal).
+    import threading
+    threading.Thread(target=_panels_heartbeat_loop, args=(client,), daemon=True).start()
 
     print(f"[SIM] A simular {len(sim_buses)} autocarros a cada {INTERVAL}s no tópico '{TOPIC}'")
     print("=" * 50)
@@ -1588,6 +1681,6 @@ def _self_pulse_loop():
 if __name__ == "__main__":
     import threading
     threading.Thread(target=_self_pulse_loop, daemon=True).start()
-    # Sprint 3 (3.5): thread paralela para heartbeats dos paineis DMS.
-    threading.Thread(target=_panels_heartbeat_loop, args=(client,), daemon=True).start()
+    # A thread dos paineis (Sprint 3) e' iniciada DENTRO de main(), apos o
+    # cliente MQTT ser criado — depende dele para publicar heartbeats.
     main()

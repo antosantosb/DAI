@@ -56,8 +56,13 @@ public class AiChatController {
                 .body(new ChatResponse(null, List.of(), "Serviço IA desativado.", 0));
         }
 
-        String userId = jwt.getSubject();
+        // O 'sub' do JWT pode estar ausente em users internos (ex: 'dev').
+        // Fallback para 'preferred_username' ou 'unknown' — user_id e' NOT NULL.
         String username = jwt.getClaimAsString("preferred_username");
+        String userId = jwt.getSubject();
+        if (userId == null || userId.isBlank()) {
+            userId = (username != null && !username.isBlank()) ? username : "unknown";
+        }
         UUID sessionId = request.sessionId() != null ? request.sessionId() : UUID.randomUUID();
 
         var result = chatService.processChat(userId, username, sessionId, request.message());

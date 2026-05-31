@@ -10,18 +10,27 @@ import java.util.Map;
 // import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
 import dai.tub.pgu.domain.Bus;
+import dai.tub.pgu.domain.BusDuty;
 import dai.tub.pgu.domain.BusStop;
 import dai.tub.pgu.domain.JourneyPattern;
 import dai.tub.pgu.domain.PatternStop;
 import dai.tub.pgu.domain.Route;
+import dai.tub.pgu.domain.TripStopTime;
 import dai.tub.pgu.domain.VehicleTelemetry;
 import dai.tub.pgu.dto.StopEtaDTO;
 import dai.tub.pgu.dto.StopPanelDTO;
+import dai.tub.pgu.repository.BusDutyRepository;
 import dai.tub.pgu.repository.BusRepository;
 import dai.tub.pgu.repository.BusStopRepository;
 import dai.tub.pgu.repository.PatternStopRepository;
 import dai.tub.pgu.repository.TelemetryRepository;
+import dai.tub.pgu.repository.TripStopTimeRepository;
 
 @Service
 public class StopPanelService
@@ -35,16 +44,24 @@ public class StopPanelService
     private final BusRepository busRepo;
     private final TelemetryRepository telemetryRepo;
     private final OsrmService osrmService;
+    private final BusDutyRepository busDutyRepo;
+    private final TripStopTimeRepository tripStopTimeRepo;
+
+    private static final ZoneId LISBON = ZoneId.of("Europe/Lisbon");
 
     public StopPanelService(BusStopRepository stopRepo, PatternStopRepository patternStopRepo,
                             BusRepository busRepo, TelemetryRepository telemetryRepo,
-                            OsrmService osrmService)
+                            OsrmService osrmService,
+                            BusDutyRepository busDutyRepo,
+                            TripStopTimeRepository tripStopTimeRepo)
     {
         this.stopRepo = stopRepo;
         this.patternStopRepo = patternStopRepo;
         this.busRepo = busRepo;
         this.telemetryRepo = telemetryRepo;
         this.osrmService = osrmService;
+        this.busDutyRepo = busDutyRepo;
+        this.tripStopTimeRepo = tripStopTimeRepo;
     }
 
     public StopPanelDTO getPanel(Long stopId)
@@ -80,8 +97,12 @@ public class StopPanelService
             int stopOrder = rs.getStopSequence();
             int totalStops = patternStopCount.getOrDefault(rs.getPattern().getId(), 0L).intValue();
 
-            // Buscar autocarros ativos nesta rota
-            List<Bus> activeBuses = busRepo.findByRouteIdAndStatus(route.getId(), "ACTIVE");
+            // Buscar autocarros em operacao nesta rota (EM_SERVICO + transicoes).
+            // Sprint 5 (follow-up): antes filtravamos por "ACTIVE" mas no PGU
+            // o Bus.status nunca tem esse valor (e' "EM_SERVICO" / "STARTING"
+            // / "STOPPING" / "STOPPED"). Resultado: lista vazia sempre.
+            List<Bus> activeBuses = busRepo.findByRouteIdAndStatusIn(
+                route.getId(), java.util.Set.of("EM_SERVICO", "STARTING", "STOPPING"));
 
             for (Bus bus : activeBuses)
             {
@@ -120,11 +141,42 @@ public class StopPanelService
                 int etaMinutes = (int) Math.ceil(travelMinutes + dwellMinutes);
                 if (etaMinutes < 1) etaMinutes = 1;
 
+                // Sprint 5 (follow-up): tentar enriquecer com scheduled + delay.
+                // Procura a duty RUNNING deste bus hoje, vai a TripStopTime
+                // desta paragem, calcula minutos ate ao scheduled e o atraso.
+                String scheduled = null;
+                Integer delay = null;
+                Long tripId = null;
+                try {
+                    LocalDate today = LocalDate.now(LISBON);
+                    List<BusDuty> running = busDutyRepo.findRunningByBusAndDate(bus.getId(), today);
+                    if (!running.isEmpty()) {
+                        BusDuty duty = running.get(0);
+                        tripId = duty.getTrip().getId();
+                        List<TripStopTime> tsts = tripStopTimeRepo.findByTripIdAndStopId(tripId, stopId);
+                        if (!tsts.isEmpty()) {
+                            String arr = tsts.get(0).getArrivalTime(); // "HH:mm:ss" ou "HH:mm"
+                            if (arr != null && !arr.isBlank()) {
+                                // Truncar a HH:mm para display
+                                scheduled = arr.length() >= 5 ? arr.substring(0, 5) : arr;
+                                long scheduledFromNowMin = minutesFromNowToHHmm(arr, today);
+                                // Atraso = (chegada real) - (chegada teorica). Positivo = atrasado.
+                                delay = (int) (etaMinutes - scheduledFromNowMin);
+                            }
+                        }
+                    }
+                } catch (Exception ignore) {
+                    // best-effort: se algo falhar, ETA fica sem scheduled
+                }
+
                 allEtas.add(new StopEtaDTO(
                     route.getCode(),
                     route.getColor() != null ? route.getColor() : "#6366f1",
                     bus.getBusCode(),
-                    etaMinutes
+                    etaMinutes,
+                    scheduled,
+                    delay,
+                    tripId
                 ));
             }
         }
@@ -153,5 +205,30 @@ public class StopPanelService
                  + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
                  * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    /**
+     * Sprint 5 (follow-up): minutos entre AGORA e um "HH:mm[:ss]" no
+     * service date. Suporta horas >= 24 (formato GTFS) -- noite seguinte.
+     * Negativo significa que o horario teorico ja passou (ja devia ter chegado).
+     */
+    private long minutesFromNowToHHmm(String hhmmss, LocalDate serviceDate)
+    {
+        try {
+            String[] parts = hhmmss.split(":");
+            int h = Integer.parseInt(parts[0]);
+            int m = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+            int s = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+
+            LocalDate date = serviceDate;
+            int hour = h;
+            if (h >= 24) { date = date.plusDays(h / 24); hour = h % 24; }
+
+            ZonedDateTime scheduled = ZonedDateTime.of(date, LocalTime.of(hour, m, s), LISBON);
+            ZonedDateTime now = ZonedDateTime.now(LISBON);
+            return java.time.Duration.between(now, scheduled).toMinutes();
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 }

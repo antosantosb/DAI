@@ -224,11 +224,17 @@ export default function Layout() {
 
   const isAdmin = roles.includes('admin');
   const isDeveloper = roles.includes('developer');
+  const isFiscal = roles.includes('fiscal');
+  const isMotorista = roles.includes('motorista');
   const displayRole = isAdmin
     ? t('auth.roles.admin')
     : isDeveloper
       ? t('auth.roles.developer')
-      : t('auth.roles.funcionario');
+      : isFiscal
+        ? t('auth.roles.fiscal', 'Fiscal')
+        : isMotorista
+          ? t('auth.roles.motorista')
+          : t('auth.roles.funcionario');
   const fullName = meProfile
     ? [meProfile.firstName, meProfile.lastName].filter(Boolean).join(' ').trim()
     : '';

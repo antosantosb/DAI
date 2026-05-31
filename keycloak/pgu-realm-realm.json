@@ -61,7 +61,8 @@
       { "name": "admin", "description": "Full access to backoffice" },
       { "name": "funcionario", "description": "Acesso ao backoffice - operações do dia-a-dia" },
       { "name": "motorista", "description": "Acesso ao painel de bordo do motorista" },
-      { "name": "developer", "description": "Acesso a ferramentas de simulação / demo" }
+      { "name": "developer", "description": "Acesso a ferramentas de simulação / demo" },
+      { "name": "fiscal", "description": "Acesso ao painel de fiscais (resolução de fraudes de bilhética)" }
     ]
   },
   "clients": [

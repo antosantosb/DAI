@@ -53,6 +53,35 @@ export default function PainelBordo() {
   const [departure, setDeparture] = useState(null);
   const [tickNow, setTickNow] = useState(Date.now());
 
+  // Sprint 5 (follow-up): bloqueio JS do scroll #root/body enquanto o
+  // painel de bordo esta montado. Backup para browsers sem :has() robusto.
+  // O index.css tem `#root { overflow-y: auto; height: calc(100vh - 32px) }`
+  // que causa a scrollbar global. Aqui fazemos override e restauramos no
+  // unmount para nao afectar outras paginas.
+  useEffect(() => {
+    const root = document.getElementById('root');
+    const prev = {
+      rootOverflow: root?.style.overflow,
+      rootHeight: root?.style.height,
+      htmlOverflow: document.documentElement.style.overflow,
+      bodyOverflow: document.body.style.overflow,
+    };
+    if (root) {
+      root.style.overflow = 'hidden';
+      root.style.height = '100vh';
+    }
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      if (root) {
+        root.style.overflow = prev.rootOverflow;
+        root.style.height = prev.rootHeight;
+      }
+      document.documentElement.style.overflow = prev.htmlOverflow;
+      document.body.style.overflow = prev.bodyOverflow;
+    };
+  }, []);
+
   // Carrega dados da conta (1x ao autenticar) para popular o avatar do header.
   // Antes era on-demand; mudei para eager por causa do avatar no header.
   useEffect(() => {
@@ -422,7 +451,12 @@ export default function PainelBordo() {
         }
         size="sm"
       />
-      <span>{t('pages.bordo.accountButton')}</span>
+      <span className="pb-account-meta">
+        <span className="pb-account-name">
+          {[accountData?.firstName, accountData?.lastName].filter(Boolean).join(' ').trim() || username}
+        </span>
+        <span className="pb-account-role">{t('auth.roles.motorista', 'Motorista')}</span>
+      </span>
     </button>
   );
 

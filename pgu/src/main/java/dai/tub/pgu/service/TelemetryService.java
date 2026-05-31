@@ -385,13 +385,15 @@ public class TelemetryService
         List<Bus> buses = busRepository.findAll();
         Instant now = Instant.now();
 
-        // Saude da Rede IoT = visao da camada de telematica embarcada.
-        // So' faz sentido para autocarros que (a) NAO estao descomissionados
-        // (terminal: nao ha rede para reportar) e (b) TEM pelo menos um sensor
-        // atribuido (sem sensor nao ha possivel "Online/Offline" — a celula
-        // ficaria perpetuamente offline e poluia o dashboard).
+        // Saude da Rede IoT = visao da camada de telematica embarcada
+        // EM OPERACAO. So' faz sentido para autocarros que estao actualmente
+        // a operar (STARTING/EM_SERVICO/STOPPING). STOPPED ou DECOMMISSIONED
+        // nao deviam aparecer — nao ha telemetria a fluir (motor desligado /
+        // descomissionado). E TEM de ter sensor atribuido (sem sensor nao ha
+        // possivel "Online/Offline" — a celula ficaria perpetuamente offline).
+        java.util.Set<String> ACTIVE = java.util.Set.of("STARTING", "EM_SERVICO", "STOPPING");
         return buses.stream()
-            .filter(bus -> !"DECOMMISSIONED".equals(bus.getStatus()))
+            .filter(bus -> ACTIVE.contains(bus.getStatus()))
             .filter(bus -> vehicleSensorRepository.existsByBusId(bus.getId()))
             .map(bus -> {
             String status = "No Data";

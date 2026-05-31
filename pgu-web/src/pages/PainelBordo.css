@@ -5,6 +5,20 @@
    o look dark original (slate-900/800).
    ══════════════════════════════════════════════════════════ */
 
+/* Sprint 5 (follow-up): bloquear scroll do body enquanto o painel de
+   bordo esta' montado. A pagina inteira deve caber em 100vh; o ProjectDisclaimer
+   fixed e' considerado no padding-bottom do container.
+   O #root em index.css tem overflow-y:auto + height:calc(100vh-32px), o que
+   causa a scrollbar global a aparecer. Override aqui via :has(). */
+html:has(.pb-container), body:has(.pb-container) {
+  overflow: hidden;
+  height: 100vh;
+}
+#root:has(.pb-container) {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
 .pb-container {
   height: 100vh;
   max-height: 100vh;
@@ -15,26 +29,42 @@
   flex-direction: column;
   overflow: hidden;
   user-select: none;
+  /* Reserva espaco para o <ProjectDisclaimer fixed> que vive no App.jsx
+     e fica sobreposto no fundo do viewport. ~32px para o seu height. */
+  padding-bottom: 34px;
+  box-sizing: border-box;
 }
 
 /* Botao "Conta" no header — discreto, mesma altura que o ThemeSwitcher. */
 .pb-account-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 4px 12px 4px 4px;
   background: transparent;
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.12));
-  border-radius: 8px;
+  border-radius: 28px;
   color: var(--color-text, #0f172a);
-  font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
   transition: background 120ms, border-color 120ms;
 }
 
 .pb-account-btn:hover {
   background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-border-medium, var(--color-border));
+}
+
+.pb-account-meta {
+  display: flex; flex-direction: column; line-height: 1.15;
+  text-align: left;
+}
+.pb-account-name {
+  color: var(--color-text-heading);
+  font-weight: 600; font-size: 13px;
+}
+.pb-account-role {
+  color: var(--color-text-light);
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
 }
 
 .pb-error-actions {
@@ -99,7 +129,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 10px 18px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
@@ -112,7 +142,7 @@
 }
 
 .pb-bus-code {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, #009BDB, #38BDF8);
@@ -122,7 +152,7 @@
 }
 
 .pb-route-name {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
@@ -132,15 +162,16 @@
 }
 
 .pb-clock {
-  font-size: 36px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--color-text-heading);
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .pb-date {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-light);
   text-transform: capitalize;
   margin-top: 2px;
@@ -162,10 +193,13 @@
   letter-spacing: 0.04em;
 }
 
-/* ─── ThemeSwitcher integration ─── */
+/* ─── Switchers (Lang + Theme) ─── */
 .pb-theme {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border);
 }
 
 /* ─── Main layout ─── 3 colunas (Serviço · Info · Comms).
@@ -177,8 +211,8 @@
   display: grid;
   grid-template-columns: 1.15fr 1fr 1.05fr;
   grid-template-rows: auto 1fr auto;
-  gap: 16px;
-  padding: 16px 22px;
+  gap: 10px;
+  padding: 10px 14px;
   overflow: hidden;
 }
 .pb-right-col { display: contents; }
@@ -201,21 +235,21 @@
 /* ─── Section card ─── */
 .pb-section {
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
-  padding: 20px;
+  padding: 12px 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .pb-section-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-text-light);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 0 0 16px;
+  margin: 0 0 8px;
   flex-shrink: 0;
 }
 
@@ -236,37 +270,28 @@
   flex: 1;
   padding-right: 8px;
 }
-
-.pb-route-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.pb-route-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.pb-route-list::-webkit-scrollbar-thumb {
-  background: var(--color-border-medium);
-  border-radius: 2px;
-}
+.pb-route-list::-webkit-scrollbar { width: 4px; }
+.pb-route-list::-webkit-scrollbar-track { background: transparent; }
+.pb-route-list::-webkit-scrollbar-thumb { background: var(--color-border-medium); border-radius: 2px; }
 
 /* ─── Stop item ─── */
 .pb-stop {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
   transition: background 0.15s;
   position: relative;
+  font-size: 13px;
 }
 
 .pb-stop:not(:last-child)::after {
   content: '';
   position: absolute;
-  /* Linha alinhada com o centro do dot. padding-left=12, dot=12px com
-     box-sizing border-box → centro a 18px → left=17 (largura 2 / 2). */
-  left: 17px;
+  /* Linha alinhada com o centro do dot. padding-left=8, dot=12px com
+     box-sizing border-box → centro a 14px → left=13 (largura 2 / 2). */
+  left: 13px;
   /* Linha cobre do centro do dot atual ate o centro do dot do proximo.
      Como o flex .pb-stop usa align-items:center, o dot fica em top:50%.
      Sem gap entre items, top:50% + height:100% liga centro a centro. */
@@ -364,23 +389,23 @@
 .pb-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 20px;
+  gap: 10px;
+  padding: 12px 14px;
 }
 
 .pb-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 16px 12px;
+  gap: 2px;
+  padding: 10px 8px;
   background: var(--color-bg-subtle);
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--color-border);
 }
 
 .pb-stat-value {
-  font-size: 42px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--color-text-heading);
   line-height: 1;
@@ -388,7 +413,7 @@
 }
 
 .pb-stat-value--small {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -398,7 +423,7 @@
 }
 
 .pb-stat-label {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-light);
   text-transform: uppercase;
@@ -434,24 +459,14 @@
   gap: 8px;
   padding-right: 8px;
 }
-
-.pb-message-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.pb-message-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.pb-message-list::-webkit-scrollbar-thumb {
-  background: var(--color-border-medium);
-  border-radius: 2px;
-}
+.pb-message-list::-webkit-scrollbar { width: 4px; }
+.pb-message-list::-webkit-scrollbar-track { background: transparent; }
+.pb-message-list::-webkit-scrollbar-thumb { background: var(--color-border-medium); border-radius: 2px; }
 
 /* ─── Chat messages (bidirecional) ─── */
 .pb-message {
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 7px 11px;
+  border-radius: 10px;
   max-width: 85%;
   transition: opacity 0.15s;
 }
@@ -482,10 +497,10 @@
 .pb-message--sent .pb-message-sender { color: var(--color-primary-hover); }
 
 .pb-message-content {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
-  line-height: 1.5;
-  margin-bottom: 6px;
+  line-height: 1.4;
+  margin-bottom: 4px;
 }
 
 .pb-message-meta {
@@ -568,14 +583,14 @@
 .pb-alert-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 .pb-alert-btn {
-  padding: 16px 12px;
+  padding: 10px 10px;
   border: 2px solid transparent;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
@@ -990,24 +1005,23 @@
 }
 
 /* ── Fase E (E-front-2): escala + CTAs Iniciar/Terminar Servico ───────── */
-.pb-service { display: flex; flex-direction: column; gap: 12px; }
+.pb-service { display: flex; flex-direction: column; gap: 8px; }
 .pb-duty-list {
   display: flex; flex-direction: column; gap: 8px;
   flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px;
 }
 .pb-duty-list::-webkit-scrollbar { width: 4px; }
 .pb-duty-list::-webkit-scrollbar-track { background: transparent; }
-.pb-duty-list::-webkit-scrollbar-thumb {
-  background: var(--color-border-medium); border-radius: 2px;
-}
+.pb-duty-list::-webkit-scrollbar-thumb { background: var(--color-border-medium); border-radius: 2px; }
 .pb-duty {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
-  align-items: center; gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
   background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-light);
+  font-size: 13px;
 }
 .pb-duty--running {
   border-color: var(--color-primary);
@@ -1051,14 +1065,14 @@
 .pb-duty-badge--cancelled   { background: rgba(100, 116, 139, 0.18); color: #64748b; }
 .pb-duty-badge--interrupted { background: rgba(239, 68, 68, 0.18); color: #ef4444; }
 
-.pb-service-actions { display: flex; gap: 12px; justify-content: stretch; }
+.pb-service-actions { display: flex; gap: 8px; justify-content: stretch; }
 .pb-service-btn {
   flex: 1;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: none;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 13px;
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
 }

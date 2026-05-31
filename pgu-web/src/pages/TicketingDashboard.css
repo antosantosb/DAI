@@ -1,6 +1,52 @@
-/* Sprint 5 (3.3): TicketingDashboard — extensoes a AnalyticsDashboard.css.
-   Reusa o layout base; adiciona componentes especificos (bars 24h, listas
-   por canal/categoria/coroa, tabela live). */
+/* Sprint 5 (3.3): TicketingDashboard — layout proprio (nao depende do
+   AnalyticsDashboard.css). Reproduz a estrutura visual KPI + sections. */
+
+.analytics-page { padding: 2rem; }
+.analytics-header { margin-bottom: 12px; }
+.analytics-header h1 { margin: 0 0 4px; }
+.analytics-subtitle { color: var(--color-text-secondary); margin: 0; }
+
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+.kpi-label {
+  font-size: 12px;
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.kpi-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-text-heading);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.analytics-section h2 {
+  margin: 0 0 12px;
+  color: var(--color-text-heading);
+  font-size: 18px;
+}
+
 
 .ticket-bars {
   display: grid;

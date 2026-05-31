@@ -13,16 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
+import dai.tub.pgu.domain.BusStop;
 import dai.tub.pgu.domain.EstadoOcorrencia;
 import dai.tub.pgu.domain.Ocorrencia;
 import dai.tub.pgu.domain.OcorrenciaAnexo;
 import dai.tub.pgu.dto.OcorrenciaDTO;
+import dai.tub.pgu.dto.OcorrenciaLocationContextDTO;
 import dai.tub.pgu.dto.OcorrenciaRequestDTO;
 import dai.tub.pgu.dto.TelemetryDTO;
 import dai.tub.pgu.service.AnexoService;
 import dai.tub.pgu.service.OcorrenciaService;
 import dai.tub.pgu.service.TelemetryService;
+import dai.tub.pgu.domain.VehicleTelemetry;
+import dai.tub.pgu.repository.BusStopRepository;
 import dai.tub.pgu.repository.OcorrenciaRepository;
+import dai.tub.pgu.repository.TelemetryRepository;
 
 @RestController
 @RequestMapping("/api/v1/ocorrencias")
@@ -32,15 +37,96 @@ public class OcorrenciaController {
     private final AnexoService anexoService;
     private final TelemetryService telemetryService;
     private final OcorrenciaRepository ocorrenciaRepository;
+    private final BusStopRepository busStopRepository;
+    private final TelemetryRepository telemetryRepository;
 
     public OcorrenciaController(OcorrenciaService ocorrenciaService,
                                 AnexoService anexoService,
                                 TelemetryService telemetryService,
-                                OcorrenciaRepository ocorrenciaRepository) {
+                                OcorrenciaRepository ocorrenciaRepository,
+                                BusStopRepository busStopRepository,
+                                TelemetryRepository telemetryRepository) {
         this.ocorrenciaService = ocorrenciaService;
         this.anexoService = anexoService;
         this.telemetryService = telemetryService;
         this.ocorrenciaRepository = ocorrenciaRepository;
+        this.busStopRepository = busStopRepository;
+        this.telemetryRepository = telemetryRepository;
+    }
+
+    /**
+     * Sprint 5 (follow-up): contexto geografico de uma ocorrencia — para o
+     * fiscal se orientar ate ao local. Devolve a ultima localizacao conhecida
+     * do bus + a paragem mais proxima (haversine sobre todas as stops).
+     */
+    @GetMapping("/{id}/location-context")
+    public ResponseEntity<OcorrenciaLocationContextDTO> getLocationContext(@PathVariable Long id)
+    {
+        Ocorrencia oc = ocorrenciaRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ocorrencia nao encontrada"));
+
+        OcorrenciaLocationContextDTO dto = new OcorrenciaLocationContextDTO();
+        dto.setOcorrenciaId(oc.getId());
+        dto.setAtivoId(oc.getAtivoId());
+
+        VehicleTelemetry latest = telemetryRepository.findLatestByBusId(oc.getAtivoId());
+        if (latest == null || latest.getLocation() == null) {
+            return ResponseEntity.ok(dto);
+        }
+        double busLat = latest.getLocation().getY();
+        double busLon = latest.getLocation().getX();
+        dto.setBusLat(busLat);
+        dto.setBusLon(busLon);
+
+        // Single pass: encontrar a paragem mais proxima do bus + a paragem
+        // destino actual (cujo nome esta' em latest.getNextStop(), populado
+        // pelo TelemetryService.deriveNextStop). Se o nome coincide com
+        // varias stops, escolhemos a mais proxima do bus para desambiguar.
+        String destName = latest.getNextStop();
+        BusStop nearest = null;
+        double bestDist = Double.MAX_VALUE;
+        BusStop dest = null;
+        double bestDestDist = Double.MAX_VALUE;
+        for (BusStop s : busStopRepository.findAll()) {
+            if (s.getLocation() == null) continue;
+            double sLat = s.getLocation().getY();
+            double sLon = s.getLocation().getX();
+            double d = haversineMeters(busLat, busLon, sLat, sLon);
+            if (d < bestDist) { bestDist = d; nearest = s; }
+            if (destName != null && !destName.isBlank()
+                && destName.equalsIgnoreCase(s.getName())
+                && d < bestDestDist) {
+                bestDestDist = d; dest = s;
+            }
+        }
+        if (nearest != null) {
+            dto.setNearestStopId(nearest.getId());
+            dto.setNearestStopName(nearest.getName());
+            dto.setNearestStopCode(nearest.getCode());
+            dto.setNearestStopLat(nearest.getLocation().getY());
+            dto.setNearestStopLon(nearest.getLocation().getX());
+            dto.setNearestStopDistanceMeters((int) Math.round(bestDist));
+        }
+        if (dest != null) {
+            dto.setDestStopId(dest.getId());
+            dto.setDestStopName(dest.getName());
+            dto.setDestStopCode(dest.getCode());
+            dto.setDestStopLat(dest.getLocation().getY());
+            dto.setDestStopLon(dest.getLocation().getX());
+            dto.setDestStopDistanceMeters((int) Math.round(bestDestDist));
+        }
+        return ResponseEntity.ok(dto);
+    }
+
+    private static double haversineMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        double R = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     @GetMapping

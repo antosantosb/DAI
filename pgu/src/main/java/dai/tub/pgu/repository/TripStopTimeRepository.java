@@ -15,6 +15,11 @@ public interface TripStopTimeRepository extends JpaRepository<TripStopTime, Long
 {
     List<TripStopTime> findByTripIdOrderByStopSequence(Long tripId);
 
+    /** Sprint 5 (follow-up ETA): passing time de uma paragem numa trip especifica. */
+    @Query("SELECT t FROM TripStopTime t WHERE t.trip.id = :tripId AND t.stop.id = :stopId")
+    List<TripStopTime> findByTripIdAndStopId(@Param("tripId") Long tripId,
+                                              @Param("stopId") Long stopId);
+
     /** Horarios de uma paragem (com trip/rota/padrao carregados), ordenados por arrival. */
     @Query("SELECT t FROM TripStopTime t "
          + "JOIN FETCH t.trip tr JOIN FETCH tr.route JOIN FETCH tr.pattern JOIN FETCH t.stop "

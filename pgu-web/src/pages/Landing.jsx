@@ -14,13 +14,18 @@ export default function Landing() {
   const { authenticated, login, logout, username, roles } = useAuth();
 
   // Motorista nunca tem opção de escolher — vai direto para o painel de bordo.
+  // Fiscal idem — vai direto para o painel de fraudes.
   useEffect(() => {
-    if (authenticated && roles.includes('motorista')) {
+    if (!authenticated) return;
+    if (roles.includes('motorista')) {
       navigate('/bordo', { replace: true });
+    } else if (roles.includes('fiscal')) {
+      navigate('/fiscal', { replace: true });
     }
   }, [authenticated, roles, navigate]);
 
   const isMotorista = roles.includes('motorista');
+  const isFiscal = roles.includes('fiscal');
 
   const roleLabel = roles.includes('admin')
     ? t('auth.roles.admin')
@@ -28,7 +33,9 @@ export default function Landing() {
       ? t('auth.roles.developer')
       : roles.includes('motorista')
         ? t('auth.roles.motorista')
-        : t('auth.roles.funcionario');
+        : roles.includes('fiscal')
+          ? t('auth.roles.fiscal', 'Fiscal')
+          : t('auth.roles.funcionario');
 
   return (
     <div className="landing">

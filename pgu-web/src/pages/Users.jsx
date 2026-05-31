@@ -19,6 +19,7 @@ export default function Users() {
   const ROLE_OPTIONS = [
     { value: 'funcionario', label: t('pages.users.roleFuncionario') },
     { value: 'motorista', label: t('pages.users.roleDriver') },
+    { value: 'fiscal', label: t('pages.users.roleFiscal', 'Fiscal') },
   ];
   const { username: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
@@ -279,6 +280,7 @@ export default function Users() {
     if (roles.includes('developer')) return t('auth.roles.developer');
     if (roles.includes('funcionario')) return t('pages.users.roleFuncionario');
     if (roles.includes('motorista')) return t('pages.users.roleDriver');
+    if (roles.includes('fiscal')) return t('pages.users.roleFiscal', 'Fiscal');
     return roles[0];
   };
 

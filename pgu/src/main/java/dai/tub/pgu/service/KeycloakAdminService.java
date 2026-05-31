@@ -46,7 +46,7 @@ public class KeycloakAdminService
     // Sprint 1 follow-up: `developer` adicionado. Sem isto, GET /users devolvia
     // o user `dev` com roles=[] no DTO -> frontend mostrava "NO ROLE" e tratava
     // como user normal (mostrando botões Edit/Disable/Delete).
-    private static final List<String> SYSTEM_ROLES = List.of("admin", "funcionario", "motorista", "developer");
+    private static final List<String> SYSTEM_ROLES = List.of("admin", "funcionario", "motorista", "developer", "fiscal");
 
     public KeycloakAdminService()
     {
@@ -414,12 +414,23 @@ public class KeycloakAdminService
         List<JsonNode> availableRoles = getAvailableRealmRoles(token);
         ArrayNode rolesToAssign = mapper.createArrayNode();
 
+        java.util.Set<String> matched = new java.util.HashSet<>();
         for (String roleName : roleNames) {
             for (JsonNode r : availableRoles) {
                 if (r.get("name").asText().equals(roleName)) {
                     rolesToAssign.add(r);
+                    matched.add(roleName);
                     break;
                 }
+            }
+        }
+
+        // Sprint 5 (follow-up): se alguma role pedida nao existe no realm,
+        // ate' aqui isto falhava em silencio e o user ficava sem role nenhuma.
+        // Log explicito para apanhar (ex.: criar user fiscal antes do role existir).
+        for (String r : roleNames) {
+            if (!matched.contains(r)) {
+                log.warn("Keycloak: pedido para atribuir role '{}' a user {}, mas a role NAO existe no realm — ignorada. Verifica ensureCoreRealmRoles().", r, userId);
             }
         }
 
@@ -568,6 +579,52 @@ public class KeycloakAdminService
             log.info("Keycloak unmanagedAttributePolicy set to ENABLED (permite avatarKey)");
         } catch (Exception e) {
             log.warn("Nao foi possivel garantir unmanagedAttributePolicy=ENABLED: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 5 (follow-up): garante que as realm roles essenciais existem
+     * no Keycloak, mesmo que o realm ja' tenha sido importado antes da role
+     * "fiscal" ser adicionada ao pgu-realm-realm.json. Idempotent — corre
+     * uma vez no boot e cria apenas as que faltam (best-effort, falhas logadas).
+     */
+    @PostConstruct
+    public void ensureCoreRealmRoles()
+    {
+        java.util.Map<String, String> required = new java.util.LinkedHashMap<>();
+        required.put("admin", "Full access to backoffice");
+        required.put("funcionario", "Acesso ao backoffice - operacoes do dia-a-dia");
+        required.put("motorista", "Acesso ao painel de bordo do motorista");
+        required.put("developer", "Acesso a ferramentas de simulacao / demo");
+        required.put("fiscal", "Acesso ao painel de fiscais (resolucao de fraudes de bilhetica)");
+
+        try {
+            String token = getAdminToken();
+            java.util.Set<String> existing = new java.util.HashSet<>();
+            for (JsonNode r : getAvailableRealmRoles(token)) {
+                String n = r.path("name").asText("");
+                if (!n.isBlank()) existing.add(n);
+            }
+            for (var e : required.entrySet()) {
+                if (existing.contains(e.getKey())) continue;
+                try {
+                    ObjectNode payload = mapper.createObjectNode();
+                    payload.put("name", e.getKey());
+                    payload.put("description", e.getValue());
+                    restClient.post()
+                        .uri(adminApiBase() + "/roles")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(mapper.writeValueAsString(payload))
+                        .retrieve()
+                        .toBodilessEntity();
+                    log.info("Keycloak: criada realm role em falta '{}'", e.getKey());
+                } catch (Exception ex) {
+                    log.warn("Nao foi possivel criar realm role '{}': {}", e.getKey(), ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Nao foi possivel garantir realm roles essenciais: {}", e.getMessage());
         }
     }
 

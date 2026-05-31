@@ -81,10 +81,10 @@ export default function AuthProvider({ children }) {
   // role do dev era filtrado fora aqui e o frontend via `roles=[]` -> caia
   // no fallback "EMPLOYEE" na Landing e era barrado no /backoffice por nao
   // ter role nenhum reconhecido.
+  // Sprint 5 follow-up: `fiscal` adicionado pelo mesmo motivo.
+  const APP_ROLES = ['admin', 'funcionario', 'motorista', 'developer', 'fiscal'];
   const roles =
-    keycloak.tokenParsed?.realm_access?.roles?.filter(
-      (r) => r === 'admin' || r === 'funcionario' || r === 'motorista' || r === 'developer'
-    ) ?? [];
+    keycloak.tokenParsed?.realm_access?.roles?.filter((r) => APP_ROLES.includes(r)) ?? [];
 
   const value = {
     keycloak,

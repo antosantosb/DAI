@@ -555,43 +555,89 @@ export default function Ocorrencias() {
           ) : (
             <div className="active-tab-scroll">
               <div className="active-alarms-grid">
-                {sortedActiveAlarms.map(a => (
-                  <div
-                    key={a.id}
-                    className="active-alarm-card active-alarm-card--clickable"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/backoffice/ocorrencias/${a.id}`)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/backoffice/ocorrencias/${a.id}`); } }}
-                  >
-                    <div className="alarm-card-header">
-                      <div>
-                        <span className="alarm-card-title">{a.tipoAnomalia}</span>
-                        <div className="alarm-card-subtitle">{t('pages.ocorrencias.activeAlarms.assetPrefix')}: {a.ativoId} ({a.tipoAtivo})</div>
+                {sortedActiveAlarms.map(a => {
+                  const tipo = (a.tipoAnomalia || '').toLowerCase();
+                  const sevClass = tipo === 'fraude' ? 'fraud'
+                    : tipo === 'acidente' ? 'critical'
+                    : tipo === 'avaria' ? 'warning'
+                    : 'info';
+                  // Sprint 5 (follow-up): so' mostra prioridade quando NAO e' "normal"
+                  // (default), para reduzir clutter. Estado "ABERTA" e' implicito
+                  // nesta aba, por isso nao se mostra. Tipo de activo so' aparece
+                  // se NAO for BUS (que ja' tem icone).
+                  const showPriority = a.prioridade && a.prioridade.toLowerCase() !== 'normal';
+                  const showAssetType = a.tipoAtivo && a.tipoAtivo.toLowerCase() !== 'bus';
+                  return (
+                    <div
+                      key={a.id}
+                      className={`active-alarm-card active-alarm-card--clickable active-alarm-card--${sevClass}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/backoffice/ocorrencias/${a.id}`)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/backoffice/ocorrencias/${a.id}`); } }}
+                    >
+                      <div className="alarm-card-bar" aria-hidden="true" />
+                      <div className="alarm-card-body">
+                        <div className="alarm-card-header">
+                          <div className="alarm-card-id">
+                            <span className="alarm-card-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                              </svg>
+                            </span>
+                            <span className="alarm-card-title">{a.tipoAnomalia}</span>
+                            {a.reincidencia && (
+                              <span
+                                className="alarm-recurrent-dot"
+                                title={t('pages.ocorrencias.recurrent', 'Recorrente')}
+                                aria-label={t('pages.ocorrencias.recurrent', 'Recorrente')}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <polyline points="23 4 23 10 17 10"/>
+                                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                              </span>
+                            )}
+                          </div>
+                          {showPriority && (
+                            <span className={`alarm-badge-priority alarm-badge-priority--${a.prioridade.toLowerCase()}`}>
+                              {a.prioridade}
+                            </span>
+                          )}
+                        </div>
+                        <div className="alarm-card-asset">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M8 6v6"/><path d="M16 6v6"/><path d="M2 12h20"/>
+                            <path d="M7 18h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
+                            <circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>
+                          </svg>
+                          <strong>{a.ativoId}</strong>
+                          {showAssetType && <span className="alarm-card-asset-type">({a.tipoAtivo})</span>}
+                        </div>
+                        <div className="alarm-card-meta">
+                          <span className="alarm-card-time">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <strong>{getElapsedTime(a.timestampAbertura)}</strong>
+                          </span>
+                          <button
+                            className="btn-open-alarm"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/backoffice/ocorrencias/${a.id}`); }}
+                          >
+                            {t('pages.ocorrencias.tabs.openDetail')}
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <line x1="5" y1="12" x2="19" y2="12"/>
+                              <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      <span className={`alarm-badge-priority alarm-badge-priority--${a.prioridade.toLowerCase()}`}>
-                        {a.prioridade}
-                      </span>
                     </div>
-                    <div className="alarm-card-tags">
-                      <span className={`ocorrencia-badge-state state--${a.estado.toLowerCase()}`}>
-                        {a.estado.replace('_', ' ')}
-                      </span>
-                      {a.reincidencia && (
-                        <span className="alarm-tag-recurrent">{t('pages.ocorrencias.recurrent')}</span>
-                      )}
-                    </div>
-                    <div className="alarm-card-meta">
-                      <span>{t('pages.ocorrencias.activeAlarms.openSince')}: <strong>{getElapsedTime(a.timestampAbertura)}</strong></span>
-                      <button
-                        className="btn-open-alarm"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/backoffice/ocorrencias/${a.id}`); }}
-                      >
-                        {t('pages.ocorrencias.tabs.openDetail')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

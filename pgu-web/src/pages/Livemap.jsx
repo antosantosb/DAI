@@ -167,9 +167,11 @@ export default function Livemap() {
     ? t('auth.roles.admin')
     : roles?.includes('developer')
       ? t('auth.roles.developer')
-      : roles?.includes('motorista')
-        ? t('auth.roles.motorista')
-        : t('auth.roles.funcionario');
+      : roles?.includes('fiscal')
+        ? t('auth.roles.fiscal', 'Fiscal')
+        : roles?.includes('motorista')
+          ? t('auth.roles.motorista')
+          : t('auth.roles.funcionario');
 
   // ─── Map initialization ───
   useEffect(() => {

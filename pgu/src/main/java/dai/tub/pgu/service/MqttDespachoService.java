@@ -105,6 +105,28 @@ public class MqttDespachoService {
         }
     }
 
+    /**
+     * Sprint 5 (follow-up): publicar payload generico num tópico arbitrário,
+     * reutilizando a conexão MQTT do despacho. Usado pelo PanelContentScheduler
+     * para empurrar próximas chegadas a cada painel DMS físico.
+     */
+    public boolean publishToTopic(String topic, Object payload) {
+        try {
+            if (mqttClient == null || !mqttClient.isConnected()) {
+                log.warn("MQTT publish skip: cliente nao ligado (topic={})", topic);
+                return false;
+            }
+            byte[] jsonBytes = objectMapper.writeValueAsBytes(payload);
+            MqttMessage msg = new MqttMessage(jsonBytes);
+            msg.setQos(0); // fire-and-forget; o painel re-le no proximo ciclo
+            mqttClient.publish(topic, msg);
+            return true;
+        } catch (Exception e) {
+            log.warn("MQTT publish falhou (topic={}): {}", topic, e.getMessage());
+            return false;
+        }
+    }
+
     public void publicarMensagem(String busId, String messageId, String content, String operador) {
         try {
             if (mqttClient == null || !mqttClient.isConnected()) {
