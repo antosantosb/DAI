@@ -76,6 +76,8 @@ public class SecurityConfig
                 // pelo InternalApiKeyFilter (X-API-Key), nao exige role de user.
                 .requestMatchers(HttpMethod.POST, "/api/v1/validations").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/validations/**").permitAll()
+                // Sprint 4 (3.2): Vehicle diagnostic — ingest M2M (X-API-Key).
+                .requestMatchers(HttpMethod.POST,   "/api/v1/diagnostics/ingest").permitAll()
                 // Sprint 3 (3.5): Paineis DMS — heartbeat M2M (X-API-Key).
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels/heartbeat").permitAll()
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels").hasAnyRole("admin", "developer")

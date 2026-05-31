@@ -96,8 +96,23 @@ public class BusService
                     .orElseThrow(() -> new RuntimeException("Rota não encontrada: " + dto.getRouteId()));
             bus.setRoute(route);
         }
+        // Sprint 4: powertrain (default DIESEL) + condicionais.
+        if (dto.getPowertrain() != null) bus.setPowertrain(dto.getPowertrain());
+        applyPowertrainFields(bus, dto);
 
         return toDTO(busRepository.save(bus));
+    }
+
+    /** Sprint 4: aplica campos condicionais do powertrain (DTO -> entity).
+     *  Usa java.math.BigDecimal para precisao. Tolera valores ausentes. */
+    private void applyPowertrainFields(Bus bus, BusDTO dto)
+    {
+        if (dto.getFuelTankL()     != null) bus.setFuelTankL(java.math.BigDecimal.valueOf(dto.getFuelTankL()));
+        if (dto.getAdblueTankL()   != null) bus.setAdblueTankL(java.math.BigDecimal.valueOf(dto.getAdblueTankL()));
+        if (dto.getBatteryKwh()    != null) bus.setBatteryKwh(java.math.BigDecimal.valueOf(dto.getBatteryKwh()));
+        if (dto.getChargingType()  != null) bus.setChargingType(dto.getChargingType());
+        if (dto.getCngTankKg()     != null) bus.setCngTankKg(java.math.BigDecimal.valueOf(dto.getCngTankKg()));
+        if (dto.getCngNominalBar() != null) bus.setCngNominalBar(java.math.BigDecimal.valueOf(dto.getCngNominalBar()));
     }
 
     @Transactional
@@ -139,6 +154,9 @@ public class BusService
                     .orElseThrow(() -> new RuntimeException("Rota não encontrada: " + dto.getRouteId()));
             bus.setRoute(route);
         }
+        // Sprint 4: powertrain editavel (admin via Bus CRUD).
+        if (dto.getPowertrain() != null) bus.setPowertrain(dto.getPowertrain());
+        applyPowertrainFields(bus, dto);
 
         return toDTO(busRepository.save(bus));
     }
@@ -479,6 +497,14 @@ public class BusService
         }
         dto.setStatus(entity.getStatus());
         dto.setDecommissionedAt(entity.getDecommissionedAt());
+        // Sprint 4 (3.2): powertrain + campos condicionais.
+        dto.setPowertrain(entity.getPowertrain());
+        if (entity.getFuelTankL()     != null) dto.setFuelTankL(entity.getFuelTankL().doubleValue());
+        if (entity.getAdblueTankL()   != null) dto.setAdblueTankL(entity.getAdblueTankL().doubleValue());
+        if (entity.getBatteryKwh()    != null) dto.setBatteryKwh(entity.getBatteryKwh().doubleValue());
+        dto.setChargingType(entity.getChargingType());
+        if (entity.getCngTankKg()     != null) dto.setCngTankKg(entity.getCngTankKg().doubleValue());
+        if (entity.getCngNominalBar() != null) dto.setCngNominalBar(entity.getCngNominalBar().doubleValue());
 
         // Linha actual derivada da escala (1a duty PLANNED/RUNNING de hoje).
         // Permite ao frontend mostrar "Linha 2 · Bom Jesus" mesmo quando o
