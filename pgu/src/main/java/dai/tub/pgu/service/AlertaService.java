@@ -60,6 +60,18 @@ public class AlertaService {
     /** Registo do último alerta por ativo e tipo de anomalia para debounce. */
     private final Map<String, Instant> ultimoAlerta = new ConcurrentHashMap<>();
 
+    private GlobalConfig cachedConfig = null;
+    private Instant lastConfigFetch = Instant.MIN;
+
+    private synchronized GlobalConfig getGlobalConfig() {
+        Instant now = Instant.now();
+        if (cachedConfig == null || lastConfigFetch.plus(10, ChronoUnit.MINUTES).isBefore(now)) {
+            cachedConfig = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+            lastConfigFetch = now;
+        }
+        return cachedConfig;
+    }
+
     public AlertaService(HistoricoAlertaRepository historicoRepository,
                           OcorrenciaRepository ocorrenciaRepository,
                           OcorrenciaService ocorrenciaService,
@@ -87,7 +99,7 @@ public class AlertaService {
         if (busId == null || busId.isBlank()) return;
 
         // 0. CARREGAR PARÂMETROS GLOBAIS DA TUA TABELA
-        GlobalConfig config = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+        GlobalConfig config = getGlobalConfig();
         
         // Se a tabela tiver valores, usamos esses; senão, usamos os de defeito da aplicação
         double limiteBateria = (config != null) ? config.getSocTolerancePercent() : bateriaCritica;
@@ -137,7 +149,7 @@ public class AlertaService {
     public void avaliarOcupacao(TelemetryDTO telemetria, int onboard, int capacidade) {
         if (telemetria == null || capacidade <= 0 || onboard <= 0) return;
 
-        GlobalConfig config = globalConfigRepository.findAll().stream().findFirst().orElse(null);
+        GlobalConfig config = getGlobalConfig();
         int warningPct  = (config != null && config.getOccupancyWarningPct()  != null) ? config.getOccupancyWarningPct()  : 80;
         int criticalPct = (config != null && config.getOccupancyCriticalPct() != null) ? config.getOccupancyCriticalPct() : 95;
 

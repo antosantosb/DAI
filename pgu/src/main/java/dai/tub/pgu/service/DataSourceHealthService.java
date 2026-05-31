@@ -111,8 +111,16 @@ public class DataSourceHealthService {
     // (ex.: o NeTEx export). Sem isto, o INSERT falha "cannot execute INSERT in a
     // read-only transaction" e a transacao externa rebenta no commit com
     // UnexpectedRollbackException. E' chamada cross-bean, logo o proxy aplica.
+    private final java.util.Map<String, java.time.Instant> lastPulseTimeMap = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordPulseByName(String nome, String detalhes) {
+        java.time.Instant now = java.time.Instant.now();
+        java.time.Instant lastPulse = lastPulseTimeMap.get(nome);
+        if (lastPulse != null && java.time.Duration.between(lastPulse, now).getSeconds() < 10) {
+            return; // Limita a gravação na BD a no máximo uma vez a cada 10 segundos
+        }
+        lastPulseTimeMap.put(nome, now);
         try {
             repo.findByNome(nome).ifPresentOrElse(
                 ds -> recordPulse(ds.getId(), detalhes),

@@ -10,7 +10,8 @@ public class VehicleTelemetry
 {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicle_telemetry_generator")
+    @SequenceGenerator(name = "vehicle_telemetry_generator", sequenceName = "vehicle_telemetry_id_seq", allocationSize = 50)
     private Long id;
 
     @Column(name = "bus_id", nullable = false)

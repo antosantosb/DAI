@@ -121,7 +121,7 @@ public class DisplayPanelService {
 
         // broadcast STOMP
         try {
-            messagingTemplate.convertAndSend("/topic/panels", Map.of(
+            messagingTemplate.convertAndSend("/topic/panels", (Object) Map.of(
                 "code", p.getCode(),
                 "status", newStatus,
                 "batteryPct", batteryPct == null ? -1 : batteryPct,
@@ -159,7 +159,7 @@ public class DisplayPanelService {
             ev.setDetail("no heartbeat > 5 min");
             eventRepo.save(ev);
             try {
-                messagingTemplate.convertAndSend("/topic/panels", Map.of(
+                messagingTemplate.convertAndSend("/topic/panels", (Object) Map.of(
                     "code", p.getCode(), "status", "OFFLINE",
                     "lastHeartbeat", p.getLastHeartbeat() == null ? "" : p.getLastHeartbeat().toString(),
                     "changed", true

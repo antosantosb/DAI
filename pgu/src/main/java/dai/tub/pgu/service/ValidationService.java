@@ -136,7 +136,7 @@ public class ValidationService
 
         // 6) Broadcast STOMP
         try {
-            messagingTemplate.convertAndSend("/topic/ticketing", java.util.Map.of(
+            messagingTemplate.convertAndSend("/topic/ticketing", (Object) java.util.Map.of(
                 "eventId",   ev.getId(),
                 "ticketId",  ticket.getId(),
                 "channel",   ticket.getTipo(),

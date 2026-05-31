@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.TransactionException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -105,6 +107,17 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of("CONFLICT", "Conflito com dados existentes (ex: duplicado, FK).", req.getRequestURI()));
     }
 
+    @ExceptionHandler({
+        DataAccessException.class,
+        TransactionException.class,
+        jakarta.persistence.PersistenceException.class
+    })
+    public ResponseEntity<ErrorResponse> handleDatabaseFailure(Exception ex, HttpServletRequest req) {
+        log.error("Falha crítica de acesso à base de dados ou serviço em {} {} -> {}", req.getMethod(), req.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ErrorResponse.of("SERVICE_UNAVAILABLE", "Serviço ou base de dados temporariamente indisponível. Tente novamente mais tarde.", req.getRequestURI()));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleUploadTooLarge(MaxUploadSizeExceededException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
@@ -146,11 +159,48 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex, HttpServletRequest req) {
+        if (isInfrastructureOrServiceFailure(ex)) {
+            return handleDatabaseFailure(ex, req);
+        }
         log.warn("Business rule rejected: {}", ex.getClass().getSimpleName());
         // SEC-extra: stack trace completo só em DEBUG (não em INFO/WARN)
         log.debug("Detalhe:", ex);
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("BUSINESS_RULE", safeMessage(ex), req.getRequestURI()));
+    }
+
+    private boolean isInfrastructureOrServiceFailure(Throwable ex) {
+        Throwable cause = ex;
+        while (cause != null) {
+            String name = cause.getClass().getName();
+            if (cause instanceof org.springframework.dao.DataAccessException
+                || cause instanceof org.springframework.transaction.TransactionException
+                || name.startsWith("jakarta.persistence.PersistenceException")
+                || name.startsWith("org.hibernate.JDBCException")
+                || name.startsWith("org.hibernate.exception.JDBCConnectionException")
+                || name.startsWith("org.postgresql.util.PSQLException")
+                || name.startsWith("org.springframework.web.client.ResourceAccessException")
+                || name.contains("ConnectException")
+                || name.contains("SocketException")
+                || name.contains("UnknownHostException")
+            ) {
+                return true;
+            }
+            if (cause instanceof org.springframework.web.client.HttpStatusCodeException) {
+                org.springframework.web.client.HttpStatusCodeException httpEx = (org.springframework.web.client.HttpStatusCodeException) cause;
+                if (httpEx.getStatusCode().is5xxServerError()) {
+                    return true;
+                }
+            }
+            if (cause.getMessage() != null) {
+                String msg = cause.getMessage().toLowerCase();
+                if (msg.contains("connection refused") || msg.contains("connect timed out") || msg.contains("connection timed out")) {
+                    return true;
+                }
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     @ExceptionHandler(Exception.class)

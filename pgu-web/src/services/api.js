@@ -44,6 +44,13 @@ api.interceptors.response.use(
         autoClose: 4000,
       });
     }
+    // 503: Service Unavailable (ex: BD ou Keycloak em baixo)
+    else if (status === 503) {
+      toast.error('Serviço temporariamente indisponível. A base de dados ou um serviço de suporte poderá estar em baixo.', {
+        toastId: 'http-503',
+        autoClose: 6000,
+      });
+    }
     // Timeout (FE-3): error.code === 'ECONNABORTED'
     else if (error.code === 'ECONNABORTED') {
       toast.error('Pedido demorou demasiado, tenta de novo', {
