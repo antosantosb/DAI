@@ -36,6 +36,12 @@ export const routes = [
     path: '/bordo',
     loader: () => import('./pages/PainelBordo'),
     access: ['motorista'],
+  },
+  // Sprint 5 follow-up: painel do fiscal (standalone, fora do backoffice).
+  {
+    path: '/fiscal',
+    loader: () => import('./pages/Fiscal'),
+    access: ['fiscal'],
     layout: 'none',
   },
   {

@@ -14,7 +14,14 @@ import java.time.Instant;
 @IdClass(VehicleDiagnostic.Pk.class)
 public class VehicleDiagnostic {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // PK composta (id, recorded_at) — Hibernate NAO suporta IDENTITY com PK
+    // composta. Usar SEQUENCE apontando para a sequence implicita do BIGSERIAL
+    // criada pelo Postgres (`<tabela>_<coluna>_seq`).
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicle_diagnostic_id_seq")
+    @SequenceGenerator(name = "vehicle_diagnostic_id_seq",
+                       sequenceName = "vehicle_diagnostic_id_seq",
+                       allocationSize = 1)
     private Long id;
 
     @Id

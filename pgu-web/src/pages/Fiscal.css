@@ -1,0 +1,96 @@
+/* Sprint 5 follow-up: painel do fiscal. Layout standalone (sem sidebar
+   do backoffice) — o fiscal so' faz uma coisa: gerir fraudes pendentes. */
+
+.fiscal-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  padding: 24px;
+}
+
+.fiscal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 16px; margin-bottom: 24px;
+}
+.fiscal-header h1 { margin: 0; }
+.fiscal-subtitle { color: var(--color-text-secondary); margin: 4px 0 0; }
+.fiscal-user { display: flex; align-items: center; gap: 12px; }
+
+.fiscal-empty {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 12px; padding: 40px; text-align: center;
+  color: var(--color-text-light); font-size: 16px;
+}
+
+.fiscal-list {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.fiscal-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-left: 4px solid #8b5cf6;  /* roxo "fraude" */
+  border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.fiscal-card--assumed { border-left-color: var(--color-warning, #f59e0b); }
+
+.fiscal-card-header {
+  display: flex; align-items: center; gap: 10px;
+}
+.fiscal-badge {
+  padding: 3px 10px; border-radius: 9999px; font-size: 11px;
+  font-weight: 700; background: rgba(139,92,246,0.15); color: #6d28d9;
+}
+.fiscal-bus {
+  font-family: ui-monospace, 'Fira Code', monospace; font-weight: 700;
+  color: var(--color-text-heading); font-size: 16px;
+}
+.fiscal-time {
+  margin-left: auto; color: var(--color-text-light); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fiscal-desc { color: var(--color-text); margin: 4px 0; }
+.fiscal-meta { color: var(--color-text-secondary); font-size: 12px; margin: 0; }
+
+.fiscal-actions { display: flex; gap: 8px; margin-top: 6px; }
+.fiscal-locked {
+  color: var(--color-text-light); font-style: italic; font-size: 13px;
+}
+
+.fiscal-btn-primary, .fiscal-btn-secondary {
+  padding: 8px 16px; border-radius: 8px; font-weight: 600;
+  font-size: 14px; cursor: pointer; transition: 0.15s;
+}
+.fiscal-btn-primary {
+  background: var(--color-primary); color: #fff; border: none;
+}
+.fiscal-btn-primary:hover { background: var(--color-primary-hover); }
+.fiscal-btn-secondary {
+  background: transparent; color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.fiscal-btn-secondary:hover { background: var(--color-surface-hover, rgba(0,0,0,0.04)); }
+
+/* Modal */
+.fiscal-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.fiscal-modal {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 16px; padding: 24px; width: 520px; max-width: 95vw;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.fiscal-modal h2 { margin: 0; color: var(--color-text-heading); }
+.fiscal-modal-meta { color: var(--color-text-secondary); margin: 0; }
+.fiscal-modal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--color-text-secondary); }
+.fiscal-modal textarea, .fiscal-modal select {
+  padding: 10px 12px; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-bg-subtle);
+  color: var(--color-text); font-size: 14px; font-family: inherit;
+}
+.fiscal-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

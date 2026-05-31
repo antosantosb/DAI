@@ -78,6 +78,13 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/validations/**").permitAll()
                 // Sprint 4 (3.2): Vehicle diagnostic — ingest M2M (X-API-Key).
                 .requestMatchers(HttpMethod.POST,   "/api/v1/diagnostics/ingest").permitAll()
+                // Sprint 5 (3.3) follow-up: role `fiscal` — pode listar ocorrencias
+                // (catch-all GET ja' permite), assumir, escrever accao-corretiva
+                // e fechar. Despacho a partir do botao FRAUDE do motorista.
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/assumir").hasAnyRole("fiscal", "funcionario", "admin", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/acao-corretiva").hasAnyRole("fiscal", "funcionario", "admin", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/fechar").hasAnyRole("fiscal", "funcionario", "admin", "developer")
+                .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("fiscal", "funcionario", "admin", "developer")
                 // Sprint 3 (3.5): Paineis DMS — heartbeat M2M (X-API-Key).
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels/heartbeat").permitAll()
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels").hasAnyRole("admin", "developer")

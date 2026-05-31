@@ -30,7 +30,14 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String user = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Defensive: SecurityContext pode estar vazio (race condition na
+        // ordem dos filtros) e Authentication.getName() pode ser null.
+        // ConcurrentHashMap rebenta NPE se a chave for null — fallback IP.
+        var ctx = SecurityContextHolder.getContext();
+        var auth = ctx == null ? null : ctx.getAuthentication();
+        String user = (auth != null && auth.getName() != null)
+            ? auth.getName()
+            : "ip:" + (req.getRemoteAddr() == null ? "unknown" : req.getRemoteAddr());
         Bucket bucket = buckets.computeIfAbsent(user, k -> Bucket.builder()
             .addLimit(Bandwidth.builder()
                 .capacity(limitPerMinute)

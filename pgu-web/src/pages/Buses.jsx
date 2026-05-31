@@ -129,18 +129,34 @@ export default function Buses() {
   };
 
   const resetForm = () => {
-    setForm({ busCode: '', licensePlate: '', capacity: '' });
+    setForm({
+      busCode: '', licensePlate: '', capacity: '',
+      // Sprint 4 (3.2): powertrain + campos condicionais
+      powertrain: 'DIESEL',
+      fuelTankL: '', adblueTankL: '',
+      batteryKwh: '', chargingType: 'SLOW',
+      cngTankKg: '', cngNominalBar: '',
+    });
     setEditing(null);
     setShowForm(false);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const pt = form.powertrain || 'DIESEL';
     const payload = {
       busCode: formatBusCode(form.busCode),
       licensePlate: form.licensePlate,
       capacity: parseInt(form.capacity),
       // routeId removido: a linha vem da escala/trip, ja' nao e' propriedade do bus.
+      // Sprint 4 (3.2): powertrain + so' os campos relevantes ao tipo escolhido.
+      powertrain: pt,
+      fuelTankL:     pt === 'DIESEL'   && form.fuelTankL     ? Number(form.fuelTankL)     : null,
+      adblueTankL:   pt === 'DIESEL'   && form.adblueTankL   ? Number(form.adblueTankL)   : null,
+      batteryKwh:    pt === 'ELECTRIC' && form.batteryKwh    ? Number(form.batteryKwh)    : null,
+      chargingType:  pt === 'ELECTRIC' ? (form.chargingType || 'SLOW') : null,
+      cngTankKg:     pt === 'CNG'      && form.cngTankKg     ? Number(form.cngTankKg)     : null,
+      cngNominalBar: pt === 'CNG'      && form.cngNominalBar ? Number(form.cngNominalBar) : null,
     };
 
     const req = editing
@@ -165,6 +181,14 @@ export default function Buses() {
       busCode: bus.busCode.replace(/\D/g, ''),
       licensePlate: bus.licensePlate,
       capacity: bus.capacity,
+      // Sprint 4 (3.2): pre-popular powertrain + campos condicionais.
+      powertrain:    bus.powertrain    || 'DIESEL',
+      fuelTankL:     bus.fuelTankL     ?? '',
+      adblueTankL:   bus.adblueTankL   ?? '',
+      batteryKwh:    bus.batteryKwh    ?? '',
+      chargingType:  bus.chargingType  || 'SLOW',
+      cngTankKg:     bus.cngTankKg     ?? '',
+      cngNominalBar: bus.cngNominalBar ?? '',
     });
     setEditing(bus.id);
     setShowForm(true);
@@ -539,6 +563,78 @@ export default function Buses() {
               </div>
               {/* "Linha" deixou de ser propriedade do autocarro. A linha vem
                   da escala/trip atribuida (ver "Planear escala"). */}
+
+              {/* Sprint 4 (3.2): selector de powertrain + campos condicionais. */}
+              <div className="form-group">
+                <label>{t('pages.buses.powertrain', 'Tipo de motor')}</label>
+                <select
+                  value={form.powertrain || 'DIESEL'}
+                  onChange={e => setForm({ ...form, powertrain: e.target.value })}
+                  required
+                >
+                  <option value="DIESEL">{t('pages.buses.ptDiesel', 'Gasóleo (DIESEL)')}</option>
+                  <option value="ELECTRIC">{t('pages.buses.ptElectric', 'Eléctrico (ELECTRIC)')}</option>
+                  <option value="CNG">{t('pages.buses.ptCng', 'Gás Natural (CNG)')}</option>
+                </select>
+                <span className="form-hint">
+                  {t('pages.buses.powertrainHint', 'Define os atributos físicos do autocarro e a telemetria que o simulador gera.')}
+                </span>
+              </div>
+
+              {form.powertrain === 'DIESEL' && (
+                <>
+                  <div className="form-group">
+                    <label>{t('pages.buses.fuelTankL', 'Depósito de gasóleo (L)')}</label>
+                    <input type="number" step="0.1" min="0" value={form.fuelTankL || ''}
+                      onChange={e => setForm({ ...form, fuelTankL: e.target.value })}
+                      placeholder="ex: 280" />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('pages.buses.adblueTankL', 'Depósito AdBlue (L)')}</label>
+                    <input type="number" step="0.1" min="0" value={form.adblueTankL || ''}
+                      onChange={e => setForm({ ...form, adblueTankL: e.target.value })}
+                      placeholder="ex: 30" />
+                    <span className="form-hint">{t('pages.buses.adblueHint', 'Apenas Euro 6 (SCR/NOx).')}</span>
+                  </div>
+                </>
+              )}
+
+              {form.powertrain === 'ELECTRIC' && (
+                <>
+                  <div className="form-group">
+                    <label>{t('pages.buses.batteryKwh', 'Capacidade da bateria (kWh)')}</label>
+                    <input type="number" step="0.1" min="0" value={form.batteryKwh || ''}
+                      onChange={e => setForm({ ...form, batteryKwh: e.target.value })}
+                      placeholder="ex: 281" />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('pages.buses.chargingType', 'Tipo de carregamento')}</label>
+                    <select value={form.chargingType || 'SLOW'}
+                      onChange={e => setForm({ ...form, chargingType: e.target.value })}>
+                      <option value="SLOW">{t('pages.buses.chargeSlow', 'Lento (depósito)')}</option>
+                      <option value="FAST">{t('pages.buses.chargeFast', 'Rápido')}</option>
+                      <option value="OPPORTUNITY">{t('pages.buses.chargeOpp', 'Oportunidade (pantograph)')}</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {form.powertrain === 'CNG' && (
+                <>
+                  <div className="form-group">
+                    <label>{t('pages.buses.cngTankKg', 'Capacidade do tanque CNG (kg)')}</label>
+                    <input type="number" step="0.1" min="0" value={form.cngTankKg || ''}
+                      onChange={e => setForm({ ...form, cngTankKg: e.target.value })}
+                      placeholder="ex: 160" />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('pages.buses.cngNominalBar', 'Pressão nominal (bar)')}</label>
+                    <input type="number" step="0.1" min="0" value={form.cngNominalBar || ''}
+                      onChange={e => setForm({ ...form, cngNominalBar: e.target.value })}
+                      placeholder="ex: 200" />
+                  </div>
+                </>
+              )}
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.create')}</button>
