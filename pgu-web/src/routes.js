@@ -171,6 +171,12 @@ export const routes = [
         access: ['admin', 'developer'],
         nav: { sectionKey: 'sections.network', labelKey: 'nav.panels', iconKey: 'IconDataSource' },
       },
+      // Sprint 4 (3.2): Material Circulante
+      {
+        path: 'fleet-health',
+        loader: () => import('./pages/FleetHealth'),
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.fleetHealth', iconKey: 'IconBus' },
+      },
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),

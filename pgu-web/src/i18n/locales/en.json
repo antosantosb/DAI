@@ -76,6 +76,7 @@
     "analytics": "Analytics",
     "ticketing": "Ticketing",
     "panels": "DMS Panels",
+    "fleetHealth": "Fleet Health",
     "routes": "Lines",
     "stops": "Stops",
     "operators": "Operators",

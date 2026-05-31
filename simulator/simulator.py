@@ -27,6 +27,10 @@ TOPIC_TICKET = os.getenv("MQTT_TOPIC_TICKET", "tub/ticket")
 # Sprint 3 (3.5): topico dos paineis DMS. O simulador faz poll periodico
 # a GET /api/v1/panels e publica heartbeats para cada painel existente.
 TOPIC_PANEL  = os.getenv("MQTT_TOPIC_PANEL", "tub/panels/heartbeat")
+# Sprint 4 (3.2): topico de diagnostic OBD/CAN. Frequencia mais baixa que
+# a telemetria GPS — diagnostic e' "saude do veiculo", nao posicao.
+TOPIC_DIAG   = os.getenv("MQTT_TOPIC_DIAG", "tub/diagnostics")
+DIAG_INTERVAL_SEC = float(os.getenv("E_DIAG_INTERVAL_SEC", 15))
 PANEL_HEARTBEAT_SEC = float(os.getenv("E_PANEL_HEARTBEAT_SEC", 30))
 PANEL_POLL_SEC      = float(os.getenv("E_PANEL_POLL_SEC", 60))
 # Probabilidade de uma paragem gerar 1+ validacoes neste tick (heuristica
@@ -470,6 +474,9 @@ class SimBus:
         self.pattern_waypoints = []       # [(lat, lon), ...] da polyline OSRM
         self.pattern_waypoint_idx = 0     # indice do PROXIMO waypoint alvo
         self.pattern_id_cached = None     # patternId associado a self.pattern_waypoints
+        # Sprint 4 (3.2): cache do powertrain e timestamp da ultima diagnostica
+        self.powertrain = (bus_data.get("powertrain") or "DIESEL").upper()
+        self.last_diag_at = 0.0           # epoch seconds do ultimo publish_diagnostic
         # Paragens nominais com COORDENADAS reais (anexadas em _ensure_pattern_loaded
         # via cache global _stop_coords_cache). A deteccao de paragem usa
         # distancia em metros, nao indice de waypoint.
@@ -1403,6 +1410,12 @@ def main():
                 payload = bus.to_telemetry()
                 publish_telemetry(client, payload)
 
+                # Sprint 4 (3.2): publica diagnostic OBD/CAN periodicamente.
+                now_ts = time.time()
+                if now_ts - bus.last_diag_at >= DIAG_INTERVAL_SEC:
+                    publish_diagnostic(client, bus, bus.powertrain)
+                    bus.last_diag_at = now_ts
+
                 # Sprint 5 (3.3): se o bus PAROU agora numa paragem real
                 # (status=stopped + boarded>0), publica as validacoes em
                 # tub/ticket/{busCode}. O NiFi encaminha para /validations.
@@ -1448,6 +1461,46 @@ def main():
             print(f"[SIM] Nenhum autocarro ativo. A aguardar novos autocarros...")
 
         time.sleep(INTERVAL)
+
+
+def publish_diagnostic(client, bus, powertrain):
+    """Sprint 4 (3.2): publica diagnostic OBD/CAN em tub/diagnostics.
+    Sinais condicionais ao powertrain. DTCs aleatorios (rarissimo)."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    moving = bus.status == "active" and bus.current_speed > 1.0
+    payload = {
+        "busId":        bus.bus_id,
+        "powertrain":   powertrain,
+        "recordedAt":   ts,
+        "odometerKm":   round(bus.odometer_km, 1),
+        "speedKmh":     round(bus.current_speed, 1),
+        "ambientTempC": round(random.uniform(15.0, 28.0), 1),
+        "doorOpenCount": random.randint(0, 3) if bus.status == "stopped" else 0,
+    }
+    if powertrain == "DIESEL":
+        payload["engineRpm"]       = int(750 + bus.current_speed * 28) if moving else 750
+        payload["coolantTempC"]    = round(random.uniform(82.0, 95.0), 1)
+        payload["oilPressureBar"]  = round(random.uniform(3.5, 5.0), 1)
+        payload["fuelLevelPct"]    = max(5, 95 - int(bus.odometer_km / 200) % 90)
+        payload["adblueLevelPct"]  = max(5, 90 - int(bus.odometer_km / 400) % 85)
+        payload["dpfSootPct"]      = min(95, 30 + int(bus.odometer_km / 1000) % 70)
+    elif powertrain == "ELECTRIC":
+        payload["socPct"]          = max(8, 90 - int(bus.odometer_km / 50) % 82)
+        payload["sohPct"]          = random.randint(82, 100)
+        payload["motorKw"]         = round(bus.current_speed * 2.5, 1) if moving else 0
+        payload["regenKw"]         = round(random.uniform(0, 35.0), 1) if bus.status == "stopped" else 0
+    elif powertrain == "CNG":
+        payload["engineRpm"]       = int(750 + bus.current_speed * 26) if moving else 700
+        payload["coolantTempC"]    = round(random.uniform(80.0, 92.0), 1)
+        payload["cngLevelPct"]     = max(8, 92 - int(bus.odometer_km / 300) % 88)
+        payload["cngPressureBar"]  = round(180 + random.uniform(-20, 20), 1)
+    # DTC aleatorio raro (1% chance)
+    if random.random() < 0.01:
+        payload["dtcCodes"] = random.choice(["SPN1127/FMI3", "SPN3251/FMI18", "SPN91/FMI4"])
+    try:
+        client.publish(TOPIC_DIAG, json.dumps(payload))
+    except Exception as e:
+        print(f"[SIM] diag falhou {bus.bus_id}: {e}")
 
 
 def _panels_heartbeat_loop(mqtt_client_ref):
