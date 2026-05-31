@@ -164,10 +164,17 @@ function PanelCard({ panel, stop, onEdit, onDelete, statusColor, t }) {
     return () => { cancelled = true; clearInterval(iv); };
   }, [panel.stopId]);
 
+  // Sprint 5 (follow-up): converte etaMinutes (now + Xm) em "HH:MM" local.
+  const etaToClock = (etaMinutes) => {
+    if (etaMinutes == null) return '—';
+    const d = new Date(Date.now() + etaMinutes * 60 * 1000);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   const delayChip = (eta) => {
     if (eta.delayMinutes == null) return null;
     const d = eta.delayMinutes;
-    if (d <= -1) return <span className="panel-delay panel-delay--early">{t('pages.panels.early', 'adiantado')} {Math.abs(d)}m</span>;
+    if (d <= -1) return <span className="panel-delay panel-delay--early">{Math.abs(d)}m {t('pages.panels.early', 'adiantado')}</span>;
     if (d >= 2) return <span className="panel-delay panel-delay--late">+{d}m {t('pages.panels.late', 'atraso')}</span>;
     return <span className="panel-delay panel-delay--ontime">{t('pages.panels.onTime', 'em horário')}</span>;
   };
@@ -198,13 +205,38 @@ function PanelCard({ panel, stop, onEdit, onDelete, statusColor, t }) {
           <ul className="panel-arrivals-list">
             {etas.map((e, i) => (
               <li key={i} className="panel-arrival">
-                <span className="panel-arrival-route" style={{ background: e.routeColor || '#6366f1' }}>{e.routeCode}</span>
-                <span className="panel-arrival-bus">{e.busCode}</span>
-                <span className="panel-arrival-times">
-                  {e.scheduledArrival && <span className="panel-arrival-sched">{e.scheduledArrival}</span>}
-                  <span className="panel-arrival-eta">{e.etaMinutes}m</span>
-                </span>
-                {delayChip(e)}
+                <div className="panel-arrival-head">
+                  <span className="panel-arrival-route" style={{ background: e.routeColor || '#6366f1' }}>{e.routeCode}</span>
+                  <span className="panel-arrival-bus">{e.busCode}</span>
+                  {delayChip(e)}
+                </div>
+                <div className="panel-arrival-grid">
+                  <div className="panel-arrival-col">
+                    <span className="panel-arrival-col-label">{t('pages.panels.scheduled', 'Planeado')}</span>
+                    <span className="panel-arrival-col-value">
+                      {e.scheduledArrival || '—'}
+                    </span>
+                  </div>
+                  <div className="panel-arrival-col">
+                    <span className="panel-arrival-col-label">{t('pages.panels.eta', 'ETA')}</span>
+                    <span className="panel-arrival-col-value panel-arrival-col-value--eta">
+                      {etaToClock(e.etaMinutes)}
+                    </span>
+                    <span className="panel-arrival-col-sub">em {e.etaMinutes}m</span>
+                  </div>
+                  <div className="panel-arrival-col">
+                    <span className="panel-arrival-col-label">{t('pages.panels.delay', 'Atraso')}</span>
+                    <span className={`panel-arrival-col-value panel-arrival-delay panel-arrival-delay--${
+                      e.delayMinutes == null ? 'unknown' :
+                      e.delayMinutes <= -1 ? 'early' :
+                      e.delayMinutes >= 2 ? 'late' : 'ontime'
+                    }`}>
+                      {e.delayMinutes == null ? '—'
+                        : e.delayMinutes === 0 ? '0m'
+                        : (e.delayMinutes > 0 ? `+${e.delayMinutes}m` : `${e.delayMinutes}m`)}
+                    </span>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -237,6 +269,9 @@ export default function Panels() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | {} (novo) | {...painel} (editar)
   const [filter, setFilter] = useState('all'); // all | online | offline | faulty
+  // Sprint 5 (follow-up): painel seleccionado → mostra side drawer à direita
+  // com a lista detalhada de chegadas. Os cards ficam minimalistas (só identidade).
+  const [selectedPanel, setSelectedPanel] = useState(null);
 
   const load = () => {
     Promise.all([

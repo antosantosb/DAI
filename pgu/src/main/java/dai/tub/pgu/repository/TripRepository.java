@@ -17,6 +17,21 @@ public interface TripRepository extends JpaRepository<Trip, Long>
 
     List<Trip> findByPatternId(Long patternId);
 
+    /** Sprint 5 (follow-up) - dev quick-duty: trip por código de rota +
+     *  directionId + headsign (LIKE case-insensitive). Ordenado por id. */
+    @Query("SELECT t FROM Trip t WHERE t.route.code = :routeCode "
+         + "AND t.pattern.directionId = :directionId "
+         + "AND LOWER(t.headsign) LIKE LOWER(CONCAT('%', :headsign, '%')) "
+         + "ORDER BY t.id ASC")
+    List<Trip> findByRouteCodeDirectionAndHeadsignLike(
+        @Param("routeCode") String routeCode,
+        @Param("directionId") Integer directionId,
+        @Param("headsign") String headsign);
+
+    /** Sprint 5 (follow-up) - fallback: trips de uma rota por código (id ASC). */
+    @Query("SELECT t FROM Trip t WHERE t.route.code = :routeCode ORDER BY t.id ASC")
+    List<Trip> findByRouteCode(@Param("routeCode") String routeCode);
+
     long countByRouteId(Long routeId);
 
     long countByPatternId(Long patternId);

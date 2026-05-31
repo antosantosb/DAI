@@ -87,6 +87,10 @@ public class SecurityConfig
                 .requestMatchers(HttpMethod.POST, "/api/v1/ocorrencias/*/falso-positivo").hasAnyRole("fiscal", "funcionario", "admin", "developer")
                 // Sprint 3 (3.5): Paineis DMS — heartbeat M2M (X-API-Key).
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels/heartbeat").permitAll()
+                // Sprint 5 (follow-up): GET /panels acessivel ao simulador M2M
+                // (X-API-Key) para descobrir paineis a heartbeatar. Tambem
+                // usado pelo backoffice (JWT) — ambos passam por aqui.
+                .requestMatchers(HttpMethod.GET,    "/api/v1/panels").permitAll()
                 .requestMatchers(HttpMethod.POST,   "/api/v1/panels").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.PUT,    "/api/v1/panels/**").hasAnyRole("admin", "developer")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/panels/**").hasAnyRole("admin", "developer")
@@ -153,6 +157,8 @@ public class SecurityConfig
                 // (admin-only), senao o admin tambem ganhava acesso.
                 .requestMatchers(HttpMethod.POST, "/api/v1/users/drivers/batch").hasRole("developer")
                 .requestMatchers(HttpMethod.POST, "/api/v1/buses/batch").hasRole("developer")
+                // Sprint 5 (follow-up): endpoints utilitarios de teste apenas para devs.
+                .requestMatchers("/api/v1/dev/**").hasRole("developer")
                 // Gestão de utilizadores — apenas admin (GET disponível para operadores/manutenção verem a lista)
                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasAnyRole("admin", "developer", "operator", "funcionario", "maintenance")
                 .requestMatchers("/api/v1/users/**").hasAnyRole("admin", "developer")

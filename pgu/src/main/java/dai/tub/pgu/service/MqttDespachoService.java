@@ -38,11 +38,16 @@ public class MqttDespachoService {
 
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    // Sprint 5 (follow-up): heartbeats dos paineis vem por MQTT (sem NiFi).
+    private final org.springframework.context.ApplicationContext applicationContext;
     private MqttClient mqttClient;
 
-    public MqttDespachoService(ApplicationEventPublisher eventPublisher, ObjectMapper objectMapper) {
+    public MqttDespachoService(ApplicationEventPublisher eventPublisher,
+                                ObjectMapper objectMapper,
+                                org.springframework.context.ApplicationContext applicationContext) {
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
+        this.applicationContext = applicationContext;
     }
 
     @PostConstruct
@@ -99,9 +104,14 @@ public class MqttDespachoService {
             if (mqttClient != null && mqttClient.isConnected()) {
                 mqttClient.subscribe(topicoAckWildcard, 1);
                 log.info("Subscrição efetuada no tópico de ACKs: {}", topicoAckWildcard);
+                // Sprint 5 (follow-up): heartbeats dos paineis DMS chegam por
+                // MQTT (sem NiFi). Apanhamos directo aqui para o backend
+                // chamar DisplayPanelService.recordHeartbeat.
+                mqttClient.subscribe("tub/panels/heartbeat", 0);
+                log.info("Subscrição efetuada no tópico de heartbeats dos paineis: tub/panels/heartbeat");
             }
         } catch (MqttException e) {
-            log.error("Erro ao subscrever tópico de ACKs {}: {}", topicoAckWildcard, e.getMessage());
+            log.error("Erro ao subscrever tópicos MQTT: {}", e.getMessage());
         }
     }
 
@@ -161,7 +171,14 @@ public class MqttDespachoService {
             String payload = new String(message.getPayload());
             log.debug("Mensagem MQTT recebida no tópico {}: {}", topic, payload);
 
-            // Tópico esperado: tub/dispatch/{busId}/ack
+            // Sprint 5 (follow-up): heartbeats dos paineis (tub/panels/heartbeat)
+            // sao processados aqui directamente (bypass NiFi).
+            if ("tub/panels/heartbeat".equals(topic)) {
+                processarHeartbeatPainel(payload);
+                return;
+            }
+
+            // Tópico esperado para ACKs: tub/dispatch/{busId}/ack
             String[] parts = topic.split("/");
             if (parts.length < 3) {
                 log.warn("Tópico inválido ignorado: {}", topic);
@@ -183,6 +200,38 @@ public class MqttDespachoService {
 
         } catch (Exception e) {
             log.error("Erro ao processar mensagem MQTT recebida: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sprint 5 (follow-up): payload do heartbeat dos paineis enviado pelo
+     * simulador. Aceita {@code panelCode, batteryPct?, temperatureC?, firmware?, status?}.
+     * Chama directamente {@code DisplayPanelService.recordHeartbeat} (lookup
+     * via ApplicationContext para evitar ciclo de dependencia).
+     */
+    private void processarHeartbeatPainel(String payload) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = objectMapper.readValue(payload, Map.class);
+            String code = (String) map.getOrDefault("panelCode", map.get("code"));
+            if (code == null || code.isBlank()) {
+                log.warn("Heartbeat de painel sem panelCode: {}", payload);
+                return;
+            }
+            Short battery = null;
+            if (map.get("batteryPct") != null) {
+                try { battery = Short.valueOf(map.get("batteryPct").toString()); } catch (Exception ignore) {}
+            }
+            java.math.BigDecimal temp = null;
+            if (map.get("temperatureC") != null) {
+                try { temp = new java.math.BigDecimal(map.get("temperatureC").toString()); } catch (Exception ignore) {}
+            }
+            String firmware = (String) map.get("firmware");
+            String status = (String) map.get("status");
+            DisplayPanelService svc = applicationContext.getBean(DisplayPanelService.class);
+            svc.recordHeartbeat(code, battery, temp, firmware, status);
+        } catch (Exception e) {
+            log.warn("Falha a processar heartbeat de painel: {}", e.getMessage());
         }
     }
 

@@ -1,4 +1,332 @@
-/* Sprint 1 (F4): Horários planeados — master-detail. */
+/* Sprint 1 (F4): Horários planeados — master-detail.
+   Sprint 5 (follow-up): botão "Criar horário" no header. */
+
+/* "+ Adicionar trip" — botão dentro do card do padrão */
+.sch-section-label--with-action {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.sch-add-trip-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: linear-gradient(135deg, #009BDB, #38BDF8);
+  color: #fff;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 155, 219, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sch-add-trip-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 155, 219, 0.38);
+}
+
+/* ─── Create Trip modal (tela grande) ────────────────────── */
+.modal-dialog:has(.ct-form) {
+  max-width: 1200px !important;
+  width: 95vw !important;
+}
+.modal-dialog:has(.ct-form) .modal-body { max-height: 82vh; overflow-y: auto; }
+
+.ct-form { display: flex; flex-direction: column; gap: 20px; }
+.ct-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 16px;
+  background: var(--color-bg-subtle);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+.ct-field {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; min-width: 0;
+}
+.ct-field > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-light);
+}
+.ct-field select, .ct-field input {
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ct-field select:focus, .ct-field input:focus {
+  outline: none;
+  border-color: var(--color-primary, #009BDB);
+  box-shadow: 0 0 0 3px rgba(0, 155, 219, 0.15);
+}
+
+/* Combobox searchable (Linha, Padrão) */
+.ct-combo { position: relative; }
+.ct-combo-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 32px 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-size: 14px;
+}
+.ct-combo-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #009BDB);
+  box-shadow: 0 0 0 3px rgba(0, 155, 219, 0.15);
+}
+.ct-combo-input:disabled { opacity: 0.55; cursor: not-allowed; }
+.ct-combo-clear {
+  position: absolute;
+  right: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: transparent; border: none;
+  color: var(--color-text-light);
+  cursor: pointer; border-radius: 6px;
+}
+.ct-combo-clear:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+.ct-combo-list {
+  position: fixed;
+  z-index: 1200;
+  margin: 0; padding: 4px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+.ct-combo-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.ct-combo-item.is-highlight,
+.ct-combo-item:hover {
+  background: var(--color-bg-subtle, rgba(0, 155, 219, 0.08));
+}
+.ct-combo-item.is-selected {
+  background: rgba(0, 155, 219, 0.14);
+  color: var(--color-text-heading);
+}
+.ct-combo-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-light);
+  font-style: italic;
+}
+
+.ct-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 460px;
+}
+.ct-map {
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  height: 100%;
+  min-height: 460px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+.ct-stops {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  max-height: 520px;
+  overflow: hidden;
+}
+.ct-stops-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+}
+.ct-stops-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+.ct-stops-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.ct-stops-list {
+  list-style: none; padding: 8px; margin: 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.ct-stop {
+  display: grid;
+  grid-template-columns: 32px 1fr 150px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  font-size: 13px;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ct-stop:hover { border-color: var(--color-border); }
+.ct-stop--start {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.04));
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.ct-stop--end {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.14), rgba(239, 68, 68, 0.04));
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.ct-stop-seq {
+  display: inline-grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 11px;
+  background: var(--color-surface);
+  color: var(--color-text-light);
+  border: 1px solid var(--color-border);
+}
+.ct-stop--start .ct-stop-seq {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: #fff; border-color: transparent;
+}
+.ct-stop--end .ct-stop-seq {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: #fff; border-color: transparent;
+}
+.ct-stop-name {
+  color: var(--color-text);
+  font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ct-stop--start .ct-stop-name,
+.ct-stop--end .ct-stop-name {
+  color: var(--color-text-heading);
+  font-weight: 600;
+}
+.ct-stop-time {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-heading);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, 'Fira Code', 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  /* Forçar 24h consistente entre browsers */
+}
+.ct-stop-time:hover {
+  border-color: var(--color-primary, #009BDB);
+  background: var(--color-bg-subtle);
+}
+.ct-stop-time:focus {
+  outline: none;
+  border-color: var(--color-primary, #009BDB);
+  box-shadow: 0 0 0 3px rgba(0, 155, 219, 0.15);
+  background: var(--color-surface);
+}
+/* Esconder o ícone de relógio nativo do Chrome/Edge — substituído por look limpo */
+.ct-stop-time::-webkit-calendar-picker-indicator {
+  opacity: 0.4;
+  cursor: pointer;
+  filter: invert(0.5);
+  margin-left: 4px;
+  transition: opacity 0.15s;
+}
+.ct-stop-time::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+/* Firefox */
+.ct-stop-time::-moz-time-spin {
+  border: none;
+}
+/* Quando vazio (placeholder) */
+.ct-stop-time:invalid,
+.ct-stop-time:not([value]):not(:focus) {
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+/* Realçar visualmente que partida/chegada estão preenchidas */
+.ct-stop--start .ct-stop-time:not([value=""]) { border-color: rgba(16, 185, 129, 0.5); }
+.ct-stop--end   .ct-stop-time:not([value=""]) { border-color: rgba(239, 68, 68, 0.5); }
+.ct-stops-empty {
+  padding: 36px 16px; text-align: center; font-style: italic;
+  color: var(--color-text-light); font-size: 13px;
+}
+
+.ct-msg {
+  margin: 0; padding: 8px 12px; border-radius: 8px; font-size: 13px;
+}
+.ct-msg--err { background: rgba(239, 68, 68, 0.12); color: var(--color-danger, #ef4444); }
+.ct-msg--ok  { background: rgba(16, 185, 129, 0.12); color: var(--color-success, #10b981); }
+
+.ct-actions {
+  display: flex; gap: 10px; justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+.ct-btn-primary, .ct-btn-secondary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600; font-size: 13.5px;
+  cursor: pointer; border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ct-btn-primary {
+  background: linear-gradient(135deg, #009BDB, #38BDF8);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 155, 219, 0.32);
+}
+.ct-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 155, 219, 0.42);
+}
+.ct-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+.ct-btn-secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+.ct-btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-heading);
+}
+
+@media (max-width: 900px) {
+  .ct-controls { grid-template-columns: 1fr 1fr; }
+  .ct-body { grid-template-columns: 1fr; }
+  .ct-map { min-height: 240px; }
+}
 
 /* ─── Cobertura (header) ─── */
 .sch-coverage {
@@ -382,6 +710,40 @@
 .sch-trip-arrow { color: var(--color-text-light); font-weight: 600; }
 .sch-trip-stopcount { font-size: 11px; color: var(--color-text-light); }
 
+/* Botões editar/apagar trip — aparecem no hover do card */
+.sch-trip-card { position: relative; cursor: pointer; }
+.sch-trip-actions {
+  position: absolute;
+  top: 6px; right: 6px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.sch-trip-card:hover .sch-trip-actions { opacity: 1; }
+.sch-trip-edit,
+.sch-trip-delete {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-light);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.sch-trip-edit:hover {
+  opacity: 1;
+  background: rgba(0, 155, 219, 0.14);
+  color: var(--color-primary, #009BDB);
+}
+.sch-trip-delete:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-danger, #ef4444);
+}
+
 /* Cabecalho do detalhe da viagem */
 .sch-detail-head {
   display: flex;
@@ -410,7 +772,9 @@
 .sch-timeline::before {
   content: '';
   position: absolute;
-  left: 60px;
+  /* Grid cols: 52px (time) + 8px gap + 18px (dot col) + 8px gap + 1fr (name).
+     Centro do dot = 52 + 8 + 9 = 69px. Linha 2px → left: 68px. */
+  left: 68px;
   top: 8px;
   bottom: 8px;
   width: 2px;
@@ -471,3 +835,4 @@
   .sch-mid { max-height: none; }
   .sch-detail { grid-column: auto; }
 }
+

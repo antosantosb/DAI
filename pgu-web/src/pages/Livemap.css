@@ -2449,3 +2449,55 @@
 }
 [data-theme="dark"] .livemap-msg-badge-state.lida { color: var(--color-success); }
 [data-theme="dark"] .livemap-msg-status-retry:hover { color: var(--color-danger-hover); }
+
+/* ─── Sprint 5 (follow-up): popup ETA detalhado (sched/eta/delay) ── */
+.sp-row--detailed {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 6px;
+}
+.sp-row-top {
+  display: flex; align-items: center; gap: 8px;
+}
+.sp-row-top .sp-delay { margin-left: auto; }
+.sp-row-grid {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+.sp-row-grid--cols-1 { grid-template-columns: 1fr; }
+.sp-row-grid--cols-2 { grid-template-columns: 1fr 1fr; }
+.sp-col {
+  display: flex; flex-direction: column; gap: 1px;
+  text-align: center;
+}
+.sp-col-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.sp-col-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.sp-col-eta { color: var(--color-primary, #009BDB); }
+.sp-col-sub { font-size: 10px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+
+.sp-delay {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-variant-numeric: tabular-nums;
+}
+.sp-delay--ontime { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.sp-delay--late   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+.sp-delay--early  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+.sp-delay--unknown { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }

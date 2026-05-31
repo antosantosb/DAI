@@ -82,11 +82,47 @@ export default function DevTools() {
   const [paxLoading, setPaxLoading] = useState(false);
   const [paxMsg, setPaxMsg] = useState(null);
 
+  // Sprint 5 (follow-up): Quick Duty — força escala teste fixa (2 trips).
+  const [qdEligible, setQdEligible] = useState([]);
+  const [qdBusId, setQdBusId] = useState('');
+  const [qdMinutes, setQdMinutes] = useState('1');
+  const [qdLoading, setQdLoading] = useState(false);
+  const [qdMsg, setQdMsg] = useState(null);
+
+  const reloadEligible = () => {
+    api.get('/dev/quick-duty/eligible-buses')
+      .then(r => setQdEligible(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setQdEligible([]));
+  };
+
+  const handleQuickDuty = async (e) => {
+    e.preventDefault();
+    if (!qdBusId) return;
+    setQdLoading(true); setQdMsg(null);
+    try {
+      const res = await api.post('/dev/quick-duty', null, {
+        params: { busId: qdBusId, minutes: Number(qdMinutes) || 1 },
+      });
+      const d = res.data || {};
+      setQdMsg({
+        kind: 'ok',
+        text: `Escala criada para ${d.busCode || qdBusId}: ` +
+          `Trip 1 ${d.duty1?.routeCode || '?'}·${d.duty1?.headsign || '?'} → ` +
+          `Trip 2 ${d.duty2?.routeCode || '?'}·${d.duty2?.headsign || '?'}.`,
+      });
+      reloadEligible();
+    } catch (err) {
+      setQdMsg({ kind: 'err', text: err.response?.data?.message || err.message || 'Falhou.' });
+    } finally {
+      setQdLoading(false);
+    }
+  };
+
   // ─── load buses ──────────────────────────────────────────────────────────
   const reloadBuses = () => {
     api.get('/buses').then(r => setBuses(r.data || [])).catch(() => setBuses([]));
   };
-  useEffect(() => { reloadBuses(); }, []);
+  useEffect(() => { reloadBuses(); reloadEligible(); }, []);
 
   // ─── handlers ────────────────────────────────────────────────────────────
   const handleBusBatch = async (e) => {
@@ -276,6 +312,77 @@ export default function DevTools() {
               </button>
               {paxMsg && (
                 <p className={`dt-msg dt-msg--${paxMsg.kind}`}>{paxMsg.text}</p>
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* Sprint 5 (follow-up): Quick Duty — força escala teste fixa */}
+      <section className="dt-section">
+        <header className="dt-section-header">
+          <IconClock />
+          <h2>Quick Duty (escala teste)</h2>
+        </header>
+        <div className="dt-grid">
+          <form className="dt-card" onSubmit={handleQuickDuty}>
+            <div className="dt-card-head">
+              <span className="dt-card-icon"><IconClock /></span>
+              <div>
+                <h3 className="dt-card-title">Forçar escala teste</h3>
+                <p className="dt-card-desc">
+                  Cria uma escala fixa de <strong>2 trips</strong> num autocarro
+                  elegível (parado, com motorista e sensor). É sempre a mesma para
+                  antecipares as paragens onde colocar painéis. Limpa as duties
+                  PLANNED do dia primeiro.
+                </p>
+              </div>
+            </div>
+
+            <div className="qd-preview">
+              <div className="qd-preview-label">Schedule preview · ~35 min</div>
+              <div className="qd-preview-row">
+                <span className="qd-route-chip">2</span>
+                <span>Outbound · BOM JESUS</span>
+              </div>
+              <div className="qd-preview-row">
+                <span className="qd-route-chip">43</span>
+                <span>Inbound · ESTAÇÃO CF</span>
+              </div>
+            </div>
+
+            <div className="dt-form">
+              <div className="dt-field">
+                <label>Autocarro elegível</label>
+                <select value={qdBusId} onChange={e => setQdBusId(e.target.value)} required>
+                  <option value="">— escolher —</option>
+                  {qdEligible.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.busCode}{b.licensePlate ? ` · ${b.licensePlate}` : ''}{b.routeCode ? ` (rota ${b.routeCode})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {qdEligible.length === 0 && (
+                  <p className="qd-empty-hint">
+                    Nenhum autocarro elegível (precisa: STOPPED + motorista + sensor).
+                  </p>
+                )}
+              </div>
+              <div className="dt-field">
+                <label>Arranque daqui a (minutos)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={qdMinutes}
+                  onChange={e => setQdMinutes(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary" disabled={!qdBusId || qdLoading}>
+                {qdLoading ? 'A criar...' : 'Criar escala teste'}
+              </button>
+              {qdMsg && (
+                <p className={`dt-msg dt-msg--${qdMsg.kind}`}>{qdMsg.text}</p>
               )}
             </div>
           </form>

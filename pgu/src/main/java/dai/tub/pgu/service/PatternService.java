@@ -119,6 +119,13 @@ public class PatternService
             m.put("stopName", ps.getStop().getName());
             m.put("stopCode", ps.getStop().getCode());
             m.put("sequence", ps.getStopSequence());
+            // Sprint 5 (follow-up): também stopSequence (camelCase) + lat/lon
+            // para o CreateTrip desenhar paragens no mini-mapa.
+            m.put("stopSequence", ps.getStopSequence());
+            if (ps.getStop().getLocation() != null) {
+                m.put("lat", ps.getStop().getLocation().getY());
+                m.put("lon", ps.getStop().getLocation().getX());
+            }
             out.add(m);
         }
         return out;

@@ -63,6 +63,9 @@ export default function Livemap() {
   const selectedRouteRef = useRef(null);
 
   const [stops, setStops] = useState([]);
+  // Sprint 5 (follow-up): Set<stopId> que tem painel DMS associado.
+  // Usado para destacar markers e mostrar ETAs so' nessas paragens.
+  const [panelStopIds, setPanelStopIds] = useState(() => new Set());
   const [routes, setRoutes] = useState([]);
   const [segments, setSegments] = useState({});
   // Sprint 1 (F2): adherence stoplight por rota + toggle do overlay
@@ -273,6 +276,15 @@ export default function Livemap() {
     api.get('/stops', opts).then(r => setStops(r.data || [])).catch(err => {
       ignoreCanceled(err);
       if (!ctrl.signal.aborted) setStops([]);
+    });
+    // Sprint 5 (follow-up): paineis associados a stops (set de stopId).
+    api.get('/panels', opts).then(r => {
+      const set = new Set();
+      (r.data || []).forEach(p => { if (p.stopId != null) set.add(p.stopId); });
+      if (!ctrl.signal.aborted) setPanelStopIds(set);
+    }).catch(err => {
+      ignoreCanceled(err);
+      if (!ctrl.signal.aborted) setPanelStopIds(new Set());
     });
     api.get('/routes', opts).then(r => setRoutes(r.data || [])).catch(err => {
       ignoreCanceled(err);
@@ -753,24 +765,32 @@ export default function Livemap() {
       // Revamp: ponto mais pequeno e crisp (borda fina), ligeiramente
       // translucido para nao saturar quando ha' muitas paragens. Distinto
       // dos marcadores do padrao (maiores e na cor da rota).
+      // Sprint 5 (follow-up): stops com painel DMS sao destacadas (amarelo,
+      // maior) e tem popup completo com ETAs. Sem painel mostra apenas o
+      // nome no popup minimal.
+      const hasPanel = panelStopIds.has(stop.id);
       const marker = L.circleMarker([stop.latitude, stop.longitude], {
-        radius: 5,
-        fillColor: '#009BDB',
+        radius: hasPanel ? 7 : 5,
+        fillColor: hasPanel ? '#f59e0b' : '#009BDB',
         color: '#fff',
-        weight: 1.5,
-        fillOpacity: 0.92,
-        opacity: 0.85,
+        weight: hasPanel ? 2 : 1.5,
+        fillOpacity: hasPanel ? 1 : 0.92,
+        opacity: 0.9,
       });
-      const popupContent = buildPanelLoading(stop);
-      marker.bindPopup(popupContent, { minWidth: 260, maxWidth: 300, className: 'stop-panel-popup' });
-      marker.on('popupopen', () => {
-        api.get(`/stops/${stop.id}/panel`).then(r => {
-          const panel = r.data;
-          marker.setPopupContent(buildPanelHtml(panel));
-        }).catch(() => {
-          marker.setPopupContent(buildPanelError(stop));
+      if (hasPanel) {
+        // Stop COM painel — popup completo com ETAs.
+        marker.bindPopup(buildPanelLoading(stop), { minWidth: 260, maxWidth: 300, className: 'stop-panel-popup' });
+        marker.on('popupopen', () => {
+          api.get(`/stops/${stop.id}/panel`).then(r => {
+            marker.setPopupContent(buildPanelHtml(r.data));
+          }).catch(() => {
+            marker.setPopupContent(buildPanelError(stop));
+          });
         });
-      });
+      } else {
+        // Stop SEM painel — popup minimal só com nome e código.
+        marker.bindPopup(buildStopMinimal(stop), { minWidth: 180, maxWidth: 240, className: 'stop-minimal-popup' });
+      }
       stopLayerGroup.current.addLayer(marker);
     });
 
@@ -794,7 +814,7 @@ export default function Livemap() {
     // Em vez disso lemos das refs (busesRef.current). O custo: ao toggle
     // de onlyActiveRoutes pode levar um tick para reflectir mudancas de
     // estado posteriores; aceitavel.
-  }, [stops, routes, routePolylineData, selectedRoute, adherenceMap, adherenceLayerOn, onlyActiveRoutes]);
+  }, [stops, routes, routePolylineData, selectedRoute, adherenceMap, adherenceLayerOn, onlyActiveRoutes, panelStopIds]);
 
   // ─── Sidebar handlers ───
   const handleRouteClick = useCallback((routeId) => {
@@ -867,10 +887,28 @@ export default function Livemap() {
             (stopsData || []).forEach(s => {
               const sm = stopMap[s.stopId];
               if (!sm) return;
-              const marker = L.circleMarker([sm.latitude, sm.longitude], {
-                radius: 6, color: '#fff', weight: 2, fillColor: routeColor, fillOpacity: 0.95,
-              });
+              // Sprint 5 (follow-up): stop com painel DMS — marker laranja maior + popup ETA.
+              const hasPanel = panelStopIds.has(s.stopId);
+              const marker = L.circleMarker([sm.latitude, sm.longitude], hasPanel
+                ? { radius: 8, color: '#fff', weight: 2, fillColor: '#f59e0b', fillOpacity: 1 }
+                : { radius: 6, color: '#fff', weight: 2, fillColor: routeColor, fillOpacity: 0.95 });
               marker.bindTooltip(`${s.stopName}`, { direction: 'top' });
+              if (hasPanel) {
+                marker.bindPopup(buildPanelLoading({
+                  name: s.stopName, code: s.stopCode || '',
+                  latitude: sm.latitude, longitude: sm.longitude,
+                }), { minWidth: 260, maxWidth: 300, className: 'stop-panel-popup' });
+                marker.on('popupopen', () => {
+                  api.get(`/stops/${s.stopId}/panel`).then(r => {
+                    marker.setPopupContent(buildPanelHtml(r.data));
+                  }).catch(() => {
+                    marker.setPopupContent(buildPanelError({
+                      name: s.stopName, code: s.stopCode || '',
+                      latitude: sm.latitude, longitude: sm.longitude,
+                    }));
+                  });
+                });
+              }
               layer.addLayer(marker);
             });
           })
@@ -881,7 +919,7 @@ export default function Livemap() {
           console.error('Falha ao carregar geometria do pattern:', err);
         }
       });
-  }, [routes, stopMap]);
+  }, [routes, stopMap, panelStopIds]);
 
   // Clicar num pattern: troca o trajeto mostrado (re-clique no mesmo = no-op).
   const handlePatternSelect = useCallback((patternId) => {
@@ -1325,6 +1363,17 @@ export default function Livemap() {
 }
 
 // ─── Stop panel HTML builders ───
+// Sprint 5 (follow-up): popup minimal para paragens SEM painel DMS.
+function buildStopMinimal(stop) {
+  return `<div class="sp sp--minimal">
+    <div class="sp-header">
+      <div class="sp-name">${stop.name}</div>
+      <div class="sp-code">${stop.code}</div>
+    </div>
+    <div class="sp-coords">${stop.latitude.toFixed(5)}, ${stop.longitude.toFixed(5)}</div>
+  </div>`;
+}
+
 function buildPanelLoading(stop) {
   return `<div class="sp">
     <div class="sp-header">
@@ -1367,13 +1416,39 @@ function buildPanelHtml(panel) {
   if (etas.length === 0) {
     rows = '<div class="sp-empty">Sem autocarros a caminho</div>';
   } else {
+    // Helper: now + Xm → HH:MM
+    const etaClock = (m) => {
+      if (m == null) return '—';
+      const d = new Date(Date.now() + m * 60 * 1000);
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
     etas.forEach(eta => {
-      const mins = eta.etaMinutes;
-      const timeLabel = mins <= 1 ? 'a chegar' : `${mins} min`;
-      rows += `<div class="sp-row">
-        <span class="sp-row-badge" style="background:${eta.routeColor}">${eta.routeCode}</span>
-        <span class="sp-row-bus">${eta.busCode}</span>
-        <span class="sp-row-time ${mins <= 2 ? 'sp-row-soon' : ''}">${timeLabel}</span>
+      const etaHHMM = etaClock(eta.etaMinutes);
+      const hasSched = !!eta.scheduledArrival;
+      const d = eta.delayMinutes;
+      let delayHtml = '';
+      if (d != null) {
+        const cls = d <= -1 ? 'sp-delay--early' : d >= 2 ? 'sp-delay--late' : 'sp-delay--ontime';
+        const label = d > 0 ? `+${d}m` : d === 0 ? '0m' : `${d}m`;
+        delayHtml = `<span class="sp-delay ${cls}">${label}</span>`;
+      }
+      const schedCol = hasSched
+        ? `<div class="sp-col"><span class="sp-col-label">Planeado</span><span class="sp-col-value">${eta.scheduledArrival}</span></div>`
+        : '';
+      rows += `<div class="sp-row sp-row--detailed">
+        <div class="sp-row-top">
+          <span class="sp-row-badge" style="background:${eta.routeColor}">${eta.routeCode}</span>
+          <span class="sp-row-bus">${eta.busCode}</span>
+          ${delayHtml}
+        </div>
+        <div class="sp-row-grid sp-row-grid--cols-${hasSched ? 2 : 1}">
+          ${schedCol}
+          <div class="sp-col">
+            <span class="sp-col-label">ETA</span>
+            <span class="sp-col-value sp-col-eta">${etaHHMM}</span>
+            <span class="sp-col-sub">em ${eta.etaMinutes}m</span>
+          </div>
+        </div>
       </div>`;
     });
   }
@@ -1387,9 +1462,6 @@ function buildPanelHtml(panel) {
       <div class="sp-code">${panel.stopCode}</div>
     </div>
     <div class="sp-board">
-      <div class="sp-board-header">
-        <span>Linha</span><span>Autocarro</span><span>Tempo</span>
-      </div>
       <div class="sp-board-body">${rows}</div>
     </div>
     ${msgHtml}

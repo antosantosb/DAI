@@ -44,6 +44,34 @@ export default function Schedules() {
   const [loadingRoutes, setLoadingRoutes] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState(null);
+  // Sprint 5 (follow-up): modal de criar/editar horário
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null); // null = create | {id, headsign, stops...}
+  // Sprint 5 (follow-up): modal próprio de confirmação de apagar trip.
+  // Substitui o window.confirm() nativo (estética inconsistente com o resto).
+  const [confirmDelete, setConfirmDelete] = useState(null); // null | { trip }
+  const [deletingTrip, setDeletingTrip] = useState(false);
+
+  const openEditTrip = async (trip, e) => {
+    e.stopPropagation();
+    try {
+      const r = await api.get(`/schedules/trips/${trip.tripId}/stops`);
+      // r.data = [{ stop_sequence, arrival_time, ... }]
+      const tripStops = (r.data || []).map(s => ({
+        stopSequence: s.stop_sequence ?? s.stopSequence,
+        arrivalTime: s.arrival_time ?? s.arrivalTime,
+      }));
+      setEditingTrip({
+        id: trip.id ?? trip.tripId,
+        headsign: trip.headsign || '',
+        serviceId: trip.serviceId || 'WEEKDAY',
+        stopTimes: tripStops,
+      });
+      setCreateOpen(true);
+    } catch (err) {
+      alert('Não foi possível carregar a trip: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   // --- Padroes da linha selecionada ---
   const [patterns, setPatterns] = useState([]);
@@ -100,10 +128,24 @@ export default function Schedules() {
       .map(x => x.r);
   }, [routes, search]);
 
+  // Sprint 5 (follow-up): tripCountByRoute vem de /schedules/coverage e
+  // permite distinguir "linhas com padrão" vs "linhas com horário (trips)".
+  const [tripCountByRoute, setTripCountByRoute] = useState({});
+  useEffect(() => {
+    api.get('/schedules/coverage').then(r => {
+      const m = {};
+      (r.data || []).forEach(row => {
+        // backend devolve route_id + trip_count
+        m[row.route_id] = Number(row.trip_count) || 0;
+      });
+      setTripCountByRoute(m);
+    }).catch(() => setTripCountByRoute({}));
+  }, []);
+
   const summary = useMemo(() => {
-    const withPat = routes.filter(r => (r.patternCount || 0) > 0).length;
-    return { withPat, without: routes.length - withPat, total: routes.length };
-  }, [routes]);
+    const withTrips = routes.filter(r => (tripCountByRoute[r.id] || 0) > 0).length;
+    return { withPat: withTrips, without: routes.length - withTrips, total: routes.length };
+  }, [routes, tripCountByRoute]);
 
   // Selecionar linha -> vai buscar os padroes; limpa padrao/viagem/paragens.
   const selectRoute = (route) => {
@@ -118,15 +160,43 @@ export default function Schedules() {
       .finally(() => setLoadingPatterns(false));
   };
 
+  // Refresh trips de um pattern (extraído para re-uso após criar nova trip).
+  const loadTripsForPattern = (patternId) => {
+    if (!patternId) return;
+    setLoadingTrips(true);
+    api.get(`/patterns/${patternId}/trips`)
+      .then(r => setTrips(r.data || []))
+      .catch(() => setTrips([]))
+      .finally(() => setLoadingTrips(false));
+  };
+
+  // Sprint 5 (follow-up): abrir modal próprio de confirmação (sem window.confirm).
+  const deleteTrip = (trip, e) => {
+    e.stopPropagation();
+    setConfirmDelete({ trip });
+  };
+
+  const doDeleteTrip = async () => {
+    if (!confirmDelete?.trip) return;
+    const trip = confirmDelete.trip;
+    setDeletingTrip(true);
+    try {
+      await api.delete(`/schedules/trips/${trip.id ?? trip.tripId}`);
+      if (selectedTrip?.tripId === trip.tripId) clearTrip();
+      setConfirmDelete(null);
+      loadTripsForPattern(selectedPattern?.id);
+    } catch (err) {
+      alert('Não foi possível apagar: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setDeletingTrip(false);
+    }
+  };
+
   // Selecionar padrao -> vai buscar as viagens (agregadas, ordenadas por partida).
   const selectPattern = (pattern) => {
     setSelectedPattern(pattern);
     clearTrip();
-    setLoadingTrips(true);
-    api.get(`/patterns/${pattern.id}/trips`)
-      .then(r => setTrips(r.data || []))
-      .catch(() => setTrips([]))
-      .finally(() => setLoadingTrips(false));
+    loadTripsForPattern(pattern.id);
   };
 
   // Selecionar viagem -> timeline das paragens. `seq` = numero da viagem (1-based).
@@ -283,6 +353,45 @@ export default function Schedules() {
         </div>
       </div>
 
+      {/* Sprint 5 (follow-up): modal de criar horário (trip + stop_times).
+          Aberto via botão "Adicionar trip" no card do padrão. */}
+      {/* Mount condicional: garante estado fresco a cada abertura
+          (caso contrário, reabrir com o mesmo routeId não dispara o
+          useEffect que carrega patterns, deixando o padrão vazio). */}
+      {createOpen && (
+        <CreateTripModal
+          open
+          onClose={() => { setCreateOpen(false); setEditingTrip(null); }}
+          onCreated={() => {
+            setCreateOpen(false);
+            setEditingTrip(null);
+            loadTripsForPattern(selectedPattern?.id);
+          }}
+          routes={routes}
+          initialRouteId={selectedRoute?.id}
+          initialPatternId={selectedPattern?.id}
+          editingTrip={editingTrip}
+          t={t}
+        />
+      )}
+
+      {/* Modal de confirmação para apagar trip — usa o API standard do <Modal>
+          (type=danger → ícone + botão consistentes com o resto do sistema). */}
+      <Modal
+        open={!!confirmDelete}
+        onClose={() => !deletingTrip && setConfirmDelete(null)}
+        onConfirm={doDeleteTrip}
+        type="danger"
+        title="Apagar horário"
+        message={
+          confirmDelete
+            ? `Apagar a trip ${fmtTime(confirmDelete.trip.firstDeparture)} → ${fmtTime(confirmDelete.trip.lastArrival)}? Esta acção não pode ser desfeita.`
+            : ''
+        }
+        confirmText={deletingTrip ? 'A apagar...' : 'Apagar trip'}
+        cancelText="Cancelar"
+      />
+
       <div className="sch-layout sch-layout--3">
         {/* Coluna 1: Linhas */}
         <aside className="sch-routes">
@@ -426,11 +535,22 @@ export default function Schedules() {
               {/* Viagens do padrao selecionado */}
               {selectedPattern && (
                 <>
-                  <div className="sch-section-label sch-section-label--mt">
-                    {t('pages.schedules.tripsTitle')}
-                    {!loadingTrips && trips.length > 0 && (
-                      <span className="sch-section-count">{trips.length}</span>
-                    )}
+                  <div className="sch-section-label sch-section-label--mt sch-section-label--with-action">
+                    <span>
+                      {t('pages.schedules.tripsTitle')}
+                      {!loadingTrips && trips.length > 0 && (
+                        <span className="sch-section-count">{trips.length}</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="sch-add-trip-btn"
+                      onClick={() => setCreateOpen(true)}
+                      title="Adicionar trip a este padrão"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      Adicionar trip
+                    </button>
                   </div>
                   {loadingTrips ? (
                     <div className="sch-loading">{t('common.loading')}</div>
@@ -444,11 +564,13 @@ export default function Schedules() {
                         const seq = i + 1;
                         const active = selectedTrip?.tripId === tr.tripId;
                         return (
-                          <button
+                          <div
                             key={tr.tripId ?? i}
                             className={`sch-trip-card${active ? ' sch-trip-card--active' : ''}`}
                             onClick={() => selectTrip(tr, seq)}
-                            // Mantemos o gtfs trip_id apenas como tooltip tecnico.
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && selectTrip(tr, seq)}
                             title={`${t('pages.schedules.trip')} ${seq} (${tr.tripId})`}
                           >
                             <span className="sch-trip-seq">{t('pages.schedules.trip')} {seq}</span>
@@ -460,7 +582,27 @@ export default function Schedules() {
                             <span className="sch-trip-stopcount">
                               {tr.stopCount} {t('pages.schedules.stops').toLowerCase()}
                             </span>
-                          </button>
+                            <div className="sch-trip-actions">
+                              <button
+                                type="button"
+                                className="sch-trip-edit"
+                                onClick={(e) => openEditTrip(tr, e)}
+                                title="Editar trip"
+                                aria-label="Editar trip"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button
+                                type="button"
+                                className="sch-trip-delete"
+                                onClick={(e) => deleteTrip(tr, e)}
+                                title="Apagar trip"
+                                aria-label="Apagar trip"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -520,4 +662,500 @@ export default function Schedules() {
       </div>
     </div>
   );
+}
+
+// ─── Sprint 5 (follow-up): tela grande para criar trip + stop_times num pattern ────
+function CreateTripModal({ open, onClose, onCreated, routes, t, initialRouteId, initialPatternId, editingTrip }) {
+  const isEditing = !!editingTrip;
+  const [routeId, setRouteId] = useState('');
+  const [patterns, setPatterns] = useState([]);
+  const [patternId, setPatternId] = useState('');
+  const [patternStops, setPatternStops] = useState([]); // [{stopId, stopSequence, stopName, lat, lon}]
+  const [patternGeometry, setPatternGeometry] = useState([]); // [[lat, lon], ...] real polyline
+  const [headsign, setHeadsign] = useState('');
+  const [serviceId, setServiceId] = useState('WEEKDAY');
+  const [stopTimes, setStopTimes] = useState({}); // { stopSequence: 'HH:MM' }
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const mapRef = useRef(null);
+  const mapInstRef = useRef(null);
+  const layerRef = useRef(null);
+  // State (não ref) para que mudanças disparem re-render e o useEffect veja-as.
+  const [pendingPatternId, setPendingPatternId] = useState(null);
+
+  // Reset completo do form sempre que o modal abre.
+  // Em modo edit, pré-popula headsign/serviceId e prepara stopTimes a aplicar
+  // depois das paragens carregarem (no useEffect dedicado abaixo).
+  useEffect(() => {
+    if (!open) return;
+    setPendingPatternId(initialPatternId ? String(initialPatternId) : null);
+    setRouteId(initialRouteId ? String(initialRouteId) : '');
+    setPatterns([]);
+    setPatternId('');
+    setPatternStops([]); setPatternGeometry([]);
+    if (editingTrip) {
+      setHeadsign(editingTrip.headsign || '');
+      setServiceId(editingTrip.serviceId || 'WEEKDAY');
+      // stopTimes aplicados no useEffect [patternStops, editingTrip]
+      setStopTimes({});
+    } else {
+      setHeadsign(''); setServiceId('WEEKDAY');
+      setStopTimes({});
+    }
+    setMsg(null); setSubmitting(false);
+  }, [open, initialRouteId, initialPatternId, editingTrip]);
+
+  // Em modo edit: quando as paragens do pattern carregarem, mapeia os horários
+  // da trip a editar (stopSequence → HH:MM) para os inputs.
+  useEffect(() => {
+    if (!editingTrip || !patternStops.length) return;
+    const map = {};
+    (editingTrip.stopTimes || []).forEach(st => {
+      const seq = st.stopSequence ?? st.stop_sequence;
+      const arr = st.arrivalTime ?? st.arrival_time;
+      if (seq != null && arr) {
+        // arrivalTime pode vir "HH:MM:SS" — corta para HH:MM
+        const parts = String(arr).split(':');
+        map[seq] = `${parts[0].padStart(2, '0')}:${parts[1]}`;
+      }
+    });
+    setStopTimes(map);
+  }, [editingTrip, patternStops]);
+
+  // Quando os patterns carregam E temos um pending, aplica.
+  useEffect(() => {
+    if (!pendingPatternId || patterns.length === 0) return;
+    if (patterns.some(p => String(p.id) === String(pendingPatternId))) {
+      setPatternId(String(pendingPatternId));
+      setPendingPatternId(null);
+    }
+  }, [patterns, pendingPatternId]);
+
+  // Carrega patterns quando routeId muda
+  useEffect(() => {
+    setPatternStops([]); setStopTimes({});
+    if (!routeId) { setPatterns([]); return; }
+    api.get(`/routes/${routeId}/patterns`)
+      .then(r => setPatterns(r.data || []))
+      .catch(() => setPatterns([]));
+  }, [routeId]);
+
+  // Carrega geometria real do pattern (polyline pela estrada) em paralelo
+  useEffect(() => {
+    setPatternGeometry([]);
+    if (!patternId) return;
+    api.get(`/patterns/${patternId}/geometry`)
+      .then(r => setPatternGeometry(r.data?.points || []))
+      .catch(() => setPatternGeometry([]));
+  }, [patternId]);
+
+  // Carrega paragens do pattern quando muda
+  useEffect(() => {
+    setPatternStops([]); setStopTimes({});
+    if (!patternId) return;
+    api.get(`/patterns/${patternId}/stops`)
+      .then(async r => {
+        let list = r.data || [];
+        // Se o endpoint não devolve lat/lon (backend antigo), enriquece via /stops/{id}.
+        const needsCoords = list.some(s => (s.lat ?? s.latitude) == null);
+        if (needsCoords) {
+          try {
+            const stopsRes = await api.get('/stops');
+            const map = new Map();
+            (stopsRes.data || []).forEach(s => map.set(s.id, s));
+            list = list.map(s => {
+              const full = map.get(s.stopId);
+              return full
+                ? { ...s, lat: full.latitude, lon: full.longitude }
+                : s;
+            });
+          } catch { /* ignore */ }
+        }
+        setPatternStops(list);
+      })
+      .catch(() => setPatternStops([]));
+  }, [patternId]);
+
+  // Init/cleanup mapa Leaflet — usa o mesmo basemap CARTO Voyager do Livemap.
+  useEffect(() => {
+    if (!open || !mapRef.current) return;
+    if (mapInstRef.current) return;
+    const map = L.map(mapRef.current, { attributionControl: false }).setView([41.5518, -8.4229], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 20,
+      detectRetina: true,
+    }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapInstRef.current = map;
+    setTimeout(() => map.invalidateSize(), 100);
+    return () => {
+      try { map.remove(); } catch {}
+      mapInstRef.current = null; layerRef.current = null;
+    };
+  }, [open]);
+
+  // Re-render polyline + paragens no mapa (mesmo padrão do Livemap)
+  useEffect(() => {
+    const layer = layerRef.current;
+    const map = mapInstRef.current;
+    if (!layer || !map) return;
+    layer.clearLayers();
+    setTimeout(() => map.invalidateSize(), 50);
+
+    const stopCoords = [];
+
+    // 1) Polyline real (segue as ruas) — vem do endpoint geometry com âncoras
+    if (patternGeometry && patternGeometry.length >= 2) {
+      layer.addLayer(L.polyline(patternGeometry, { color: '#009BDB', weight: 6, opacity: 0.85 }));
+    }
+
+    // 2) Markers das paragens por cima
+    patternStops.forEach((s, i) => {
+      const lat = s.lat ?? s.latitude;
+      const lon = s.lon ?? s.longitude;
+      if (lat == null || lon == null) return;
+      stopCoords.push([lat, lon]);
+      const isFirst = i === 0;
+      const isLast = i === patternStops.length - 1;
+      let opts;
+      if (isFirst) {
+        opts = { radius: 8, fillColor: '#10b981', color: '#fff', weight: 2.5, fillOpacity: 1 };
+      } else if (isLast) {
+        opts = { radius: 8, fillColor: '#ef4444', color: '#fff', weight: 2.5, fillOpacity: 1 };
+      } else {
+        opts = { radius: 5, fillColor: '#009BDB', color: '#fff', weight: 1.5, fillOpacity: 0.92, opacity: 0.85 };
+      }
+      const m = L.circleMarker([lat, lon], opts);
+      m.bindTooltip(`#${s.stopSequence || s.sequence} ${s.stopName}`, { direction: 'top' });
+      layer.addLayer(m);
+    });
+
+    // 3) Fit bounds — preferir geometria (mais larga), senão paragens
+    const fitCoords = patternGeometry && patternGeometry.length >= 2 ? patternGeometry : stopCoords;
+    if (fitCoords.length >= 2) {
+      setTimeout(() => map.fitBounds(L.latLngBounds(fitCoords), { padding: [40, 40], maxZoom: 16 }), 100);
+    } else if (fitCoords.length === 1) {
+      setTimeout(() => map.setView(fitCoords[0], 14), 100);
+    }
+  }, [patternStops, patternGeometry]);
+
+  const setTime = (seq, val) => setStopTimes(prev => ({ ...prev, [seq]: val }));
+
+  // Validações live — TODAS as paragens têm de ter horário e ser crescente.
+  // O erro de "sem horário" é silencioso (input required já marca a vermelho).
+  // Só mostra mensagem inline para o erro de ordem (monotonia).
+  const validation = (() => {
+    if (!patternStops.length) return { ok: false, error: null };
+    let lastSecs = -1;
+    let allFilled = true;
+    for (const ps of patternStops) {
+      const seq = ps.stopSequence || ps.sequence;
+      const t = stopTimes[seq];
+      if (!t) { allFilled = false; continue; }
+      const secs = hhmmToSecs(t);
+      if (secs < lastSecs) {
+        return { ok: false, error: `Paragem #${seq} (${ps.stopName}) tem horário anterior ao da paragem anterior.` };
+      }
+      lastSecs = secs;
+    }
+    return { ok: allFilled, error: null };
+  })();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validation.ok || submitting) return;
+    setSubmitting(true); setMsg(null);
+    try {
+      const stopTimesPayload = patternStops.map(ps => {
+        const seq = ps.stopSequence || ps.sequence;
+        const t = stopTimes[seq];
+        return { stopSequence: seq, arrivalTime: t, departureTime: t };
+      });
+      let res;
+      if (isEditing) {
+        res = await api.put(`/schedules/trips/${editingTrip.id}`, {
+          headsign: headsign.trim(),
+          serviceId,
+          stopTimes: stopTimesPayload,
+        });
+        setMsg({ ok: true, text: `Actualizado · ${res.data?.stopTimes || 0} paragens` });
+      } else {
+        res = await api.post('/schedules/trips', {
+          patternId: Number(patternId),
+          headsign: headsign.trim(),
+          serviceId,
+          stopTimes: stopTimesPayload,
+        });
+        setMsg({ ok: true, text: `Criado · ${res.data?.stopTimes || 0} paragens · tripId=${res.data?.tripId}` });
+      }
+      onCreated && onCreated(res.data);
+    } catch (err) {
+      setMsg({ ok: false, text: err.response?.data?.message || err.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Editar horário' : t('pages.schedules.createTitle', 'Criar horário')}>
+      <form onSubmit={handleSubmit} className="ct-form">
+        <div className="ct-controls">
+          <div className="ct-field">
+            <span>Linha</span>
+            <SearchCombo
+              items={routes || []}
+              value={routeId}
+              onChange={setRouteId}
+              getKey={(r) => r.id}
+              getLabel={(r) => `${r.code} · ${r.name}`}
+              getSearchText={(r) => `${r.code} ${r.name}`}
+              placeholder="Procurar linha por código ou nome..."
+              disabled={isEditing}
+              required
+            />
+          </div>
+          <div className="ct-field">
+            <span>Padrão</span>
+            <SearchCombo
+              items={patterns}
+              value={patternId}
+              onChange={setPatternId}
+              getKey={(p) => p.id}
+              getLabel={(p) => `${p.name || `Trajeto #${p.id}`} · ${p.stopCount} paragens`}
+              getSearchText={(p) => `${p.name || ''} ${p.stopCount}`}
+              placeholder={routeId ? "Procurar padrão..." : "Escolhe linha primeiro"}
+              disabled={!routeId || isEditing}
+              required
+            />
+          </div>
+          <label className="ct-field">
+            <span>Headsign</span>
+            <input value={headsign} onChange={(e) => setHeadsign(e.target.value)} placeholder="ex.: BOM JESUS" required />
+          </label>
+          <label className="ct-field">
+            <span>Service ID</span>
+            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+              <option value="WEEKDAY">WEEKDAY</option>
+              <option value="SATURDAY">SATURDAY</option>
+              <option value="SUNDAY">SUNDAY</option>
+              <option value="HOLIDAY">HOLIDAY</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="ct-body">
+          <div className="ct-map" ref={mapRef} />
+          <div className="ct-stops">
+            <div className="ct-stops-head">
+              <h4>Horários por paragem</h4>
+              <p>Define a hora de chegada em cada uma das <strong>{patternStops.length} paragens</strong> do trajeto, por ordem.</p>
+            </div>
+            <ul className="ct-stops-list">
+              {patternStops.map((s, i) => {
+                const isFirst = i === 0;
+                const isLast = i === patternStops.length - 1;
+                const role = isFirst ? 'start' : isLast ? 'end' : 'mid';
+                return (
+                  <li key={s.stopSequence} className={`ct-stop ct-stop--${role}`}>
+                    <span className="ct-stop-seq">#{s.stopSequence}</span>
+                    <span className="ct-stop-name">{s.stopName}</span>
+                    <input
+                      type="time"
+                      lang="pt-PT"
+                      step="60"
+                      value={stopTimes[s.stopSequence || s.sequence] || ''}
+                      onChange={(e) => setTime(s.stopSequence || s.sequence, e.target.value)}
+                      required
+                      className="ct-stop-time"
+                    />
+                  </li>
+                );
+              })}
+              {patternStops.length === 0 && (
+                <li className="ct-stops-empty">Selecciona uma linha e padrão para ver as paragens.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {validation.error && (
+          <p className="ct-msg ct-msg--err">{validation.error}</p>
+        )}
+        {msg && (
+          <p className={`ct-msg ${msg.ok ? 'ct-msg--ok' : 'ct-msg--err'}`}>{msg.text}</p>
+        )}
+        <div className="ct-actions">
+          <button type="button" className="ct-btn-secondary" onClick={onClose} disabled={submitting}>Cancelar</button>
+          <button type="submit" className="ct-btn-primary" disabled={submitting || !validation.ok}>
+            {submitting
+              ? (isEditing ? 'A guardar...' : 'A criar...')
+              : (isEditing ? 'Guardar alterações' : 'Criar horário')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// Combobox searchable genérico (linha, padrão, etc).
+// Render-agnostic: aceita items + getKey + getLabel + getSearchText.
+function SearchCombo({ items, value, onChange, getKey, getLabel, getSearchText, placeholder, disabled, required }) {
+  const initial = value ? (items || []).find(i => String(getKey(i)) === String(value)) : null;
+  const [query, setQuery] = useState(initial ? getLabel(initial) : '');
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const wrapRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Sync quando value muda externamente (ex.: reset ao mudar linha)
+  useEffect(() => {
+    if (!value) {
+      setQuery('');
+      setOpen(false);
+      return;
+    }
+    const found = (items || []).find(i => String(getKey(i)) === String(value));
+    if (found) setQuery(getLabel(found));
+  }, [value, items]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updatePos = () => {
+    if (!inputRef.current) return;
+    const r = inputRef.current.getBoundingClientRect();
+    setDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    const h = () => updatePos();
+    window.addEventListener('scroll', h, true);
+    window.addEventListener('resize', h);
+    return () => {
+      window.removeEventListener('scroll', h, true);
+      window.removeEventListener('resize', h);
+    };
+  }, [open]);
+
+  const filtered = (items || []).filter(i => {
+    if (!query) return true;
+    const txt = (getSearchText ? getSearchText(i) : getLabel(i)).toLowerCase();
+    return txt.includes(query.toLowerCase());
+  }).slice(0, 80);
+
+  const pick = (i) => {
+    setQuery(getLabel(i));
+    onChange(String(getKey(i)));
+    setOpen(false);
+  };
+
+  const onKey = (e) => {
+    if (!open) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[highlight]) pick(filtered[highlight]); }
+    else if (e.key === 'Escape') { setOpen(false); }
+  };
+
+  return (
+    <div className="ct-combo" ref={wrapRef}>
+      <input
+        ref={inputRef}
+        type="text"
+        className="ct-combo-input"
+        placeholder={placeholder}
+        value={query}
+        disabled={disabled}
+        required={required}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); onChange(''); setHighlight(0); }}
+        onClick={() => !disabled && setOpen(true)}
+        onKeyDown={onKey}
+        autoComplete="off"
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          className="ct-combo-clear"
+          onClick={() => { setQuery(''); onChange(''); setOpen(true); }}
+          title="Limpar"
+          aria-label="Limpar"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      )}
+      {open && (
+        <ul className="ct-combo-list" role="listbox"
+            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}>
+          {filtered.length === 0 && (
+            <li className="ct-combo-empty">Sem resultados para "{query}"</li>
+          )}
+          {filtered.map((i, idx) => (
+            <li
+              key={getKey(i)}
+              role="option"
+              className={`ct-combo-item ${idx === highlight ? 'is-highlight' : ''} ${String(getKey(i)) === String(value) ? 'is-selected' : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); pick(i); }}
+              onMouseEnter={() => setHighlight(idx)}
+            >
+              {getLabel(i)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Helpers
+function hhmmToSecs(hhmm) {
+  if (!hhmm) return -1;
+  const [h, m] = hhmm.split(':');
+  return Number(h) * 3600 + Number(m) * 60;
+}
+function secsToHHMM(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+function interpolateStopTimes(stops, times) {
+  // Constrói uma lista [{stopSequence, t}] preenchendo gaps por interpolação linear
+  // entre âncoras (paragens com tempo definido). Se só houver 1 âncora, replica.
+  const anchors = stops
+    .map((s, i) => ({ idx: i, seq: s.stopSequence, secs: hhmmToSecs(times[s.stopSequence]) }))
+    .filter(a => a.secs >= 0);
+  if (anchors.length === 0) return [];
+  if (anchors.length === 1) {
+    // Sem mais info: assume 2min por paragem após a âncora
+    const base = anchors[0];
+    return stops.map((s, i) => ({
+      stopSequence: s.stopSequence,
+      t: secsToHHMM(base.secs + (i - base.idx) * 120),
+    }));
+  }
+  const out = [];
+  for (let i = 0; i < stops.length; i++) {
+    // âncoras à esquerda e à direita
+    const left = [...anchors].reverse().find(a => a.idx <= i);
+    const right = anchors.find(a => a.idx >= i);
+    if (left && right && left.idx !== right.idx) {
+      const ratio = (i - left.idx) / (right.idx - left.idx);
+      const secs = Math.round(left.secs + (right.secs - left.secs) * ratio);
+      out.push({ stopSequence: stops[i].stopSequence, t: secsToHHMM(secs) });
+    } else if (left) {
+      // extrapolação para a direita: assume 2min/paragem
+      out.push({ stopSequence: stops[i].stopSequence, t: secsToHHMM(left.secs + (i - left.idx) * 120) });
+    } else if (right) {
+      // extrapolação para a esquerda
+      out.push({ stopSequence: stops[i].stopSequence, t: secsToHHMM(right.secs - (right.idx - i) * 120) });
+    }
+  }
+  return out;
 }

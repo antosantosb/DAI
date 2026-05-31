@@ -73,72 +73,151 @@ public class StopPanelService
         double stopLon = stop.getLocation().getX();
         int maxDisplay = stop.getMaxBusesDisplay() != null ? stop.getMaxBusesDisplay() : 3;
 
-        // Encontrar as rotas que passam por esta paragem (via padroes).
-        // Por rota usamos o padrao representativo (o que tem mais paragens) que
-        // contem esta paragem, para obter a ordem da paragem e o total de paragens.
+        // Sprint 5 (follow-up): paragem pode aparecer em MUITOS patterns, com
+        // papéis diferentes (partida num, chegada noutro). O "bestPerRoute"
+        // escolhia sempre o pattern maior — mas se nesse pattern a paragem
+        // é a primeira (partida), qualquer bus em serviço já "passou" e o
+        // ETA fica vazio (bug real visto em BOM JESUS, 1a/última conforme pattern).
+        //
+        // Solução correcta: iterar TODOS os pattern_stops onde a paragem aparece.
+        // O matching com o bus é feito pela trip RUNNING dele — só processa
+        // se o pattern do hit == pattern da trip RUNNING do bus.
         List<PatternStop> hits = patternStopRepo.findByStopIdFull(stopId);
-        Map<Long, PatternStop> bestPerRoute = new HashMap<>();
         Map<Long, Long> patternStopCount = new HashMap<>();
-        for (PatternStop ps : hits)
-        {
-            JourneyPattern jp = ps.getPattern();
-            Long routeId = jp.getRoute().getId();
-            long total = patternStopCount.computeIfAbsent(jp.getId(), patternStopRepo::countByPatternId);
-            PatternStop cur = bestPerRoute.get(routeId);
-            long curTotal = cur == null ? -1 : patternStopCount.getOrDefault(cur.getPattern().getId(), 0L);
-            if (cur == null || total > curTotal) bestPerRoute.put(routeId, ps);
+        for (PatternStop ps : hits) {
+            patternStopCount.computeIfAbsent(ps.getPattern().getId(), patternStopRepo::countByPatternId);
         }
 
         List<StopEtaDTO> allEtas = new ArrayList<>();
+        java.util.Set<String> seenBusInRoute = new java.util.HashSet<>(); // dedup (busId|routeId)
 
-        for (PatternStop rs : bestPerRoute.values())
+        for (PatternStop rs : hits)
         {
             Route route = rs.getPattern().getRoute();
             int stopOrder = rs.getStopSequence();
             int totalStops = patternStopCount.getOrDefault(rs.getPattern().getId(), 0L).intValue();
+            Long hitPatternId = rs.getPattern().getId();
 
-            // Buscar autocarros em operacao nesta rota (EM_SERVICO + transicoes).
-            // Sprint 5 (follow-up): antes filtravamos por "ACTIVE" mas no PGU
-            // o Bus.status nunca tem esse valor (e' "EM_SERVICO" / "STARTING"
-            // / "STOPPING" / "STOPPED"). Resultado: lista vazia sempre.
+            // Sprint 5 (follow-up): APENAS EM_SERVICO. STARTING/STOPPING são
+            // deadheads central↔1ª/última paragem onde o ETA é especulativo
+            // (haversine ou GTFS sem âncora real na rota). Mostrar valores
+            // nesses estados confunde mais do que informa. Painel fica vazio
+            // ate o bus chegar à primeira paragem da rota.
             List<Bus> activeBuses = busRepo.findByRouteIdAndStatusIn(
-                route.getId(), java.util.Set.of("EM_SERVICO", "STARTING", "STOPPING"));
+                route.getId(), java.util.Set.of("EM_SERVICO"));
 
             for (Bus bus : activeBuses)
             {
+                // Sprint 5 (follow-up): só processa este hit (pattern) se o bus
+                // está mesmo numa trip deste pattern. Evita misturar direcção.
+                Long busPatternId = null;
+                try {
+                    LocalDate todayD = LocalDate.now(LISBON);
+                    List<BusDuty> rds = busDutyRepo.findRunningByBusAndDate(bus.getId(), todayD);
+                    if (!rds.isEmpty() && rds.get(0).getTrip() != null
+                        && rds.get(0).getTrip().getPattern() != null) {
+                        busPatternId = rds.get(0).getTrip().getPattern().getId();
+                    }
+                } catch (Exception ignore) {}
+                if (busPatternId == null || !busPatternId.equals(hitPatternId)) continue;
+
+                // Dedup: 1 ETA por bus por rota (caso múltiplos hits matchem).
+                String dedupKey = bus.getId() + "|" + route.getId();
+                if (seenBusInRoute.contains(dedupKey)) continue;
+                seenBusInRoute.add(dedupKey);
+
                 VehicleTelemetry latest = telemetryRepo.findLatestByBusId(bus.getBusCode());
                 if (latest == null || latest.getLocation() == null) continue;
 
-                // Verificar se o autocarro ainda nao passou desta paragem
+                // Sprint 5 (follow-up): bus em STARTING ainda nao chegou a 1a
+                // paragem, logo nao tem stopsRemaining definido. Tratamos como
+                // busCurrentOrder = 0 (vai passar por todas as paragens) para
+                // que TODAS as paragens da rota recebam ETA, nao apenas as ja'
+                // confirmadas pelo tracking.
                 Integer stopsRemaining = latest.getStopsRemaining();
-                if (stopsRemaining == null) continue;
+                int busCurrentOrder;
+                if (stopsRemaining == null) {
+                    busCurrentOrder = 0;
+                } else {
+                    busCurrentOrder = totalStops - stopsRemaining;
+                    if (busCurrentOrder >= stopOrder) continue; // ja passou
+                }
 
-                // Posicao atual do autocarro na rota (indice baseado em 1)
-                int busCurrentOrder = totalStops - stopsRemaining;
-                if (busCurrentOrder >= stopOrder) continue; // ja passou
-
-                // Calcular ETA via OSRM
+                // Sprint 5 (follow-up): ETA = OSRM(bus → próxima paragem da rota)
+                // + tempo planeado GTFS entre próxima paragem e paragem alvo.
+                // Usar TripStopTime (tempo real planeado) é mais preciso que
+                // haversine+velocidade média, e produz ordem coerente com a
+                // sequência da rota (paragens no fim têm ETA maior).
                 double busLat = latest.getLocation().getY();
                 double busLon = latest.getLocation().getX();
 
-                double distMeters = osrmService.getDistance(busLat, busLon, stopLat, stopLon);
-                if (distMeters < 0)
-                {
-                    // Fallback: distancia em linha reta * 1.4
-                    distMeters = haversineMeters(busLat, busLon, stopLat, stopLon) * 1.4;
+                List<PatternStop> patternStops = patternStopRepo
+                    .findByPatternIdOrderByStopSequence(rs.getPattern().getId());
+
+                int targetIdx = -1;
+                for (int i = 0; i < patternStops.size(); i++) {
+                    if (patternStops.get(i).getStopSequence() == stopOrder) { targetIdx = i; break; }
+                }
+                int nextIdx = Math.max(0, Math.min(busCurrentOrder, patternStops.size() - 1));
+                if (targetIdx < 0 || targetIdx < nextIdx) continue;
+
+                // 1) Distancia bus → proxima paragem (OSRM real)
+                BusStop nextStop = patternStops.get(nextIdx).getStop();
+                if (nextStop == null || nextStop.getLocation() == null) continue;
+                double nextLat = nextStop.getLocation().getY();
+                double nextLon = nextStop.getLocation().getX();
+                double distMeters = osrmService.getDistance(busLat, busLon, nextLat, nextLon);
+                if (distMeters < 0) {
+                    distMeters = haversineMeters(busLat, busLon, nextLat, nextLon) * 1.4;
                 }
 
                 double speedKmh = (latest.getSpeedKmh() != null && latest.getSpeedKmh() > 0)
                     ? latest.getSpeedKmh() : DEFAULT_SPEED_KMH;
 
-                // Numero de paragens intermedias entre o autocarro e esta paragem
-                int intermediateStops = stopOrder - busCurrentOrder - 1;
-                if (intermediateStops < 0) intermediateStops = 0;
+                double travelToNextMin = (distMeters / 1000.0) / speedKmh * 60.0;
 
-                // ETA = tempo de viagem + tempo parado nas paragens intermedias
-                double travelMinutes = (distMeters / 1000.0) / speedKmh * 60.0;
-                double dwellMinutes = intermediateStops * DWELL_TIME_SECONDS / 60.0;
-                int etaMinutes = (int) Math.ceil(travelMinutes + dwellMinutes);
+                // 2) Tempo planeado GTFS entre próxima paragem e paragem alvo.
+                //    Usa TripStopTime da trip RUNNING/PLANNED deste bus.
+                double tripTravelMin = 0;
+                Long tripIdForTime = null;
+                try {
+                    LocalDate todayD = LocalDate.now(LISBON);
+                    List<BusDuty> rds = busDutyRepo.findByBusIdAndServiceDateOrderBySequence(bus.getId(), todayD);
+                    for (BusDuty d : rds) {
+                        String st = d.getStatus();
+                        if ("RUNNING".equalsIgnoreCase(st) || "PLANNED".equalsIgnoreCase(st)) {
+                            tripIdForTime = d.getTrip().getId();
+                            break;
+                        }
+                    }
+                    if (tripIdForTime != null) {
+                        Long nextStopId = nextStop.getId();
+                        Long targetStopId = patternStops.get(targetIdx).getStop().getId();
+                        List<TripStopTime> nx = tripStopTimeRepo.findByTripIdAndStopId(tripIdForTime, nextStopId);
+                        List<TripStopTime> tg = tripStopTimeRepo.findByTripIdAndStopId(tripIdForTime, targetStopId);
+                        if (!nx.isEmpty() && !tg.isEmpty()) {
+                            long nxSec = parseSecsOfDay(nx.get(0).getArrivalTime());
+                            long tgSec = parseSecsOfDay(tg.get(0).getArrivalTime());
+                            if (tgSec >= nxSec) tripTravelMin = (tgSec - nxSec) / 60.0;
+                        }
+                    }
+                } catch (Exception ignore) { /* fallback abaixo */ }
+
+                // Fallback: se nao temos trip times, soma haversine + dwell (estimativa).
+                if (tripTravelMin <= 0 && targetIdx > nextIdx) {
+                    for (int i = nextIdx; i < targetIdx; i++) {
+                        BusStop a = patternStops.get(i).getStop();
+                        BusStop b = patternStops.get(i + 1).getStop();
+                        if (a == null || b == null || a.getLocation() == null || b.getLocation() == null) continue;
+                        double hop = haversineMeters(
+                            a.getLocation().getY(), a.getLocation().getX(),
+                            b.getLocation().getY(), b.getLocation().getX()) * 1.4;
+                        tripTravelMin += (hop / 1000.0) / speedKmh * 60.0;
+                    }
+                    tripTravelMin += (targetIdx - nextIdx) * DWELL_TIME_SECONDS / 60.0;
+                }
+
+                int etaMinutes = (int) Math.ceil(travelToNextMin + tripTravelMin);
                 if (etaMinutes < 1) etaMinutes = 1;
 
                 // Sprint 5 (follow-up): tentar enriquecer com scheduled + delay.
@@ -205,6 +284,23 @@ public class StopPanelService
                  + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
                  * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    /**
+     * Sprint 5 (follow-up): converte "HH:mm[:ss]" GTFS para segundos do dia.
+     * Suporta horas >= 24 (corrida que cruza meia-noite).
+     */
+    private static long parseSecsOfDay(String hhmmss) {
+        if (hhmmss == null || hhmmss.isBlank()) return 0L;
+        try {
+            String[] p = hhmmss.split(":");
+            long h = Long.parseLong(p[0]);
+            long m = p.length > 1 ? Long.parseLong(p[1]) : 0;
+            long s = p.length > 2 ? Long.parseLong(p[2]) : 0;
+            return h * 3600 + m * 60 + s;
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     /**
