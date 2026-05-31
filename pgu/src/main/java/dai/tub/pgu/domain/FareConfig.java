@@ -34,6 +34,10 @@ public class FareConfig
     @Column(name = "valid_from", nullable = false)
     private LocalDate validFrom;
 
+    // Sprint 5: categoria social (NORMAL, SUB23, REFORMADO, SOCIAL).
+    @Column(name = "fare_category", length = 16)
+    private String fareCategory = "NORMAL";
+
     public FareConfig() {}
 
     // GET
@@ -42,6 +46,7 @@ public class FareConfig
     public Short     getCoroas()     { return this.coroas; }
     public Integer   getPriceCents() { return this.priceCents; }
     public LocalDate getValidFrom()  { return this.validFrom; }
+    public String    getFareCategory() { return this.fareCategory; }
 
     // SET
     public void setId(Long id)                  { this.id = id; }
@@ -49,4 +54,5 @@ public class FareConfig
     public void setCoroas(Short coroas)         { this.coroas = coroas; }
     public void setPriceCents(Integer priceCents) { this.priceCents = priceCents; }
     public void setValidFrom(LocalDate validFrom) { this.validFrom = validFrom; }
+    public void setFareCategory(String fareCategory) { this.fareCategory = fareCategory; }
 }

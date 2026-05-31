@@ -48,6 +48,10 @@ public class Ticket
     @Column(length = 16)
     private String status;
 
+    // Sprint 5: NORMAL, SUB23, REFORMADO, SOCIAL.
+    @Column(name = "fare_category", length = 16)
+    private String fareCategory = "NORMAL";
+
     public Ticket() {}
 
     // GET
@@ -58,6 +62,7 @@ public class Ticket
     public OffsetDateTime getValidityEnd()   { return this.validityEnd; }
     public String         getCardPseudoId()  { return this.cardPseudoId; }
     public String         getStatus()        { return this.status; }
+    public String         getFareCategory()  { return this.fareCategory; }
 
     // SET
     public void setId(Long id)                            { this.id = id; }
@@ -67,4 +72,5 @@ public class Ticket
     public void setValidityEnd(OffsetDateTime end)        { this.validityEnd = end; }
     public void setCardPseudoId(String cardPseudoId)      { this.cardPseudoId = cardPseudoId; }
     public void setStatus(String status)                  { this.status = status; }
+    public void setFareCategory(String fareCategory)      { this.fareCategory = fareCategory; }
 }

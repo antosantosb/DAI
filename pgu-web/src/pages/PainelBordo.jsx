@@ -826,6 +826,20 @@ export default function PainelBordo() {
                     ? t('pages.painelBordo.incident.reportedMale')
                     : t('pages.painelBordo.incident.reportAccident')}
               </button>
+              {/* Sprint 5 (3.3): botao FRAUDE — deteccao MANUAL pelo motorista
+                  (R.IPB.06, D-IPB-6). Reusa POST /ocorrencias/motorista; o
+                  backend cria Ocorrencia tipoAnomalia='FRAUDE'. */}
+              <button
+                className={`pb-alert-btn pb-alert-btn--fraude ${alertSending === 'ok-FRAUDE' ? 'pb-alert-btn--success' : ''}`}
+                onClick={() => handleAlert('FRAUDE')}
+                disabled={!!alertSending}
+              >
+                {alertSending === 'FRAUDE'
+                  ? t('pages.painelBordo.incident.reportingFemale')
+                  : alertSending === 'ok-FRAUDE'
+                    ? t('pages.painelBordo.incident.reportedFemale')
+                    : t('pages.painelBordo.incident.reportFraud')}
+              </button>
             </div>
           </section>
         </div>

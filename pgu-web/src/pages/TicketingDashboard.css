@@ -1,0 +1,97 @@
+/* Sprint 5 (3.3): TicketingDashboard — extensoes a AnalyticsDashboard.css.
+   Reusa o layout base; adiciona componentes especificos (bars 24h, listas
+   por canal/categoria/coroa, tabela live). */
+
+.ticket-bars {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 4px;
+  align-items: flex-end;
+  height: 180px;
+  padding: 12px;
+  background: var(--color-bg-subtle);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+.ticket-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+.ticket-bar-fill {
+  width: 100%;
+  background: var(--color-primary, #009BDB);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.3s;
+}
+.ticket-bar-label {
+  font-size: 10px;
+  color: var(--color-text-light);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 0 1rem;
+}
+
+.ticket-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ticket-list-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+.ticket-list-label { font-weight: 600; }
+.ticket-list-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.ticket-list-bar {
+  height: 6px;
+  background: var(--color-bg-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ticket-list-bar-fill {
+  height: 100%;
+  background: var(--color-primary, #009BDB);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ticket-table th,
+.ticket-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.ticket-table th {
+  color: var(--color-text-light);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.ticket-table td {
+  font-variant-numeric: tabular-nums;
+}

@@ -605,6 +605,30 @@
   border-color: var(--color-danger);
 }
 
+/* Sprint 5 (3.3): botao FRAUDE — distintivo (violeta) para nao confundir
+   com warning (avaria) nem danger (acidente). Conceito: chama fiscal. */
+.pb-alert-btn--fraude {
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+  border-color: rgba(139, 92, 246, 0.30);
+}
+
+.pb-alert-btn--fraude:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: #8b5cf6;
+}
+
+[data-theme="dark"] .pb-alert-btn--fraude {
+  background: rgba(167, 139, 250, 0.14);
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, 0.32);
+}
+
+[data-theme="dark"] .pb-alert-btn--fraude:hover:not(:disabled) {
+  background: rgba(167, 139, 250, 0.24);
+  border-color: #a78bfa;
+}
+
 .pb-alert-btn--success {
   background: var(--color-success-light) !important;
   color: var(--color-success-hover) !important;

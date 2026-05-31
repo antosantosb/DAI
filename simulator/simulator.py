@@ -21,6 +21,12 @@ from paho.mqtt import client as mqtt_client
 BROKER      = os.getenv("MQTT_BROKER", "mosquitto")
 PORT        = int(os.getenv("MQTT_PORT", 1883))
 TOPIC       = os.getenv("MQTT_TOPIC", "tub/telemetry")
+# Sprint 5 (3.3): topico de validacoes de bilhetica. Cada bus em EM_SERVICO
+# gera N validacoes em paragens (proporcional a' ocupacao a bordo).
+TOPIC_TICKET = os.getenv("MQTT_TOPIC_TICKET", "tub/ticket")
+# Probabilidade de uma paragem gerar 1+ validacoes neste tick (heuristica
+# simples para a defesa academica; em real, viria do APC).
+TICKET_AT_STOP_PROB = float(os.getenv("E_TICKET_AT_STOP_PROB", 0.85))
 INTERVAL    = float(os.getenv("INTERVAL_SECONDS", 1))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://spring-boot-backend:8081")
 API_KEY     = os.getenv("PGU_INTERNAL_API_KEY", "changeme-internal-key")
@@ -198,6 +204,63 @@ def publish_telemetry(client, payload):
     o backend (POST /api/v1/telemetry/ingest/sensor). Este e' o unico
     caminho de ingestao — sem POST directo."""
     client.publish(TOPIC, json.dumps(payload))
+
+
+# Distribuicao realista de canais (espelha a TUB: maioria CARTAO/PASSE,
+# alguns BORDO/APP). Probabilidades acumulativas em [0,1].
+TICKET_CHANNELS = [
+    ("CARTAO", 0.55),
+    ("PASSE",  0.25),
+    ("APP",    0.12),
+    ("BORDO",  0.08),
+]
+TICKET_CATEGORIES = [
+    ("NORMAL",    0.65),
+    ("SUB23",     0.15),
+    ("REFORMADO", 0.18),
+    ("SOCIAL",    0.02),
+]
+
+
+def _weighted_pick(pairs):
+    r = random.random()
+    acc = 0.0
+    for label, p in pairs:
+        acc += p
+        if r <= acc:
+            return label
+    return pairs[-1][0]
+
+
+def publish_ticket_validations(client, bus, stop_id, route_id):
+    """Sprint 5 (3.3): publica N validacoes MQTT quando o bus chega a uma
+    paragem. N = boarded simulado (sub-sensor passageiros). O NiFi encaminha
+    para POST /api/v1/validations. Cada validacao traz canal, categoria, e
+    um cardId fictivo (sera pseudonimizado no backend)."""
+    if bus.last_boarded <= 0:
+        return
+    if random.random() > TICKET_AT_STOP_PROB:
+        return
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for i in range(bus.last_boarded):
+        channel = _weighted_pick(TICKET_CHANNELS)
+        category = _weighted_pick(TICKET_CATEGORIES)
+        # BORDO nao tem cartao identificado (numerario, anonimo).
+        card_id = None if channel == "BORDO" else f"CARD-{random.randint(10000, 99999)}"
+        payload = {
+            "eventType":    "TAP",
+            "source":       channel,
+            "channel":      channel,
+            "fareCategory": category,
+            "busId":        bus.bus_id,
+            "routeId":      route_id,
+            "stopId":       stop_id,
+            "lat":          round(bus.lat, 6) if bus.lat is not None else None,
+            "lon":          round(bus.lon, 6) if bus.lon is not None else None,
+            "validatedAt":  ts,
+            "cardId":       card_id,
+        }
+        client.publish(f"{TOPIC_TICKET}/{bus.bus_id}", json.dumps(payload))
 
 
 def api_patch(endpoint, data):
@@ -1334,6 +1397,17 @@ def main():
                 bus.tick_pattern_route()
                 payload = bus.to_telemetry()
                 publish_telemetry(client, payload)
+
+                # Sprint 5 (3.3): se o bus PAROU agora numa paragem real
+                # (status=stopped + boarded>0), publica as validacoes em
+                # tub/ticket/{busCode}. O NiFi encaminha para /validations.
+                if bus.status == "stopped" and bus.last_boarded > 0 and bus.pattern_stops:
+                    cur_stop = bus.pattern_stops[bus.pattern_current_stop_idx]
+                    publish_ticket_validations(
+                        client, bus,
+                        stop_id=cur_stop.get("stopId"),
+                        route_id=(bus.running_duty or {}).get("routeId")
+                    )
 
                 # Log com formato pedido: (linha) | (pattern) | (trip) |
                 # (paragem/total) | (prox paragem) | (vel) | (onboard/+b/-a).

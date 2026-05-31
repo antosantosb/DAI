@@ -158,6 +158,12 @@ export const routes = [
         loader: () => import('./pages/AnalyticsDashboard'),
         nav: { sectionKey: 'sections.data', labelKey: 'nav.analytics', iconKey: 'IconAnalytics' },
       },
+      // Sprint 5 (3.3): Bilhetica
+      {
+        path: 'ticketing',
+        loader: () => import('./pages/TicketingDashboard'),
+        nav: { sectionKey: 'sections.data', labelKey: 'nav.ticketing', iconKey: 'IconAnalytics' },
+      },
       {
         path: 'data-sources',
         loader: () => import('./pages/DataSources'),
