@@ -47,6 +47,11 @@ public class StorageService {
     @Value("${pgu.storage.presigned-ttl-seconds:86400}")
     private int defaultPresignedTtlSeconds;
 
+    /** Endpoint publico (com path opcional ex. "/storage") usado para
+     *  pos-processar presigned URLs — ver {@link #presignedUrl(String,String,int)}. */
+    @Value("${pgu.storage.public-endpoint:${pgu.storage.endpoint}}")
+    private String publicEndpoint;
+
     /**
      * Faz upload de um stream para um bucket.
      *
@@ -102,12 +107,24 @@ public class StorageService {
             // o MinIO devolve SignatureDoesNotMatch porque recalcula o
             // canonical request com o host do request (localhost) e nao
             // bate com o que o backend interno (minio:9000) assinou.
-            return publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            String url = publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(key)
                     .expiry(ttlSeconds, TimeUnit.SECONDS)
                     .build());
+
+            // Re-insere o path prefix do publicEndpoint (ex. "/storage") se houver.
+            // O SDK do MinIO Java nao aceita endpoints com path, por isso o
+            // publicMinioClient foi construido so com scheme://host[:port]. Aqui
+            // injectamos de volta o prefix para o browser bater com o proxy nginx.
+            java.net.URI uri = java.net.URI.create(publicEndpoint);
+            String pathPrefix = uri.getRawPath();
+            if (pathPrefix != null && !pathPrefix.isEmpty() && !"/".equals(pathPrefix)) {
+                pathPrefix = pathPrefix.replaceAll("/+$", "");
+                url = url.replaceFirst("(https?://[^/]+)(.*)", "$1" + pathPrefix + "$2");
+            }
+            return url;
         } catch (Exception e) {
             throw new StorageException("Erro a gerar presigned URL: " + bucket + "/" + key, e);
         }

@@ -392,11 +392,12 @@ services:
     container_name: pgu-web
     restart: unless-stopped
     ports:
-      # Mapeamos para 5173/5443 no host para evitar conflito com Apache /
-      # IIS / outra coisa que esteja a usar 80/443 no Windows. Em produacao
-      # com servidor dedicado, pode-se voltar a 80:80 + 443:443.
-      - "5173:80"
-      - "5443:443"
+      # Mapeamento configuravel via .env:
+      #  - Em dev (Windows com Apache/IIS): HOST_HTTP_PORT=5173, HOST_HTTPS_PORT=5443
+      #  - Em prod (servidor dedicado): HOST_HTTP_PORT=80,   HOST_HTTPS_PORT=443
+      # Defaults sao os de dev para nao quebrar arranque local sem .env.
+      - "${HOST_HTTP_PORT:-5173}:80"
+      - "${HOST_HTTPS_PORT:-5443}:443"
     environment:
       # DOMAIN com fallback "localhost" para arranque automatico em dev.
       # Em producao, sobrepor via .env (DOMAIN=pgu.cm-braga.pt).
@@ -418,6 +419,9 @@ services:
       - auth_net
       - tools_db_net
       - dw_net
+      # storage_net: necessario para o proxy nginx /storage/ resolver
+      # o hostname `minio` (presigned URLs).
+      - storage_net
 
   # ==========================================
   # 12. OLLAMA (LLM para chatbot)

@@ -57,12 +57,19 @@ public class MinioConfig {
                 .build();
     }
 
-    /** Cliente publico para gerar presigned URLs com host que o browser ve. */
+    /** Cliente publico para gerar presigned URLs com host que o browser ve.
+     *  O SDK Java do MinIO rejeita endpoints com path (ex. {@code /storage}),
+     *  por isso extraimos so {@code scheme://host[:port]} e passamos ao client.
+     *  O {@link dai.tub.pgu.service.StorageService} re-insere o prefix do path
+     *  depois de gerar a URL. */
     @Bean
     @Qualifier("public")
     public MinioClient publicMinioClient() {
+        java.net.URI uri = java.net.URI.create(publicEndpoint);
+        String base = uri.getScheme() + "://" + uri.getHost()
+                + (uri.getPort() != -1 ? ":" + uri.getPort() : "");
         return MinioClient.builder()
-                .endpoint(publicEndpoint)
+                .endpoint(base)
                 .credentials(accessKey, secretKey)
                 .region(region)
                 .build();
