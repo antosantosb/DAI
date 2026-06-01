@@ -27,11 +27,14 @@ export default function Dashboard() {
         buses: busData.length,
         stops: stops.data?.length || 0,
         routes: routes.data?.length || 0,
-        active: busData.filter(b => b.routeId && (b.status === 'ACTIVE' || b.status === 'STOPPING')).length,
+        // Fase E: backend já não usa "ACTIVE"; estados válidos são
+        // EM_SERVICO / STOPPING / STOPPED / DECOMMISSIONED. Mantemos
+        // "ACTIVE" como fallback (legacy) para retrocompatibilidade.
+        active: busData.filter(b => b.routeId && (b.status === 'EM_SERVICO' || b.status === 'STOPPING' || b.status === 'ACTIVE')).length,
         stopping: busData.filter(b => b.status === 'STOPPING').length,
         stopped: busData.filter(b => b.status === 'STOPPED').length,
       });
-      const activeCodes = new Set(busData.filter(b => b.status === 'ACTIVE' || b.status === 'STOPPING').map(b => b.busCode));
+      const activeCodes = new Set(busData.filter(b => b.status === 'EM_SERVICO' || b.status === 'STOPPING' || b.status === 'ACTIVE').map(b => b.busCode));
       setRecentTelemetry((telemetry.data || []).filter(t => activeCodes.has(t.busId)).slice(0, 6));
       setActiveAlarms(ocorrencias.data || []);
       // 204 No Content -> activityRes.data === '' (axios). Normaliza para [].
