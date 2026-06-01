@@ -219,7 +219,9 @@ public class SecurityConfig
             // Dev: pgu-web mapeado para 5443 (porta 80/443 ocupada pelo Apache)
             "https://localhost:5443",
             "http://localhost:5443",
-            "https://pgu-tub.switzerlandnorth.cloudapp.azure.com"
+            "https://pgu-tub.switzerlandnorth.cloudapp.azure.com",
+            // Prod Azure (VM com mais RAM para Ollama)
+            "https://pgu-tub-v2.switzerlandnorth.cloudapp.azure.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // SEC-15/NEW-1: setAllowedHeaders("*") + setAllowCredentials(true) é PROIBIDO pela spec CORS.
