@@ -332,6 +332,14 @@ services:
       # gemma2:2b precisava 3.4 GB e nao cabia em WSL2 default.
       # Requer .wslconfig com memory=8GB (ou superior) no host Windows.
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b}
+      # Keycloak Admin API (gestao de utilizadores pelo backoffice).
+      # Sem isto, o backend usa o default admin/admin do application.properties
+      # e a chamada a Admin API falha com 401 "invalid_grant" (a password real
+      # foi gerada pelo init-env-secrets.sh em IAM_ADMIN_PASSWORD).
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-http://keycloak:8080/auth}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-pgu-realm}
+      - KEYCLOAK_ADMIN_USER=${IAM_ADMIN_USER:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${IAM_ADMIN_PASSWORD:?IAM_ADMIN_PASSWORD obrigatoria}
     volumes:
       # Motor de Exportação Massiva: persistência dos CSV/PDF gerados (legacy, a migrar para MinIO no F9)
       - pgu_exports:/var/pgu/exports
