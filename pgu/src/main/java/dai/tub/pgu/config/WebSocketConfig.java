@@ -16,7 +16,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer
      * Configurável via env var WS_ALLOWED_ORIGINS (separadas por vírgula).
      * Default cobre dev local + domínio Azure de demo.
      */
-    @Value("${pgu.websocket.allowed-origins:http://localhost:5173,http://localhost,https://localhost,http://localhost:80,https://pgu-tub.switzerlandnorth.cloudapp.azure.com}")
+    @Value("${pgu.websocket.allowed-origins:http://localhost:5173,http://localhost,https://localhost,http://localhost:80,https://localhost:5443,http://localhost:5443,https://pgu-tub.switzerlandnorth.cloudapp.azure.com}")
     private String[] allowedOrigins;
 
     @Override

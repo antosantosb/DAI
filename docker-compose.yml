@@ -393,6 +393,10 @@ services:
       # DOMAIN com fallback "localhost" para arranque automatico em dev.
       # Em producao, sobrepor via .env (DOMAIN=pgu.cm-braga.pt).
       - DOMAIN=${DOMAIN:-localhost}
+      # EXTERNAL_PORT: porta visivel ao browser. Em dev usamos 5443 (porta
+      # 80/443 ocupada pelo Apache). Em prod (Azure) usar 443 standard.
+      # Usado em X-Forwarded-Port para Keycloak gerar redirects correctos.
+      - EXTERNAL_PORT=${EXTERNAL_PORT:-5443}
     volumes:
       # Volume named (cria-se sozinho) em vez de bind /etc/letsencrypt:ro.
       # Permite ao entrypoint gerar self-signed cert no primeiro arranque

@@ -91,19 +91,28 @@ server {
     # ─────────────────────────────────────────
     # Keycloak (IAM)
     # ─────────────────────────────────────────
+    # Keycloak (Auth) — proxy para o container interno.
+    # Rate limit aplicado mas com burst alto (50) para acomodar o load
+    # inicial da pagina de login que pede ~10-15 assets em paralelo.
+    # O brute-force real e' protegido pelo Keycloak (lockout no realm).
+    # ─────────────────────────────────────────
     location ^~ /auth/ {
-        # Sprint -1 (Fase 7/9): rate limit apertado para login/token
-        # 5r/s + burst 10. Mitiga brute force credentials. (INFRA-nginx-rate)
-        limit_req zone=auth burst=10 nodelay;
+        limit_req zone=auth burst=50 nodelay;
         limit_req_status 429;
 
         proxy_pass http://keycloak:8080/auth/;
-        proxy_set_header Host $host;
+        # $http_host inclui hostname + porta como o browser ve (ex.
+        # "localhost:5443" em dev ou "pgu-tub.switzerlandnorth..." em prod).
+        # KC_PROXY_HEADERS=xforwarded faz o Keycloak gerar URLs absolutas
+        # a partir destes headers.
+        proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-Host $http_host;
+        # X-Forwarded-Port via env: 5443 em dev, 443 em prod. O nginx
+        # entrypoint substitui ${EXTERNAL_PORT} via envsubst.
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
         proxy_buffer_size 128k;
         proxy_buffers 4 256k;
         proxy_busy_buffers_size 256k;

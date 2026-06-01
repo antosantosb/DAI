@@ -1,4 +1,11 @@
 import ReactDOM from 'react-dom/client'
+// Leaflet global: plugins como `leaflet.heat` e `leaflet.markercluster` esperam
+// encontrar `window.L`. Em dev (Vite) os modulos resolvem-se a tempo; em build
+// de producao o code-splitting do Rollup pode carregar o plugin antes do core
+// e dar "Uncaught ReferenceError: L is not defined". Forcar global aqui resolve
+// definitivamente.
+import L from 'leaflet'
+window.L = L
 import App from './App.jsx'
 import AuthProvider from './context/AuthProvider'
 import ThemeProvider from './context/ThemeProvider'

@@ -216,6 +216,9 @@ public class SecurityConfig
             "http://localhost",
             "https://localhost",
             "http://localhost:80",
+            // Dev: pgu-web mapeado para 5443 (porta 80/443 ocupada pelo Apache)
+            "https://localhost:5443",
+            "http://localhost:5443",
             "https://pgu-tub.switzerlandnorth.cloudapp.azure.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

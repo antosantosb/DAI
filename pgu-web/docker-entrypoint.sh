@@ -1,8 +1,14 @@
 #!/bin/sh
 set -e
 
-# Substitute DOMAIN into nginx config
-envsubst '${DOMAIN}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/conf.d/default.conf
+# EXTERNAL_PORT: a porta visivel ao browser (5443 em dev, 443 em prod).
+# Usada em X-Forwarded-Port para o Keycloak gerar redirects com a porta
+# correcta. Default 443 (assumindo prod com HTTPS standard).
+: "${EXTERNAL_PORT:=443}"
+export EXTERNAL_PORT DOMAIN
+
+# Substitute DOMAIN e EXTERNAL_PORT into nginx config
+envsubst '${DOMAIN} ${EXTERNAL_PORT}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/conf.d/default.conf
 
 # Create certbot webroot directory
 mkdir -p /var/www/certbot
