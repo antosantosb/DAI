@@ -330,9 +330,13 @@ public class BusService
                     "So e' possivel marcar arrived com o autocarro em STOPPING. Estado actual: " + bus.getStatus());
         }
         bus.setStatus(STATUS_STOPPED);
+        // Limpar route_id: STOPPED significa "fora de servico", nao faz sentido
+        // manter a ultima route "stuck" — vai causar UI/cards a mostrar linha
+        // errada e ETAs a usar rota antiga em vez da rota da duty actual.
+        bus.setRoute(null);
         busRepository.save(bus);
 
-        log.info("[bus-state] arrived busId={} busCode={} -> STOPPED", bus.getId(), bus.getBusCode());
+        log.info("[bus-state] arrived busId={} busCode={} -> STOPPED (route cleared)", bus.getId(), bus.getBusCode());
 
         return toDTO(bus);
     }

@@ -2,6 +2,8 @@ package dai.tub.pgu.domain;
 
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.locationtech.jts.geom.Point;
 
 import jakarta.persistence.*;
@@ -61,6 +63,10 @@ public class ValidationEvent
     // Evento bruto recebido (auditoria). Coluna JSONB na DB; mapeada como String
     // por agora (nao ha processamento nesta fundacao). O Sprint 5 podera trocar
     // por @JdbcTypeCode(SqlTypes.JSON) quando processar o conteudo.
+    // @JdbcTypeCode(SqlTypes.JSON) faz Hibernate enviar a String com cast::jsonb
+    // (em vez de varchar puro). Sem isto, a INSERT explodia com
+    // "column raw_payload is of type jsonb but expression is of type character varying".
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_payload", columnDefinition = "jsonb")
     private String rawPayload;
 

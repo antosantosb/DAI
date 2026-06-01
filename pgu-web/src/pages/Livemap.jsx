@@ -1089,21 +1089,56 @@ export default function Livemap() {
           map.removeLayer(routeLayerGroup.current);
         }
       }
-      // Realce do pattern da trip RUNNING. Modelo Transmodel: o bus nao tem
-      // rota fixa, por isso vamos a' escala buscar a duty RUNNING e o seu
-      // patternId. Sem RUNNING, cai no fallback PLANNED mais proxima.
+      // Realce do pattern da trip activa do bus. Modelo Transmodel: o bus nao
+      // tem rota fixa, por isso vamos a' escala buscar a duty actual e o seu
+      // patternId. Estratégia (prioridade):
+      //  1. RUNNING explícito (caminho feliz: backend já promoveu a duty).
+      //  2. PLANNED cuja janela [plannedStart, plannedEnd] contém o agora
+      //     (bus EM_SERVICO mas duty ainda PLANNED no backend).
+      //  3. PLANNED mais próxima no tempo (futura preferida; senão passada
+      //     mais recente).
+      // NB: o DTO devolve `plannedStart`/`plannedEnd` (NÃO firstDeparture/
+      // lastArrival), por isso essa convenção tem de ser respeitada aqui.
       if (backendBus?.id) {
         const todayISO = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Lisbon' });
         api.get(`/buses/${backendBus.id}/duties?date=${todayISO}`)
           .then(({ data }) => {
             const duties = Array.isArray(data) ? data : [];
-            const running = duties.find(d => d.status === 'RUNNING')
-                          || duties.find(d => d.status === 'PLANNED');
-            if (running?.patternId) {
-              setSelectedPattern(running.patternId);
-              drawPattern(running.patternId);
+            const now = Date.now();
+            const toMs = (s) => (s ? new Date(s).getTime() : NaN);
+
+            // 1) RUNNING ganha sempre
+            let chosen = duties.find(d => d.status === 'RUNNING');
+            // 2) PLANNED cuja janela contém o agora
+            if (!chosen) {
+              chosen = duties.find(d => {
+                if (d.status !== 'PLANNED') return false;
+                const start = toMs(d.plannedStart);
+                const end = toMs(d.plannedEnd);
+                return Number.isFinite(start) && Number.isFinite(end)
+                  && start <= now && now <= end;
+              });
+            }
+            // 3) PLANNED mais próxima no tempo (futura preferida)
+            if (!chosen) {
+              const planned = duties.filter(d => d.status === 'PLANNED' && d.plannedStart);
+              const future = planned
+                .filter(d => toMs(d.plannedStart) >= now)
+                .sort((a, b) => toMs(a.plannedStart) - toMs(b.plannedStart));
+              if (future.length) chosen = future[0];
+              else {
+                // sem futuras: a passada mais recente
+                const past = planned
+                  .sort((a, b) => toMs(b.plannedStart) - toMs(a.plannedStart));
+                chosen = past[0];
+              }
+            }
+
+            if (chosen?.patternId) {
+              setSelectedPattern(chosen.patternId);
+              drawPattern(chosen.patternId);
             } else if (patternHighlightLayerRef.current) {
-              // Sem duty activa: limpa qualquer realce anterior.
+              // Sem duty: limpa qualquer realce anterior.
               patternHighlightLayerRef.current.clearLayers();
               drawnPatternRef.current = null;
             }

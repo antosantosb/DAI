@@ -17,11 +17,13 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dai.tub.pgu.domain.Bus;
 import dai.tub.pgu.domain.FareConfig;
 import dai.tub.pgu.domain.StopZone;
 import dai.tub.pgu.domain.Ticket;
 import dai.tub.pgu.domain.ValidationEvent;
 import dai.tub.pgu.dto.ValidationEventDTO;
+import dai.tub.pgu.repository.BusRepository;
 import dai.tub.pgu.repository.FareConfigRepository;
 import dai.tub.pgu.repository.StopZoneRepository;
 import dai.tub.pgu.repository.TicketRepository;
@@ -53,6 +55,7 @@ public class ValidationService
     private final ValidationEventRepository veRepo;
     private final FareConfigRepository fareRepo;
     private final StopZoneRepository stopZoneRepo;
+    private final BusRepository busRepo;
     private final SimpMessagingTemplate messagingTemplate;
     private final GeometryFactory geometryFactory;
 
@@ -63,12 +66,14 @@ public class ValidationService
                              ValidationEventRepository veRepo,
                              FareConfigRepository fareRepo,
                              StopZoneRepository stopZoneRepo,
+                             BusRepository busRepo,
                              SimpMessagingTemplate messagingTemplate)
     {
         this.ticketRepo = ticketRepo;
         this.veRepo = veRepo;
         this.fareRepo = fareRepo;
         this.stopZoneRepo = stopZoneRepo;
+        this.busRepo = busRepo;
         this.messagingTemplate = messagingTemplate;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
     }
@@ -84,11 +89,15 @@ public class ValidationService
             ? dto.getValidatedAt()
             : OffsetDateTime.now(ZoneOffset.UTC);
 
-        // 1) Coroa da paragem
+        // 1) Coroa da paragem. Fallback minimo = 1 (centro) — nunca 0.
+        // Se a stop nao estiver em stop_zone, ou o registo tiver coroa=0,
+        // assumimos coroa 1 para nao polui'r o dashboard com "Coroa 0".
         short coroa = 1;
         if (dto.getStopId() != null) {
             Optional<StopZone> sz = stopZoneRepo.findByStopId(dto.getStopId());
-            if (sz.isPresent()) coroa = sz.get().getCoroa();
+            if (sz.isPresent() && sz.get().getCoroa() > 0) {
+                coroa = sz.get().getCoroa();
+            }
         }
 
         // 2) Pseudonimo do cartao (RGPD)
@@ -122,7 +131,20 @@ public class ValidationService
         ev.setTicketId(ticket.getId());
         ev.setEventType(dto.getEventType() != null ? dto.getEventType() : "TAP");
         ev.setBusId(dto.getBusId());
-        ev.setRouteId(dto.getRouteId());
+        // Fix: se o simulador/app nao envia routeId, derivar do bus actual
+        // (bus.route_id e' mantido sincronizado com a duty RUNNING pela V73
+        // + BusDutyService.completeTripAndAdvance). Sem isto, o dashboard
+        // mostrava "Top lines: unknown" para todas as validacoes.
+        Long routeId = dto.getRouteId();
+        if (routeId == null && dto.getBusId() != null) {
+            // dto.getBusId() devolve o busCode (String, tipo "TUB-002"),
+            // nao o id numerico — usar findByBusCode.
+            routeId = busRepo.findByBusCode(dto.getBusId())
+                    .map(Bus::getRoute)
+                    .map(r -> r.getId())
+                    .orElse(null);
+        }
+        ev.setRouteId(routeId);
         ev.setStopId(dto.getStopId());
         ev.setValidatedAt(now);
         ev.setSource(dto.getSource() != null ? dto.getSource() : channel);

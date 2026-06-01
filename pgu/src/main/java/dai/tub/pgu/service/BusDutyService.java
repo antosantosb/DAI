@@ -152,9 +152,12 @@ public class BusDutyService
             filteredTrips.addAll(trips);
         }
 
-        // 4) Nenhuma das trips filtradas pode ja' estar noutra escala naquele dia.
+        // 4) A trip nao pode estar ACTIVAMENTE atribuida a OUTRO bus no mesmo
+        // dia. Sprint 5 follow-up: ignorar duties DONE/CANCELLED/INTERRUPTED
+        // (escala antiga ja terminou — nao bloqueia replan) e tambem ignorar
+        // duties do proprio bus que esta a (re)planear.
         for (Trip t : filteredTrips) {
-            if (dutyRepository.existsByTripIdAndServiceDate(t.getId(), serviceDate)) {
+            if (dutyRepository.isTripActivelyAssignedToOtherBus(t.getId(), serviceDate, busId)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "A trip " + t.getId() + " ja' esta atribuida a outro autocarro em " + serviceDate + ".");
             }
@@ -182,7 +185,10 @@ public class BusDutyService
 
         Instant nowTs = Instant.now();
         List<BusDuty> created = new ArrayList<>();
-        int seq = 1;
+        // Replanear apos uma escala terminada (duties DONE) deixa as sequence
+        // 1..N ocupadas — comecar em MAX+1 para nao violar o UNIQUE
+        // (bus_id, service_date, sequence). Em dia novo, MAX=0 -> seq comeca em 1.
+        int seq = dutyRepository.maxSequenceForBusAndDate(busId, serviceDate) + 1;
         for (Trip t : filteredTrips) {
             BusDuty duty = new BusDuty();
             duty.setBus(bus);
@@ -246,6 +252,15 @@ public class BusDutyService
         next.setStatus("RUNNING");
         next.setUpdatedAt(nowTs);
         dutyRepository.save(next);
+        // Sincronizar bus.route com a route da nova duty RUNNING. Com a V72
+        // aplicada, trip.route_id == trip.pattern.route_id (invariante), por
+        // isso isto fica consistente com o pattern que o bus vai executar.
+        // Sem este sync, bus.route ficava no valor antigo (da duty anterior)
+        // e a UI mostrava linha errada durante a execucao da nova trip.
+        if (next.getTrip() != null && next.getTrip().getRoute() != null) {
+            BusDuty refreshed = next;
+            refreshed.getBus().setRoute(refreshed.getTrip().getRoute());
+        }
         return next.getTrip() != null ? next.getTrip().getId() : null;
     }
 

@@ -82,9 +82,12 @@ export default function BusCard({
           para nao mostrar avisos "No line / No driver" que ja nao se aplicam. */}
       {!isDecommissioned && (
         <>
-          {/* Rota: numero em badge + nome secundario truncado a uma linha */}
+          {/* Rota: numero em badge + nome secundario truncado a uma linha.
+              STOPPED -> nao mostrar rota mesmo que bus.routeCode esteja
+              setado (route_id pode ficar "stuck" da ultima escala, mas
+              operacionalmente o bus nao esta em servico nenhum). */}
           <div className="buscard-row buscard-row--route">
-            {(bus.routeCode || bus.currentRouteCode) ? (
+            {(bus.status !== 'STOPPED') && (bus.routeCode || bus.currentRouteCode) ? (
               <>
                 <span className="buscard-route-badge">{bus.routeCode || bus.currentRouteCode}</span>
                 <span className="buscard-route-name">{bus.routeName || bus.currentRouteName || t('pages.buses.routeUnnamed')}</span>

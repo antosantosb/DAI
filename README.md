@@ -1,624 +1,429 @@
-# PGU-TUB: Plataforma de Gestão Urbana dos Transportes Urbanos de Braga
+# PGU-TUB · Plataforma de Gestão Urbana dos Transportes de Braga
 
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0.5-brightgreen.svg)
 ![React](https://img.shields.io/badge/React-19-61DAFB.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15_+_PostGIS-336791.svg)
+![Keycloak](https://img.shields.io/badge/Keycloak-26-darkblue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)
-![FIWARE](https://img.shields.io/badge/FIWARE-Orion_3.9-yellow.svg)
-![OSRM](https://img.shields.io/badge/OSRM-Self_Hosted-green.svg)
-![Keycloak](https://img.shields.io/badge/Keycloak-26.2.4-darkblue.svg)
-![Zero Trust](https://img.shields.io/badge/Security-Zero_Trust-red.svg)
-![Azure](https://img.shields.io/badge/Deploy-Azure-0078D4.svg)
+![Ollama](https://img.shields.io/badge/AI-Qwen_2.5_on--premises-9F4AC1.svg)
+![Transmodel](https://img.shields.io/badge/Modelo-Transmodel_CEN_TS_16614-blue.svg)
+![GTFS-RT](https://img.shields.io/badge/Feed-GTFS--RT_+_NeTEx-yellow.svg)
+![License](https://img.shields.io/badge/Licença-MIT-lightgrey.svg)
 
-Plataforma de centralização, monitorização e gestão de dados de mobilidade dos **Transportes Urbanos de Braga (TUB)**, construída sobre microsserviços, princípios **Zero Trust** e tecnologias **Open Source** (FIWARE, NGSI-LD, OSRM, Mosquitto, Keycloak).
+Plataforma única, **on-premises**, para a operação dos **Transportes Urbanos de Braga**: tempo real, bilhética, planeamento e IA generativa local — tudo num cockpit integrado.
+
+> **Projecto académico DAI · 2.º ano de Engenharia Informática · Universidade do Minho · 2025-2026.**
+> Não é uma plataforma oficial dos TUB.
 
 ---
 
 ## Índice
 
-1. [Estado do projeto](#estado-do-projeto)
-2. [Arquitetura](#arquitetura)
-3. [Pré-requisitos](#pré-requisitos)
-4. [Arranque rápido](#arranque-rápido)
-5. [Acessos e credenciais](#acessos-e-credenciais)
-6. [Frontend](#frontend)
-7. [API REST](#api-rest)
-8. [WebSocket (tempo real)](#websocket-tempo-real)
-9. [Tratamento de erros](#tratamento-de-erros)
-10. [Migrações Flyway](#migrações-flyway)
-11. [Estrutura do projeto](#estrutura-do-projeto)
-12. [Comandos úteis](#comandos-úteis)
-13. [Roadmap](#roadmap)
+1. [Visão geral](#1-visão-geral)
+2. [Funcionalidades principais](#2-funcionalidades-principais)
+3. [Arquitectura](#3-arquitectura)
+4. [Pré-requisitos](#4-pré-requisitos)
+5. [Arranque rápido](#5-arranque-rápido)
+6. [Acessos e credenciais](#6-acessos-e-credenciais)
+7. [Estrutura do repositório](#7-estrutura-do-repositório)
+8. [Migrations Flyway](#8-migrations-flyway)
+9. [Endpoints principais](#9-endpoints-principais)
+10. [Variáveis de ambiente](#10-variáveis-de-ambiente)
+11. [Desenvolvimento](#11-desenvolvimento)
+12. [Standards e interoperabilidade](#12-standards-e-interoperabilidade)
+13. [Documentação detalhada](#13-documentação-detalhada)
 
 ---
 
-## Estado do projeto
+## 1. Visão geral
 
-Sprint -1 (hardening), Sprint 0 (fundações + polish) e o Pré-Sprint 1 (8 follow-ups do backlog + conta `dev` + Ferramentas Dev + chatbot AI integrado com stubs Spring Boot 4) estão **concluídos**. O **Sprint 1** (Vertical 3.1 Transportes Públicos) está **completo (100%)**: entregues a entidade `Operator`, export GeoJSON, portal Open Data (DCAT-AP), calendário e horários, uma **re-arquitetura Transmodel** do modelo (Linha → Padrão → Trip), um **editor manual de padrões/trajetos** (waypoints + OSRM) um **redesign visual liquid-glass** transversal, e ainda adherence stoplight (F2), correlação de atrasos (F6), publisher **GTFS-RT** (F7), exporter **NeTEx** (F8) métricas/pulses (F9) e o dashboard de cobertura/frequência (F5). Detalhe completo das fases em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
+O PGU-TUB cobre as 3 grandes preocupações de um operador de transportes públicos urbanos:
 
-### Principais funcionalidades já entregues
+- **Operação em tempo real** — Livemap com GPS dos autocarros, painéis DMS nas paragens, despacho/chat com motorista, módulo fiscal.
+- **Planeamento e dados** — Linhas, padrões, viagens (Transmodel), escalas, calendário, GTFS / GTFS-RT / NeTEx import/export, dashboard de bilhética.
+- **Inteligência** — Assistente IA on-premises (Ollama + Qwen 2.5) com *tool calling* para consultar a BD em linguagem natural, sem fuga de dados para a cloud.
 
-**Transportes públicos e modelo Transmodel (Sprint 1, em curso):**
-
-- Modelo **Transmodel**: **Linha** (`Route`) → **Padrão de viagem** (`JourneyPattern`: paragens ordenadas + geometria) → **Trip** (com `TripStopTime`). Migrações V40 a V42.
-- **Editor manual de padrões/trajetos** (`/backoffice/routes/:id/patterns/new`): clicar numa paragem adiciona-a ao padrão, clicar no mapa cria um ponto âncora (waypoint), o OSRM encaixa a linha por estrada; os waypoints ficam guardados (V43) para re-edição. Suporta Ctrl+Z, drag-n-drop e arrasto de waypoints.
-- **Entidade `Operator`** (V38) com CRUD em `/backoffice/operators`; cada linha tem operador.
-- **Calendário operacional** (`/backoffice/calendar`, V39) e **Horários** planeados (`/backoffice/schedules`: Linha → Padrão → Trip → tempos).
-- **Portal Open Data público** em `/open-data`: export **GeoJSON** de linhas e paragens e **catálogo DCAT-AP** (`/api/v1/catalog/datasets`) para indexação por dados.gov.pt.
-- **Standards de tempo real e intercâmbio**: feed **GTFS-RT** protobuf (`/api/v1/gtfs-rt/vehicle-positions.pb` e `/trip-updates.pb`), export **NeTEx** (`/api/v1/netex/export.xml`), adherence stoplight por linha e correlação de atrasos com eventos no Livemap.
-- Naming consistente **"Linha/Line"** em todo o UI (o backend mantém "route", interno ao GTFS).
-
-**Redesign visual liquid-glass (Sprint 1):**
-
-- Linguagem **liquid-glass** (vidro fosco, blur, profundidade) na chrome do backoffice (sidebar flutuante) e no Livemap (sidebar e cartões em vidro, modal de horários centrado via portal).
-- **Zero emojis** no UI: todos substituídos por ícones SVG (incluindo os estados de mensagem).
-- Páginas repolidas: Dashboard, Ocorrências, Hub pós-login, Landing e login Keycloak.
-
-**Autenticação e segurança (Sprint -1 + Sprint 0 F4/F5):**
-
-- Realm Keycloak `pgu-realm` com quatro roles: `admin`, `funcionario`, `motorista` e `developer` (conta `dev`/`dev123` para demos, com ferramentas em `/backoffice/dev`).
-- MFA TOTP obrigatório (required action `CONFIGURE_TOTP`), com tema PGU custom no setup do QR. Suporta FreeOTP, Google Authenticator e Microsoft Authenticator.
-- `unmanagedAttributePolicy=ENABLED` configurado automaticamente no boot pelo backend (necessário para custom attributes como `avatarKey`).
-- Tema Keycloak completo (login, account, totp-config) com toggle de tema claro/escuro e troca de língua PT/EN.
-
-**Internacionalização (Sprint 0 F6):**
-
-- `react-i18next` com cobertura total da app (300+ chaves em `pgu-web/src/i18n/locales/{pt,en}.json`).
-- `LanguageSwitcher` no canto inferior PT/EN e sincronização com o Keycloak (`ui_locales=pt|en`).
-- Audit actions, GTFS progress steps e toasts traduzidos.
-
-**Tema escuro (Sprint 0 F7):**
-
-- `ThemeProvider` + `ThemeSwitcher` (ícones sol/lua), com deteção de `prefers-color-scheme` e persistência em `localStorage`.
-- Override completo de variáveis CSS em todas as páginas (backoffice, LiveMap, Painel de Bordo e templates Keycloak).
-
-**Observabilidade de fontes de dados (Sprint 0 F4):**
-
-- Página `/backoffice/data-sources` com timeline chart e probes a cada 30s (TCP, HTTP, DB, self-pulse).
-- Alarmística por email quando uma fonte passa a `DOWN` (com fallback de owner via `GlobalConfig`).
-- Tabela `data_source` (V30) e `api_access_log` (V29).
-
-**Self-service de conta:**
-
-- Página `/backoffice/conta` (acessível a `admin` e `funcionario`) e modal "Conta" no Painel de Bordo para motoristas.
-- Componente `AccountForm` reutilizável: editar nome, email, avatar e mudança de password (validação via OAuth2 password-grant).
-- O username do admin é imutável.
-
-**Avatares end-to-end:**
-
-- Upload para MinIO (bucket `avatars`) com validação a 2MB e formatos `png/jpg/webp`.
-- Componente `Avatar.jsx` reutilizável, com fallback para gradient + inicial.
-- Visíveis em Users, Drivers, Buses, Sidebar, Painel de Bordo e separador Conta.
-
-**Gestão de frota e motoristas:**
-
-- Batch de criação: `POST /api/v1/users/drivers/batch?count=N` e `/api/v1/buses/batch?count=N` (1-50, com `UPDATE_PASSWORD` required action no Keycloak).
-- Modal de associação bus → driver redesenhado: search + grid em 2 colunas + pills coloridas por estado.
-
-**Exportações assíncronas (Sprint 0):**
-
-- Resultados guardados em MinIO (bucket `exports`) e devolvidos via presigned URLs (TTL 60 min).
-- Cancelamento via `POST /api/v1/exports/{uuid}/cancel` (estado `CANCELED`, migração V35).
-- Página `/backoffice/exports` com 6 stat cards (Total, Concluídos, Em fila, Em curso, Falhados, Cancelados) e filtro Meus/Todos para admin.
-- Resume automático após F5 através do canal WebSocket.
-
-**GTFS:**
-
-- Tabelas `gtfs_*` (V20) e `stop_schedule` (V21).
-- Toast colapsável: ao fim de 10 segundos vira um círculo de 44px com spinner; ao hover expande; quando colapsado o resto da página recebe os cliques.
-
-**NGSI-LD e Smart Data Models:**
-
-- Proxy `/api/v1/ngsi-ld/entities[/{id}]` e `/api/v1/ngsi-ld/types` com `@context` FIWARE oficial.
-- Smart Data Model `Vehicle` configurado no NiFi.
-
-**LiveMap polido:**
-
-- Cluster de marcadores via `leaflet.markercluster`.
-- Toggles para paragens, rotas e autocarros.
-- `flyTo` suave e trail dos últimos 20 pontos do autocarro como polyline.
-
-**Configuração de infraestrutura nova:**
-
-- Buckets MinIO `exports`, `attachments` e `avatars` criados em boot via `StorageBootstrap`.
-- Variável `MINIO_PUBLIC_ENDPOINT` para gerar presigned URLs com host público (ex: `http://localhost:9000`).
-- Mailpit em dev (UI em `:8025`, SMTP em `:1025`) para capturar todos os emails.
-- Docker Compose do Keycloak agora arranca com `kc.sh import --override true`, reaplicando o realm JSON a cada arranque.
+Tudo isto corre num único `docker compose up` e usa apenas **stack aberta** (Spring Boot, PostgreSQL/PostGIS, NiFi, Mosquitto, Keycloak, Ollama, OSRM, MinIO).
 
 ---
 
-## Arquitetura
+## 2. Funcionalidades principais
 
-```mermaid
-flowchart TB
-    subgraph mqtt_net [mqtt_net]
-        MQ[Mosquitto MQTT :1883<br/>auth + ACL por serviço]
-    end
+### 2.1 Operação em tempo real
 
-    subgraph etl_net [etl_net]
-        NF[Apache NiFi :8443]
-        OR[FIWARE Orion]
-        API[Spring Boot API :8081<br/>+ Scheduler interno]
-    end
+- **Livemap**: posições GPS actualizadas a cada ~5 s, clusters automáticos, smooth-zoom ao seleccionar autocarro, trajeto do pattern em curso destacado, paragens com painel DMS realçadas, heatmap e camadas toggleable.
+- **Painéis DMS dinâmicos**: cada paragem com painel recebe ETA via MQTT. 3 colunas (Planeado · ETA · Atraso). Heartbeat com detecção automática de ONLINE/OFFLINE.
+- **PainelBordo** (motorista): próxima paragem, próximas chegadas anunciadas ao utente, chat com despacho, estado do veículo, dark mode adaptativo.
+- **Módulo Fiscal**: app mobile-first com mapa centrado no fiscal, paragem mais próxima, KPIs (validações/h, fraude, falsos positivos), sub-tabs `All / Fraud / False positive`, notificações push.
+- **Despacho**: chat bidireccional motorista ↔ central, com confirmação de leitura por mensagem e alertas urgentes.
 
-    subgraph dw_net [dw_net]
-        DW[(PostgreSQL + PostGIS)]
-    end
+### 2.2 Planeamento (Transmodel-native)
 
-    subgraph orion_db_net [orion_db_net]
-        MDB[(MongoDB)]
-    end
+- **Modelo Transmodel CEN/TS 16614**: `Route` → `JourneyPattern` → `Trip` → `TripStopTime`. Migrations `V40-V42`.
+- **Editor visual de padrões** (`/backoffice/routes/:id/patterns/new`): cliques no mapa criam waypoints, OSRM encaixa pela estrada, Ctrl+Z, drag-and-drop.
+- **Editor de horários** (`/backoffice/schedules`): mapa CARTO + lista de paragens, validação live de monotonia, criar/editar/apagar trips, todas as paragens obrigatórias.
+- **Atribuição de escalas** (`Plan bus schedule`): liga sequência de Trips a um Bus num dia, valida que o bus está STOPPED, sincroniza `bus.route_id` com a duty `RUNNING`.
+- **Calendário operacional** e dashboard de cobertura/frequência.
+- **Operadores** (`/backoffice/operators`) com CRUD.
 
-    subgraph auth_net [auth_net]
-        KC[Keycloak :8080]
-    end
+### 2.3 Bilhética e fiscalização
 
-    subgraph tools_db_net [tools_db_net]
-        TDB[(ToolsDB)]
-        MB[Metabase :3000]
-    end
+- **Validações** por canal (CARTAO, PASSE, BORDO, APP) com cálculo de coroa por StopZone, detecção de transbordo, criação automática de Ticket com validade configurável.
+- Dashboard **Ticketing** (`/backoffice/ticketing`): KPIs, demand-per-hour, top lines, by channel, by category, by zone, live validations.
+- **RGPD by design**: `cardPseudoId = SHA-256(cardId || salt)`. Sem cardId em claro persistido.
 
-    subgraph osrm_net [osrm_net]
-        OSRM[OSRM :5000]
-    end
+### 2.4 IA generativa local
 
-    SIM[Simulador Python] -->|PublishMQTT tub/telemetry| MQ
-    MQ -->|ConsumeMQTT| NF
-    NF -->|InvokeHTTP POST /ingest| API
-    NF -->|InvokeHTTP NGSI-LD| OR
-    API -->|MQTT tub/dispatch/#| MQ
-    API -->|WebSocket /topic/*| FE[Frontend React :5173]
-    API -->|JDBC| DW
-    API -->|HTTP /route| OSRM
-    MB -->|Analytics| DW
-    OR --> MDB
-    KC --> TDB
-    MB --> TDB
-    API -->|JWT validation| KC
-```
+- **Chatbot** (`/chatbot`) com Spring AI + Ollama + Qwen 2.5 3B.
+- **Tool calling**: o modelo invoca funções Java tipadas (`AiTools.*`) para consultar atrasos, ocupação, alertas, ocorrências, energia, etc.
+- **Memória conversacional por sessão** (últimas 10 mensagens) via `MessageChatMemoryAdvisor`.
+- **Audit log** (`ai_interaction_log`) de cada interacção: utilizador, prompt SHA-256, latência, tools chamadas, estado.
+- **Rate limit** + filtro de prompts suspeitos.
+- **Warm-up no arranque** para evitar cold-start no primeiro pedido.
 
-### Fluxo de dados
+### 2.5 Segurança
+
+- **Keycloak 26** com realm dedicado `pgu-realm`, 4 papéis (`admin`, `funcionario`, `motorista`, `fiscal`, `developer`).
+- **MFA TOTP** obrigatório (FreeOTP, Google Authenticator, MS Authenticator).
+- **OIDC** com refresh automático de tokens no frontend.
+- **Auditoria** em `audit_log` e `api_access_log` para cada acção/request.
+- **Filtros**: `InternalApiKeyFilter` para M2M, `AiRateLimitFilter`, `ApiAccessLogFilter`.
+
+---
+
+## 3. Arquitectura
 
 ```
-Simulador (Python)
-    └─ PublishMQTT (tub/telemetry)
-         └─ Mosquitto
-              └─ ConsumeMQTT
-                   └─ Apache NiFi
-                        ├─ InvokeHTTP POST /api/v1/telemetry/ingest
-                        │     └─ Spring Boot API
-                        │          ├─ JDBC → PostgreSQL/PostGIS
-                        │          ├─ WebSocket STOMP → /topic/telemetry → Frontend
-                        │          └─ MQTT tub/dispatch/# → Painel de Bordo
-                        └─ InvokeHTTP NGSI-LD
-                              └─ FIWARE Orion → MongoDB
+┌─────────────────────────────────────────────────────────────────┐
+│                          Frontend                                │
+│      React 19 · Vite · Leaflet · Keycloak.js · STOMP            │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │ HTTPS · WSS
+┌────────────────────────────────┴─────────────────────────────────┐
+│                       Spring Boot 4.0.5                          │
+│  REST · WebSocket · Spring AI · Spring Security OIDC             │
+│  AiTools · Schedule · BusDuty · Fiscal · Validation · MQTT       │
+└──┬──────┬──────────┬──────────┬──────────┬──────────┬───────────┘
+   │      │          │          │          │          │
+┌──▼─┐  ┌─▼──┐    ┌──▼──┐    ┌──▼──┐    ┌──▼──┐    ┌─▼──────┐
+│ PG │  │NiFi│    │MQTT │    │OSRM │    │Ollama│   │Keycloak│
+│ +  │  │    │    │     │    │     │    │ +    │   │  26    │
+│PostGIS │MQTT│   │Mosq.│    │self │    │Qwen2.│   │OIDC    │
+└────┘  └────┘    └─────┘    └─────┘    └──────┘   └────────┘
 ```
 
-### Stack tecnológica
+Camadas (do mais perto do utilizador para o mais perto dos dados):
 
-| Componente | Tecnologia | Porta | Redes |
-|---|---|---|---|
-| Backend API | Spring Boot 4.0.5 (Java 21) | 8081 | etl_net, dw_net, auth_net, osrm_net, mqtt_net |
-| Frontend | React 19 + Vite + Leaflet + Keycloak-JS | 5173 | (público) |
-| Broker IoT | Eclipse Mosquitto 2.0 (auth + ACL) | 1883 | mqtt_net |
-| ETL | Apache NiFi 2.0.0 | 8443 | mqtt_net, etl_net |
-| Data Warehouse | PostgreSQL 15 + PostGIS 3.4 | 5433 (local) | dw_net |
-| Context Broker | FIWARE Orion 3.9.0 | (interna) | etl_net, orion_db_net |
-| BD do Orion | MongoDB 6.0 | (interna) | orion_db_net |
-| IAM | Keycloak 26.2.4 | 8080 | auth_net, tools_db_net |
-| Dashboards | Metabase 0.52.4 | 3000 | tools_db_net, dw_net |
-| BD de ferramentas | PostgreSQL 15 | (interna) | tools_db_net |
-| Routing | OSRM self-hosted (Portugal) | 5000 | osrm_net |
-| Simulador | Python (volume no NiFi) | (interna) | mqtt_net |
-| Reverse proxy / TLS | Nginx + Let's Encrypt (prod) | 80, 443 | edge |
-
-> **Nota:** o Apache Airflow foi removido por decisão arquitetural. O agendamento é feito por **Spring Scheduler** interno ao backend.
-
-### Micro-segmentação de redes (Zero Trust)
-
-| Rede | Função | Serviços |
-|---|---|---|
-| `mqtt_net` | Comunicação MQTT | Mosquitto, NiFi, Spring Boot, Simulador |
-| `etl_net` | Entrega de dados ETL | NiFi, Spring Boot, Orion |
-| `dw_net` | Acesso à Data Warehouse | Spring Boot, PostgreSQL/PostGIS, Metabase |
-| `orion_db_net` | Isolamento do Context Broker | Orion, MongoDB |
-| `tools_db_net` | BD partilhada de ferramentas | Keycloak, Metabase, ToolsDB |
-| `auth_net` | Validação JWT | Spring Boot, Keycloak |
-| `osrm_net` | Routing de segmentos | Spring Boot, OSRM |
-
----
-
-## Pré-requisitos
-
-- **Docker** e **Docker Compose** v2+
-- **Bash** (`pgu-setup.sh` corre em Linux, macOS ou WSL)
-- Ficheiro `.env` na raiz (gerado automaticamente pelo `pgu-setup.sh` em modo local)
-
----
-
-## Arranque rápido
-
-### Modo local (desenvolvimento)
-
-```bash
-# Gera .env, arranca toda a stack e faz health-check
-./pgu-setup.sh
-```
-
-O script faz o seguinte:
-
-1. Gera um `.env` com credenciais de desenvolvimento.
-2. Executa `docker compose up -d --build`.
-3. Aguarda que o Postgres, o Keycloak, o Mosquitto e a API fiquem saudáveis.
-4. Imprime as URLs de acesso.
-
-### Modo produção (Azure)
-
-```bash
-# Configurar .env a partir do exemplo
-cp .env.example .env
-# preencher DOMAIN, CERTBOT_EMAIL e todas as passwords
-
-# Arrancar com perfil de produção (nginx + certbot + TLS)
-docker compose --profile prod up -d
-```
-
-### Reset total
-
-```bash
-./pgu-setup.sh --nuke   # apaga volumes e reinicia do zero
-```
-
----
-
-## Acessos e credenciais
-
-Substituir `<host>` por `localhost` (modo local) ou pelo domínio configurado em produção.
-
-| Serviço | URL | Acesso |
-|---|---|---|
-| Frontend | `http://<host>:5173` | Login via Keycloak |
-| Spring Boot API | `http://<host>:8081` | JWT via Keycloak |
-| Apache NiFi | `https://<host>:8443/nifi` | `NIFI_USERNAME` / `NIFI_PASSWORD` (`.env`) |
-| Keycloak Admin | `http://<host>:8080` | `IAM_ADMIN_USER` / `IAM_ADMIN_PASSWORD` (`.env`) |
-| Metabase | `http://<host>:3000` | Configurar no 1.º acesso |
-| OSRM API | `http://<host>:5000` | Público |
-| FIWARE Orion | `http://<host>:1026/v2/entities` | Público (rede interna) |
-| MinIO Console | `http://<host>:9001` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` (`.env`) |
-| Mailpit (dev) | `http://<host>:8025` | Sem autenticação. Captura local de todos os emails. |
-
-### Utilizadores do realm `pgu-realm`
-
-Dois utilizadores vêm pré-criados em `keycloak/pgu-realm-realm.json`:
-
-| Username | Password inicial | Role | Destino |
-|---|---|---|---|
-| `admin` | `admin123` | `admin` | Backoffice. Password `temporary: true`, tem de ser alterada no primeiro login. **Conta protegida**: não pode ser eliminada nem desactivada via UI/API. |
-| `dev` | `dev123` | `developer` | Backoffice + página `/backoffice/dev` (Ferramentas Dev). Password permanente, sem MFA. **Conta protegida**: idem. O `developer` faz tudo o que o `admin` faz **mais** geração em massa e simulações de demo. |
-
-As contas de **funcionários** e **motoristas** são criadas a partir do backoffice:
-
-- `/backoffice/users`: gestão de funcionários (atribui role `funcionario`).
-- `/backoffice/drivers`: gestão de motoristas (atribui role `motorista` e o autocarro a que ficam associados).
-
-Para popular o ambiente rapidamente (apresentações, testes), a conta `dev` tem ferramentas em `/backoffice/dev`:
-
-- **Gerar autocarros em batch** (`POST /api/v1/buses/batch?count=N`, limite 1-50) — matrículas, capacidades e rotas aleatórias.
-- **Gerar motoristas em batch** (`POST /api/v1/users/drivers/batch?count=N`) — nomes portugueses aleatórios, **password fixa `motorista123`** para todos os motoristas gerados (modo demo). Os 2 endpoints estão restritos ao role `developer` (admin sozinho já não tem acesso).
-- ***Stubs* de simulação** (`Simular atraso`, `Adicionar passageiros`) marcados com badge `STUB` — registam o pedido nos logs mas não afectam o estado real. Esqueleto para hooks futuros do simulador.
-
-### Email (SMTP)
-
-A plataforma envia emails em duas situações: alertas críticos (fonte de dados em estado `DOWN`, ocorrências) e reports de problema iniciados pelo utilizador a partir da página *Fontes*.
-
-| Ambiente | Servidor SMTP | Onde aparecem os emails |
-|---|---|---|
-| **Dev (local)** | **Mailpit** (`mailpit:1025`, dentro do `docker compose`) | `http://localhost:8025` (web UI do Mailpit, sem autenticação). Nenhum email sai para destinos reais. |
-| **Produção** | Servidor SMTP real (Gmail, SendGrid, AWS SES, …) | Caixa de entrada do destinatário. |
-
-O `pgu-setup.sh` em modo local já configura `SMTP_HOST=mailpit` no `.env`. Para passar a produção, basta editar o `.env` e substituir o bloco SMTP por uma das opções comentadas em `.env.example`:
-
-```env
-# Gmail (precisa de 2FA + App Password)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=sistema@tub.pt
-SMTP_PASSWORD=xxxx-xxxx-xxxx-xxxx
-SMTP_AUTH=true
-SMTP_STARTTLS=true
-```
-
-> **Nota:** o backend só consegue enviar emails se o `SMTP_HOST` resolver. Se ficar a apontar para `mailpit` em produção (sem o container), as chamadas falham com timeout. O log do backend mostra a falha; o utilizador vê um toast de erro.
-
----
-
-## Frontend
-
-### Rotas principais
-
-> **Nota.** O role `developer` herda tudo o que o `admin` faz. Para não duplicar, as tabelas abaixo só listam `admin` na coluna *Acesso* — entenda-se "admin **ou** developer". A única excepção é `/backoffice/dev` e os endpoints `/api/v1/dev/**` + `/api/v1/buses/batch` + `/api/v1/users/drivers/batch`, que estão restritos a `developer` (admin sozinho não tem acesso).
-
-| Rota | Acesso | Descrição |
-|---|---|---|
-| `/` | Público | Landing page (apresentação) |
-| `/open-data` | Público | Portal Open Data (GeoJSON + catálogo DCAT-AP) |
-| `/livemap` | Autenticado | Mapa em tempo real (Leaflet + STOMP, com cluster e trail) |
-| `/backoffice` | `admin`, `funcionario` | Dashboard de gestão |
-| `/backoffice/buses` | `admin`, `funcionario` | CRUD de autocarros e chat de despacho |
-| `/backoffice/routes` | `admin`, `funcionario` | Linhas (identidade) e os seus padrões/trajetos |
-| `/backoffice/routes/:id/patterns/new` | `admin` | Editor manual de padrão (waypoints + paragens + OSRM) |
-| `/backoffice/operators` | `admin` | CRUD de operadores de transporte |
-| `/backoffice/analytics` | `admin`, `funcionario` | Dashboards analíticos (Recharts) |
-| `/backoffice/calendar` | `admin`, `funcionario` | Calendário operacional (serviço por dia) |
-| `/backoffice/schedules` | `admin`, `funcionario` | Horários planeados (Linha → Padrão → Trip) |
-| `/backoffice/stops` | `admin`, `funcionario` | CRUD de paragens |
-| `/backoffice/drivers` | `admin` | Gestão de motoristas (Keycloak Admin API) |
-| `/backoffice/users` | `admin` | Gestão de utilizadores (funcionários) |
-| `/backoffice/data-sources` | `admin` | Saúde de fontes de dados (probes + timeline) |
-| `/backoffice/exports` | `admin`, `funcionario` | Exportações CSV / JSON (MinIO + presigned URLs) |
-| `/backoffice/conta` | `admin`, `funcionario` | Self-service de conta (dados, password, avatar) |
-| `/backoffice/dev` | `developer` | **Ferramentas Dev**: geração em batch + simulações stub |
-| `/chatbot` | `admin`, `funcionario` | Assistente IA (Llama on-premises, ecrã inteiro) |
-| `/bordo` | `motorista` | **Painel de Bordo** (auto-deteta o autocarro atribuído) |
-
-### LiveMap
-
-- **Paragens:** marcadores circulares (Leaflet).
-- **Rotas:** polylines com os segmentos OSRM por estrada real.
-- **Autocarros:** posição atualizada via WebSocket STOMP.
-- **Estados:** cruzam `Bus.status` (`ACTIVE` / `STOPPING` / `STOPPED`) com a telemetria mais recente:
-  - 🟢 **Em viagem:** em movimento.
-  - 🟣 **Em paragem:** parado numa paragem.
-  - 🟡 **A parar:** estado `STOPPING`.
-  - ⚫ **Desativado:** estado `STOPPED`.
-
-### Painel de Bordo
-
-Interface dedicada ao motorista, em `/bordo`:
-
-- Auto-deteta o autocarro atribuído via `GET /api/v1/drivers/me/bus`.
-- Recebe mensagens do despacho operacional em tempo real (`/topic/despacho/{busId}`).
-- Permite reportar avarias (`POST /api/v1/ocorrencias/motorista`).
-- Mostra notificações *toast* e *badge* de mensagens por ler.
-- Inclui modal "Conta" (`AccountForm` partilhado com o backoffice) para o motorista alterar nome, email, avatar e password.
-
----
-
-## API REST
-
-### Endpoints principais
-
-| Método | Endpoint | Roles | Descrição |
-|---|---|---|---|
-| `GET` | `/api/v1/telemetry` | `admin`, `funcionario` | Telemetria histórica (paginada) |
-| `GET` | `/api/v1/telemetry/latest` | `admin`, `funcionario` | Última telemetria por autocarro |
-| `POST` | `/api/v1/telemetry/ingest` | Interno (API key) | Ingestão a partir do NiFi |
-| `GET/POST` | `/api/v1/stops` | `admin`, `funcionario` | CRUD de paragens |
-| `GET/POST` | `/api/v1/routes` | `admin`, `funcionario` | CRUD de rotas (calcula segmentos OSRM) |
-| `GET` | `/api/v1/route-segments/route/{id}` | `admin`, `funcionario` | Segmentos OSRM de uma rota |
-| `GET` | `/api/v1/routes/{id}/patterns` | `admin`, `funcionario` | Padrões (trajetos) de uma linha |
-| `POST` | `/api/v1/routes/preview-geometry` | `admin` | Preview OSRM de uma sequência de pontos |
-| `POST/PUT/DELETE` | `/api/v1/routes/{id}/patterns[/{patternId}]` | `admin` | Criar / editar / apagar padrão (editor) |
-| `GET` | `/api/v1/patterns/{id}/{geometry,stops,trips,authoring}` | `admin`, `funcionario` | Geometria, paragens, trips e pontos de autoria de um padrão |
-| `GET` | `/api/v1/routes/export.geojson` | Público | FeatureCollection de linhas |
-| `GET` | `/api/v1/stops/export.geojson` | Público | FeatureCollection de paragens |
-| `GET/POST/DELETE` | `/api/v1/operators` | `admin` | CRUD de operadores de transporte |
-| `GET` | `/api/v1/catalog/datasets` | Público | Catálogo DCAT-AP (JSON-LD) |
-| `GET` | `/api/v1/calendar?from&to` | `admin`, `funcionario` | Calendário operacional por dia |
-| `GET` | `/api/v1/schedules/{trips,coverage}` | `admin`, `funcionario` | Horários planeados e indicadores de cobertura |
-| `GET` | `/api/v1/analytics/route-adherence` | `admin`, `funcionario` | Adherence stoplight por linha (verde/amarelo/vermelho) |
-| `GET` | `/api/v1/analytics/route-delays/correlations?routeId` | `admin`, `funcionario` | Eventos (ocorrências/alertas) correlacionados com atrasos |
-| `GET` | `/api/v1/gtfs-rt/{vehicle-positions,trip-updates}.pb` | Público | Feed GTFS-Realtime (protobuf) |
-| `GET` | `/api/v1/netex/export.xml` | Público | Export NeTEx (PublicationDelivery XML) |
-| `GET/POST` | `/api/v1/buses` | `admin`, `funcionario` | CRUD de autocarros |
-| `POST` | `/api/v1/buses/batch?count=N` | `developer` | Criar 1 a 50 autocarros aleatórios |
-| `PUT` | `/api/v1/buses/{id}/activate` | `admin`, `funcionario` | Ativa o autocarro |
-| `PUT` | `/api/v1/buses/{id}/stop` | `admin`, `funcionario` | Marca como `STOPPING` |
-| `GET` | `/api/v1/buses/{id}/health` | `admin`, `funcionario` | Dashboard de saúde |
-| `GET/POST` | `/api/v1/drivers` | `admin` | Gestão de motoristas (via Keycloak) |
-| `POST` | `/api/v1/users/drivers/batch?count=N` | `developer` | Criar 1 a 50 motoristas aleatórios (password fixa `motorista123`) |
-| `POST` | `/api/v1/dev/simulate/bus-delay` | `developer` | **Stub** — simular atraso (log apenas) |
-| `POST` | `/api/v1/dev/simulate/add-passengers` | `developer` | **Stub** — incrementar passageiros (log apenas) |
-| `GET` | `/api/v1/drivers/me/bus` | `motorista` | Autocarro atribuído ao motorista autenticado |
-| `GET/PUT` | `/api/v1/me` | Autenticado | Self-service de conta (dados, avatar, password) |
-| `GET/POST` | `/api/v1/ocorrencias` | `admin`, `funcionario`, `maintenance` | Avarias e ocorrências |
-| `POST` | `/api/v1/ocorrencias/motorista` | `motorista` | Motorista reporta avaria do seu autocarro |
-| `GET/POST` | `/api/v1/despacho/{busId}/mensagens` | `admin`, `funcionario` | Chat de despacho operacional |
-| `GET/POST` | `/api/v1/despacho/{busId}/mensagens/motorista` | `motorista` | Chat de despacho (motorista) |
-| `GET` | `/api/v1/alertas` | `admin`, `funcionario` | Alertas críticos |
-| `GET/POST/PUT/DELETE` | `/api/v1/data-sources` | `admin` | CRUD de fontes de dados monitorizadas |
-| `POST` | `/api/v1/data-sources/{id}/pulse` | Interno (API key) | Self-pulse de heartbeat |
-| `POST` | `/api/v1/exports` | Autenticado | Submeter exportação assíncrona |
-| `POST` | `/api/v1/exports/{uuid}/cancel` | Dono / `admin` | Cancelar exportação em curso |
-| `DELETE` | `/api/v1/exports/{uuid}` | `admin` | Apagar exportação |
-| `GET` | `/api/v1/ngsi-ld/entities[/{id}]` | Autenticado | Proxy NGSI-LD (com `@context` FIWARE) |
-| `GET` | `/api/v1/ngsi-ld/types` | Autenticado | Listar tipos de entidades NGSI-LD |
-| `GET` | `/actuator/health` | Público | Health-check |
-
-Documentação OpenAPI interativa em `http://<host>:8081/swagger-ui.html` (apenas em modo `dev`).
-
----
-
-## WebSocket (tempo real)
-
-Endpoint STOMP: `ws://<host>:8081/ws-telemetry`. A **autenticação JWT é obrigatória** no frame `CONNECT` (header `Authorization: Bearer <token>`).
-
-| Tópico | Audiência | Descrição |
-|---|---|---|
-| `/topic/telemetry` | `admin`, `funcionario` | Stream de telemetria |
-| `/topic/despacho/{busId}` | `admin`, `funcionario`, `motorista` (do bus) | Mensagens de despacho do autocarro |
-| `/topic/despacho/unread-update` | `motorista` | Atualização do contador de mensagens por ler |
-| `/topic/alertas` | `admin`, `funcionario` | Alertas críticos em tempo real |
-| `/topic/ocorrencias` | `admin`, `funcionario` | Novas ocorrências |
-| `/topic/exports` | Autenticado (dono) | Atualização de estado de exportações (incluindo `CANCELED`) |
-| `/topic/data-sources` | `admin` | Probes e mudança de estado das fontes de dados |
-
-> O cliente STOMP do frontend (`pgu-web/src/services/stompClient.js`) renova o token antes de cada `CONNECT` (`keycloak.updateToken(30)`).
-
----
-
-## Tratamento de erros
-
-Todos os endpoints devolvem erros em formato JSON consistente (`GlobalExceptionHandler` + `ErrorResponse`):
-
-```json
-{
-  "code": "VALIDATION",
-  "message": "Pedido invalido",
-  "timestamp": "2026-05-26T20:17:42Z",
-  "path": "/api/v1/buses",
-  "traceId": "8f2c1b4a-...",
-  "fieldErrors": {
-    "capacity": "must be greater than or equal to 1"
-  }
-}
-```
-
-Códigos possíveis: `VALIDATION`, `NOT_FOUND`, `FORBIDDEN`, `BUSINESS_RULE`, `UPLOAD_TOO_LARGE`, `INTERNAL`.
-
----
-
-## Migrações Flyway
-
-Localização: `pgu/src/main/resources/db/migration/`. As migrações executam automaticamente ao arrancar o Spring Boot.
-
-| Versão | Descrição |
+| Camada | Tecnologia |
 |---|---|
-| `V1` | `vehicle_telemetry` (tabela principal de telemetria) |
-| `V2` a `V10` | `stops`, `routes`, `buses`, `route_segments`, `route_stops`, vistas analíticas |
-| `V11` a `V14` | `historico_alertas`, `audit_log` e correções de vistas (`congestion_view`) |
-| `V15` a `V17` | `ocorrencias`, `mensagens_despacho`, `global_config` |
-| `V20`, `V21` | Tabelas `gtfs_*` e `stop_schedule` |
-| `V22` | Campos de simulação em `buses` |
-| `V23` | `data_type` em `export_job` |
-| `V24` a `V26` | `drivers` (mapeamento Keycloak + assignments) |
-| `V27` | `lida_pelo_funcionario` em `mensagens_despacho` |
-| `V28` | Índices compostos de performance (`bus_id`, `recorded_at`, etc.) |
-| `V29` | `api_access_log` (auditoria de API) |
-| `V30` a `V34` | `data_source` + cleanup de owners e descrições |
-| `V35` | Estado `CANCELED` em `export_job` |
-| `V36` | Campos MinIO em `export_job` (chave do objeto, presigned URL) |
-| `V37` | `ai_interaction_log` (auditoria do chatbot IA) |
-| `V38` | `operator` (operadores de transporte) + `route.operator_id` |
-| `V39` | `service_calendar` (calendário operacional GTFS) |
-| `V40` a `V42` | Modelo **Transmodel**: `journey_pattern`, `pattern_stop`, `pattern_segment`, `trip`, `trip_stop_time`, blocks; drop do schedule legado |
-| `V43` | Pontos de autoria dos padrões (waypoints do editor) |
-| `V44` | Fontes de dados de observabilidade (GTFS-RT publisher, NeTEx exporter) |
+| Apresentação | React 19 + Vite · Leaflet · Keycloak.js |
+| Aplicação | Spring Boot 4 · Spring AI · Spring Security OIDC |
+| Integração | Apache NiFi 2 · Mosquitto MQTT · STOMP WebSocket |
+| Persistência | PostgreSQL 15 + PostGIS · Flyway · MinIO (objectos) |
+| Inteligência | Ollama · Qwen 2.5 3B · OSRM (routing) |
+| Identidade | Keycloak 26 OAuth2/OIDC · realm dedicado |
 
 ---
 
-## Estrutura do projeto
+## 4. Pré-requisitos
+
+- **Docker Desktop** com Compose v2 (Linux/macOS/Windows WSL2).
+- **RAM**: 8 GB livre mínimo (Ollama Qwen 2.5 3B precisa ~3 GB sozinho).
+  - No Windows WSL2, criar `C:\Users\<user>\.wslconfig` com:
+    ```ini
+    [wsl2]
+    memory=8GB
+    processors=4
+    swap=4GB
+    ```
+    Depois `wsl --shutdown` e reabrir Docker Desktop.
+- **Node.js 20+** (apenas se for desenvolver o frontend localmente; senão tudo corre em container).
+- **Espaço em disco**: ~10 GB (imagens Docker + dados).
+
+---
+
+## 5. Arranque rápido
+
+```bash
+git clone https://github.com/antosantosb/DAI.git
+cd DAI
+
+# 1. Build de todas as imagens
+docker compose build
+
+# 2. Subir a stack (modo detached)
+docker compose up -d
+
+# 3. Acompanhar o arranque
+docker compose logs -f spring-boot-backend
+```
+
+O backend está pronto quando aparecer `Started PguApplication in XX seconds` seguido de `[ai-warmup] modelo carregado em XXXX ms` (1-2 min na primeira vez — o Ollama está a baixar o modelo de ~2 GB).
+
+Frontend: aceder a **http://localhost:5173** (Vite dev) ou **http://localhost** se a build de produção estiver pronta.
+
+### Stop/clean
+
+```bash
+docker compose down              # pára os containers
+docker compose down -v           # pára e apaga volumes (perde dados!)
+docker compose ps                # ver estado dos containers
+```
+
+---
+
+## 6. Acessos e credenciais
+
+### Endpoints
+
+| Serviço | URL local |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8081/api/v1 |
+| Swagger | http://localhost:8081/swagger-ui.html |
+| Keycloak | http://localhost:8080 |
+| MinIO Console | http://localhost:9001 |
+| Mailpit (dev) | http://localhost:8025 |
+
+### Utilizadores de demonstração
+
+| Role | Username | Password | Notas |
+|---|---|---|---|
+| Admin | `admin` | `admin123` | Acesso total + ferramentas dev |
+| Funcionário | `func` | `func123` | Operação diária |
+| Fiscal | `fiscal1` | `fiscal123` | App de fiscalização |
+| Motorista | `motorista1` | sobrenome | App de bordo |
+| Developer | `dev` | `dev123` | Hub `/backoffice/dev` + DevTools |
+
+> Passwords aplicam-se ao ambiente local. Em produção, MFA TOTP é exigido no 1.º login.
+
+---
+
+## 7. Estrutura do repositório
 
 ```
 DAI/
-├── docker-compose.yml              # Orquestração de todos os serviços
-├── .env / .env.example             # Variáveis de ambiente
-├── pgu-setup.sh                    # Bootstrap one-shot (--nuke disponível)
-│
-├── pgu/                            # Backend Spring Boot
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/dai/tub/pgu/
-│       │   ├── PguApplication.java
-│       │   ├── config/             # SecurityConfig, WebSocketConfig,
-│       │   │                       # WebSocketSecurityConfig, InternalApiKeyFilter,
-│       │   │                       # GlobalExceptionHandler, JwtRoleConverter
-│       │   ├── controller/         # TelemetryController, BusController,
-│       │   │                       # DespachoController, DriverController, ...
-│       │   ├── service/            # BusService, DespachoService, AlertaService,
-│       │   │                       # KeycloakAdminService, MqttDespachoService, ...
-│       │   ├── domain/             # Entidades JPA
-│       │   ├── dto/                # DTOs e ErrorResponse
-│       │   ├── repository/         # JPA + queries PostGIS
-│       │   └── audit/              # AuditAspect (AOP)
-│       └── resources/
-│           ├── application.properties
-│           ├── application-prod.properties
-│           └── db/migration/       # Flyway V1 a V44
-│
-├── pgu-web/                        # Frontend React + Vite
-│   ├── nginx.conf.template         # Reverse proxy e security headers (prod)
-│   └── src/
-│       ├── pages/
-│       │   ├── Landing.jsx
-│       │   ├── Livemap.jsx
-│       │   ├── PainelBordo.jsx     # Painel do motorista
-│       │   └── backoffice/         # Buses, Routes, Stops, Drivers, Users,
-│       │                           # DataSources, Exports, Conta
-│       ├── components/             # Avatar, AccountForm, ThemeSwitcher,
-│       │                           # LanguageSwitcher, BusCard, BusDetailPanel, ...
-│       ├── i18n/                   # react-i18next + locales/{pt,en}.json
-│       ├── theme/                  # ThemeProvider e tokens de tema escuro
-│       └── services/
-│           ├── api.js              # Axios + timeout + toasts globais
-│           └── stompClient.js      # STOMP com refresh do JWT
-│
-├── keycloak/
-│   ├── pgu-realm-realm.json        # Realm, clients e users (temporary passwords)
-│   └── themes/pgu/                 # Tema custom (login, account, totp-config)
-│                                   # com toggle PT/EN e claro/escuro
-│
-├── mosquitto/config/
-│   ├── mosquitto.conf              # allow_anonymous false
-│   └── acl.conf                    # ACL por utilizador (backend, simulator, nifi, bus)
-│
-├── nifi-templates/                 # Process groups exportados
-├── simulator/simulator.py          # Simulador MQTT (volume no NiFi)
-├── osrm/Dockerfile                 # OSRM self-hosted (Portugal PBF)
-└── postgres-init/init-tools.sql    # Inicialização das BDs Keycloak e Metabase
+├── docker-compose.yml          # Orquestração de todos os serviços
+├── .env.example                # Variáveis de ambiente (copiar para .env)
+├── pgu/                        # Backend Spring Boot 4
+│   ├── src/main/java/dai/tub/pgu/
+│   │   ├── controller/         # REST controllers
+│   │   ├── service/            # Lógica de negócio
+│   │   ├── domain/             # Entidades JPA
+│   │   ├── repository/         # Spring Data
+│   │   ├── ai/                 # AiTools, AiChatService, AiRateLimitFilter
+│   │   ├── audit/              # AuditAspect, LogActivity
+│   │   └── config/             # Security, GlobalExceptionHandler
+│   └── src/main/resources/
+│       ├── application.properties
+│       └── db/migration/       # Flyway V1__... V74__...
+├── pgu-web/                    # Frontend React 19 + Vite
+│   ├── src/pages/              # 1 ficheiro por rota principal
+│   ├── src/components/         # Reutilizáveis (Layout, Modal, BusCard...)
+│   ├── src/services/           # api.js, despachoApi, stompClient
+│   ├── src/context/            # AuthProvider, ThemeProvider
+│   └── src/i18n/locales/       # pt.json, en.json
+├── nifi/                       # Pipelines de ingestão
+├── mosquitto/                  # Config + ACL do broker MQTT
+├── keycloak/                   # Realm export (`pgu-realm.json`)
+├── simulator/                  # Simulador de telemetria de buses (Python)
+├── docs/                       # Documentação + apresentação
+│   ├── RELATORIO_BUILD.md
+│   └── PGU-TUB-Apresentacao.pptx
+└── PLANO_ITERACAO.md           # Histórico detalhado de sprints
 ```
 
 ---
 
-## Comandos úteis
+## 8. Migrations Flyway
+
+74 migrations cumulativas. Highlights:
+
+| Migration | Conteúdo |
+|---|---|
+| V1-V10 | Telemetria, paragens, rotas, autocarros (base) |
+| V11-V16 | Histórico de alertas, audit log, ocorrências, mensagens despacho |
+| V17-V28 | Global config, GTFS tables, drivers, performance indices |
+| V29-V37 | API access log, data sources, AI interaction log |
+| V38-V39 | Operator, service calendar |
+| **V40-V42** | **Modelo Transmodel** (JourneyPattern, Trip, TripStopTime) |
+| V43-V47 | Pattern authoring (waypoints), observability, APC sensors |
+| V48-V52 | Occupancy thresholds, ticketing foundation, vehicle sensors |
+| V53 | `bus_duty` + estados (PLANNED, RUNNING, DONE, INTERRUPTED) |
+| V54-V71 | Stop zones, fare config, integrações, fiscal, ocorrências |
+| **V72** | **Invariante `trip.route_id == pattern.route_id`** + trigger |
+| **V73** | **Sincronização `bus.route_id` ↔ duty RUNNING** |
+| **V74** | **UNIQUE parcial em `bus_duty(trip_id, service_date)`** apenas para PLANNED/RUNNING |
+
+Aplicam-se automaticamente no arranque do backend via Flyway.
+
+---
+
+## 9. Endpoints principais
+
+Catálogo abreviado (versão completa em Swagger):
+
+### Frota e operação
+
+```
+GET    /api/v1/buses                          # lista de autocarros
+GET    /api/v1/buses/{id}                     # detalhe
+POST   /api/v1/buses/{id}/start               # iniciar serviço
+POST   /api/v1/buses/{id}/end                 # terminar serviço
+POST   /api/v1/buses/{busId}/duties           # criar escala
+GET    /api/v1/buses/{busId}/duties?date=...  # escalas do dia
+```
+
+### Linhas e padrões
+
+```
+GET    /api/v1/routes                                 # lista de linhas
+GET    /api/v1/routes/{id}/patterns                   # padrões da linha
+GET    /api/v1/patterns/{id}/geometry                 # polyline (lat,lon)
+GET    /api/v1/patterns/{id}/stops                    # paragens ordenadas
+GET    /api/v1/patterns/{id}/trips                    # trips do padrão
+```
+
+### Horários (Trip CRUD)
+
+```
+POST   /api/v1/schedules/trips                        # criar trip
+PUT    /api/v1/schedules/trips/{id}                   # editar trip
+DELETE /api/v1/schedules/trips/{id}                   # apagar trip
+GET    /api/v1/schedules/trips/{id}/stops             # stop_times
+GET    /api/v1/schedules/coverage                     # cobertura por rota
+```
+
+### Bilhética
+
+```
+POST   /api/v1/ticketing/validate                     # nova validação
+GET    /api/v1/ticketing/dashboard?window=24h         # KPIs
+```
+
+### IA
+
+```
+POST   /api/v1/ai/chat                                # query síncrona (com tools)
+POST   /api/v1/ai/chat/stream                         # streaming SSE (sem tools)
+GET    /api/v1/ai/status
+GET    /api/v1/ai/monitoring/stats
+```
+
+### Standards de mobilidade
+
+```
+GET    /api/v1/gtfs-rt/vehicle-positions.pb           # GTFS-RT VehiclePositions
+GET    /api/v1/gtfs-rt/trip-updates.pb                # GTFS-RT TripUpdates
+GET    /api/v1/netex/export.xml                       # NeTEx export
+GET    /api/v1/catalog/datasets                       # DCAT-AP catalog
+GET    /api/v1/open-data/lines.geojson                # GeoJSON linhas
+GET    /api/v1/open-data/stops.geojson                # GeoJSON paragens
+```
+
+### Dev tools (apenas perfil `dev`)
+
+```
+POST   /api/v1/dev/quick-duty?busId=X&minutes=1       # escala teste de 2 trips
+GET    /api/v1/dev/quick-duty/eligible-buses
+```
+
+---
+
+## 10. Variáveis de ambiente
+
+`.env.example` no root tem todas as defaults. Para customizar:
 
 ```bash
-# Estado dos serviços
-docker compose ps
+cp .env.example .env
+# Edita .env conforme necessário
+```
 
-# Logs de um serviço
+Mais importantes:
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `OLLAMA_MODEL` | `qwen2.5:3b` | Modelo Ollama a usar. 3B precisa ~3GB RAM. |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` | URL interna do container Ollama |
+| `PGU_TICKET_SALT` | `dev-salt-...` | Salt para pseudonimização de cartões (RGPD) |
+| `KEYCLOAK_REALM` | `pgu-realm` | Realm OIDC |
+| `OSRM_URL` | `http://osrm:5000` | URL do OSRM para routing |
+| `MQTT_BROKER` | `tcp://mosquitto:1883` | Broker MQTT interno |
+
+---
+
+## 11. Desenvolvimento
+
+### Frontend (hot-reload)
+
+```bash
+cd pgu-web
+npm install
+npm run dev          # Vite em http://localhost:5173
+```
+
+O proxy do Vite (`vite.config.js`) redirecciona `/api/v1` e `/ws-telemetry` para o backend em `localhost:8081`.
+
+### Backend (rebuild apenas o backend)
+
+```bash
+docker compose build spring-boot-backend
+docker compose up -d --force-recreate spring-boot-backend
+```
+
+### Logs em tempo real
+
+```bash
 docker compose logs -f spring-boot-backend
+docker compose logs -f ollama
 docker compose logs -f mosquitto
+```
 
-# Reiniciar um serviço
-docker compose restart spring-boot-backend
+### Aceder à BD
 
-# Reconstruir após alterações de código
-docker compose up -d --build spring-boot-backend
+```bash
+docker compose exec postgres_postgis psql -U pgu_dw -d pgu_datawarehouse
+```
 
-# Parar tudo
-docker compose down
+### Simulador de telemetria
 
-# Reset total (apaga volumes)
-./pgu-setup.sh --nuke
-
-# Confirmar telemetria na Data Warehouse
-docker exec -it datawarehouse psql -U "$DW_USER" -d "$DW_NAME" \
-  -c "SELECT COUNT(*) FROM vehicle_telemetry;"
-
-# Health-check da API
-curl -fsS http://localhost:8081/actuator/health | jq
-
-# Entidades no FIWARE Orion
-curl -fsS http://localhost:1026/v2/entities | jq
+```bash
+docker compose up -d simulator     # inicia 12 buses simulados
+docker compose logs -f simulator   # ver telemetria a sair
 ```
 
 ---
 
-## Roadmap
+## 12. Standards e interoperabilidade
 
-Plano completo, com critérios de aceitação por fase, em [`PLANO_ITERACAO.md`](./PLANO_ITERACAO.md).
-
-| Sprint | Estado | Âmbito |
-|---|---|---|
-| Sprint -1 | **Concluído** | Hardening (segurança, CORS, JWT, audit, índices) |
-| Sprint 0 | **Concluído** | Fundações e polish: MFA TOTP, i18n PT/EN, tema escuro, DataSources, self-service de conta, avatares, batch de drivers/buses, exports em MinIO, GTFS toast, proxy NGSI-LD, LiveMap polido |
-| Pré-Sprint 1 | **Concluído** | 8 follow-ups do backlog (motoristas password demo, chatbot AI funcional com stubs Spring Boot 4, password loop, i18n EN Ocorrências + PainelBordo, modal MinhaConta no bordo, deep-link a alarmes, conta `developer` + Ferramentas Dev) |
-| Sprint 1 | **Concluído** | Vertical 3.1: `Operator`, GeoJSON, DCAT-AP/Open Data, Calendário+Horários, re-arquitetura **Transmodel** (Linha→Padrão→Trip), editor de padrões, redesign liquid-glass, adherence stoplight (F2), correlações (F6), **GTFS-RT** (F7), **NeTEx** (F8), métricas (F9) e dashboard de cobertura (F5) |
-| Sprint 2 a 8b | Planeados | Verticais adicionais (consultar `PLANO_ITERACAO.md`) |
-
-> **Nota:** o termo "operadores de transportes" mencionado a partir do Sprint 1 refere-se à entidade de domínio `Operator` (TUB, Carris, etc.) e não a uma role do sistema. As roles do sistema são `admin`, `funcionario`, `motorista` e `developer`.
+| Standard | Suporte |
+|---|---|
+| **Transmodel CEN/TS 16614** | Modelo de dados nativo |
+| **GTFS** | Import/export bidireccional |
+| **GTFS-Realtime** | VehiclePositions + TripUpdates (`.pb`) |
+| **NeTEx** | Export XML compatível com Europa |
+| **DCAT-AP** | Catálogo Open Data indexável por dados.gov.pt |
+| **GeoJSON** | Linhas + paragens (Open Data) |
+| **OAuth2 / OIDC** | Via Keycloak; SSO-ready |
+| **MQTT 3.1.1** | Painéis DMS e telemetria de bordo |
+| **OpenAPI 3.1** | Swagger UI gerado automaticamente |
 
 ---
 
-*Projeto desenvolvido no âmbito da unidade curricular **Desenvolvimento de Aplicações Informáticas (DAI)**, **Licenciatura em Engenharia e Gestão de Sistemas de Informação** da Universidade do Minho, ano letivo 2025/2026.*
+## 13. Documentação detalhada
+
+- **[PLANO_ITERACAO.md](./PLANO_ITERACAO.md)** — Histórico completo de sprints com decisões de design e troca de stack.
+- **[docs/RELATORIO_BUILD.md](./docs/RELATORIO_BUILD.md)** — Relatório técnico de build final: como criar linha + padrão, escalar bus, validar bilhete, configurar painel DMS, integrar NiFi + MQTT.
+- **[docs/PGU-TUB-Apresentacao.pptx](./docs/PGU-TUB-Apresentacao.pptx)** — Apresentação comercial (17 slides).
+- **Swagger** — Documentação interactiva em `http://localhost:8081/swagger-ui.html` quando o backend estiver a correr.
+
+---
+
+## Licença
+
+MIT. Ver `LICENSE`.
+
+## Equipa
+
+Projecto académico DAI · Engenharia Informática · Universidade do Minho · 2025-2026.

@@ -18,7 +18,20 @@ import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dai.tub.pgu.domain.AiInteractionLog;
 import dai.tub.pgu.repository.AiInteractionLogRepository;
@@ -31,6 +44,7 @@ public class AiChatService {
     private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
 
     private final ChatClient chatClient;
+    private final ChatClient chatClientNoTools;
     private final AiInteractionLogRepository logRepo;
     private final String modelName;
     private final MeterRegistry meterRegistry;
@@ -38,6 +52,15 @@ public class AiChatService {
 
     @Value("${pgu.ai.max-prompt-length:500}")
     private int maxPromptLength;
+
+    @Value("${spring.ai.ollama.base-url:http://ollama:11434}")
+    private String ollamaBaseUrl;
+
+    // HTTP client + Jackson, usados pela versao streaming directa ao Ollama.
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AiChatService(OllamaChatModel chatModel,
                          AiTools aiTools,
@@ -53,6 +76,38 @@ public class AiChatService {
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultTools(aiTools)
                 .build();
+        // Fallback sem tools — usado quando o modelo (Gemma 2 2B é fraco em
+        // tool calling) decide nao invocar nenhuma tool e o Spring AI 1.0.0-M6
+        // crasha com NPE "OllamaApi$ChatResponse.message() is null".
+        this.chatClientNoTools = ChatClient.builder(chatModel)
+                .defaultSystem(SYSTEM_PROMPT)
+                .build();
+    }
+
+    /**
+     * Sprint 7 (follow-up): warm-up no arranque. Dispara uma query trivial ao
+     * Ollama logo apos a app ficar pronta, para forcar o carregamento do modelo
+     * para a RAM. Sem isto, o primeiro utilizador a abrir o chatbot espera
+     * 30-90s (cold start do Qwen 2.5 3B em CPU); com warm-up, a 1a query real
+     * ja' tem o modelo residente e responde em poucos segundos.
+     * Combinado com OLLAMA_KEEP_ALIVE=-1 (no docker-compose), o modelo nunca
+     * sai da RAM durante a vida do container.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Async
+    public void warmupModel() {
+        try {
+            log.info("[ai-warmup] iniciando carregamento do modelo {} ...", modelName);
+            Instant start = Instant.now();
+            chatClientNoTools.prompt()
+                .user("ok")
+                .call()
+                .chatResponse();
+            log.info("[ai-warmup] modelo carregado em {} ms",
+                Duration.between(start, Instant.now()).toMillis());
+        } catch (Exception e) {
+            log.warn("[ai-warmup] falhou (nao bloqueia o startup): {}", e.getMessage());
+        }
     }
 
     public ChatResult processChat(String userId, String username, UUID sessionId, String userMessage) {
@@ -79,16 +134,35 @@ public class AiChatService {
 
         Instant start = Instant.now();
         try {
-            // 3. Chamar o Ollama com o advisor de memória (para manter contexto da conversa)
-            ChatResponse response = chatClient.prompt()
-                    .user(userMessage)
-                    .advisors(new MessageChatMemoryAdvisor(chatMemory, sessionId.toString(), 10)) // retém últimas 10 mensagens
-                    .call()
-                    .chatResponse();
+            // 3. Chamar o Ollama com o advisor de memória (para manter contexto da conversa).
+            //    O caminho preferido inclui defaultTools(aiTools) — permite ao modelo
+            //    consultar dados em tempo real via tool calling.
+            ChatResponse response;
+            List<String> toolsCalled;
+            try {
+                response = chatClient.prompt()
+                        .user(userMessage)
+                        .advisors(new MessageChatMemoryAdvisor(chatMemory, sessionId.toString(), 10))
+                        .call()
+                        .chatResponse();
+                toolsCalled = extractToolsCalled(response);
+            } catch (Exception toolsFail) {
+                // Workaround Spring AI 1.0.0-M6 + Ollama: tool calling com
+                // modelos pequenos (Gemma 2 2B) e' instavel — pode dar NPE
+                // (message=null), bad request, ou timeout. Fallback para
+                // cliente sem tools garante que o user tem sempre resposta.
+                log.warn("Tool calling falhou ({}: {}), retry sem tools",
+                         toolsFail.getClass().getSimpleName(), toolsFail.getMessage());
+                response = chatClientNoTools.prompt()
+                        .user(userMessage)
+                        .advisors(new MessageChatMemoryAdvisor(chatMemory, sessionId.toString(), 10))
+                        .call()
+                        .chatResponse();
+                toolsCalled = List.of();
+            }
 
             long latencyMs = Duration.between(start, Instant.now()).toMillis();
             String responseText = response.getResult().getOutput().getText();
-            List<String> toolsCalled = extractToolsCalled(response);
 
             // 4. Registar métricas de sucesso
             sample.stop(Timer.builder("ai.query.duration")
@@ -121,6 +195,113 @@ public class AiChatService {
     }
 
     
+    /**
+     * Sprint 7 (follow-up): variante streaming token-a-token via SseEmitter.
+     * Em vez de usar chatClient.stream() do Spring AI (que requer Project
+     * Reactor no classpath e tem bugs conhecidos em 1.0.0-M6), chama o
+     * endpoint /api/chat do Ollama directamente com {"stream":true}. O
+     * Ollama devolve NDJSON: uma linha JSON por token (~{"message":{"content":"o"}}).
+     * Cada linha vira um evento SSE "token" para o cliente.
+     *
+     * Tools desactivadas no caminho stream: a resposta vem do conhecimento
+     * geral do modelo, sem consultar dados reais (ganho de velocidade
+     * percepcionada vs perda de tool-calling).
+     */
+    @Async
+    public void processChatStream(String userId, String username, UUID sessionId,
+                                  String userMessage, SseEmitter emitter) {
+        // Validacoes basicas
+        if (userMessage == null || userMessage.isBlank()) {
+            try { emitter.send(SseEmitter.event().name("error").data("Mensagem vazia")); emitter.complete(); }
+            catch (Exception ignore) {}
+            return;
+        }
+        if (userMessage.length() > maxPromptLength) {
+            try { emitter.send(SseEmitter.event().name("error").data("Mensagem excede " + maxPromptLength + " caracteres")); emitter.complete(); }
+            catch (Exception ignore) {}
+            return;
+        }
+
+        AiInteractionLog logEntry = persistLog(userId, username, sessionId, userMessage, null, 0,
+                AiInteractionLog.Status.PENDING, null, 0);
+
+        Instant start = Instant.now();
+        StringBuilder accumulated = new StringBuilder();
+
+        try {
+            // Construir payload Ollama /api/chat
+            String payload = objectMapper.writeValueAsString(java.util.Map.of(
+                    "model", modelName,
+                    "stream", true,
+                    "messages", List.of(
+                            java.util.Map.of("role", "system", "content", SYSTEM_PROMPT),
+                            java.util.Map.of("role", "user", "content", userMessage)
+                    ),
+                    "options", java.util.Map.of(
+                            "temperature", 0.2,
+                            "top_p", 0.9,
+                            "num_ctx", 2048,
+                            "num_predict", 256
+                    )
+            ));
+
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(ollamaBaseUrl + "/api/chat"))
+                    .timeout(Duration.ofSeconds(180))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = httpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Ollama HTTP " + response.statusCode());
+            }
+
+            // NDJSON parser: cada linha e' um objecto { "message": {"content": "..."}, "done": false/true }
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.isBlank()) continue;
+                    JsonNode node = objectMapper.readTree(line);
+                    JsonNode msg = node.get("message");
+                    if (msg != null && msg.has("content")) {
+                        String chunk = msg.get("content").asText();
+                        if (!chunk.isEmpty()) {
+                            accumulated.append(chunk);
+                            try {
+                                emitter.send(SseEmitter.event().name("token").data(chunk));
+                            } catch (Exception e) {
+                                log.debug("SSE send falhou (cliente desconectado?): {}", e.getMessage());
+                                return; // cliente desligou — desiste
+                            }
+                        }
+                    }
+                    if (node.has("done") && node.get("done").asBoolean()) break;
+                }
+            }
+
+            long latencyMs = Duration.between(start, Instant.now()).toMillis();
+            String fullText = accumulated.toString();
+            try {
+                emitter.send(SseEmitter.event().name("done").data("{\"latencyMs\":" + latencyMs + "}"));
+                emitter.complete();
+            } catch (Exception ignore) {}
+            updateLog(logEntry.getId(), AiInteractionLog.Status.SUCCESS,
+                    fullText, List.of(), (int) latencyMs, null);
+            meterRegistry.counter("ai.query.total", "status", "success", "mode", "stream").increment();
+        } catch (Exception e) {
+            long latencyMs = Duration.between(start, Instant.now()).toMillis();
+            log.error("Erro ao streamar chat: {}", e.getMessage(), e);
+            try {
+                emitter.send(SseEmitter.event().name("error").data(e.getMessage() != null ? e.getMessage() : "Erro"));
+                emitter.complete();
+            } catch (Exception ignore) {}
+            updateLog(logEntry.getId(), AiInteractionLog.Status.ERROR,
+                    null, List.of(), (int) latencyMs, e.getMessage());
+            meterRegistry.counter("ai.query.total", "status", "error", "mode", "stream").increment();
+        }
+    }
+
     public record ToolUsage(String name, long count) {}
 
     public long countInteractionsLast24h() {
@@ -224,20 +405,59 @@ public class AiChatService {
 
     // ==================== SYSTEM PROMPT ====================
     private static final String SYSTEM_PROMPT = """
-        És um assistente operacional dos Transportes Urbanos de Braga (TUB).
+        És o assistente operacional dos Transportes Urbanos de Braga (TUB).
         Respondes em português europeu, breve e técnico.
 
-        Tens acesso a um conjunto de ferramentas (tools) para consultar dados operacionais.
-        REGRAS ABSOLUTAS:
-        1. Usa as ferramentas SEMPRE que precisares de dados em tempo real ou históricos.
-        2. NUNCA inventes valores numéricos, datas, ou nomes.
-        3. NUNCA forneças identificação pessoal (nomes, emails, telefones).
-        4. Se uma pergunta não pode ser respondida com as ferramentas disponíveis,
-           diz CLARAMENTE: "Não tenho dados para responder a essa pergunta."
-        5. Se a pergunta envolver dados pessoais, recusa educadamente.
-        6. Responde de forma concisa e fundamentada nos dados retornados pelas ferramentas.
-        7. Quando apresentares estatísticas, indica o período/contexto.
+        # FERRAMENTAS DISPONÍVEIS (USA-AS!)
+        Tens acesso a estas funções para consultar dados reais. Quando o utilizador
+        pergunta qualquer coisa que possa ser respondida por uma destas funções, CHAMA-A:
 
-        Estás a servir o Gestor / Analista de Dados dos TUB.
+        - getFleetOccupancyByHour(dateFrom, dateTo) → ocupação média por hora
+        - getDelayStats(routeId, dateFrom, dateTo) → atrasos por linha
+        - getActiveAlerts(severityMin) → alertas activos da frota
+        - getStopSchedule(stopId) → próximas chegadas numa paragem
+        - getEnergyConsumptionStats(dateFrom, dateTo) → consumo energético
+        - getChargerUtilization(dateFrom, dateTo, operator) → utilização carregadores
+        - getHeadwayStats(routeId) → headway (intervalo entre passagens) por linha
+        - getOcorrenciasOpenCount(prioridade, tipoAtivo) → ocorrências abertas
+        - getTopProblematicVehicles(windowDays) → veículos com mais ocorrências
+        - getServiceAlerts(activeOnly) → service alerts
+        - getReconciliacoes(windowDays) → reconciliações financeiras
+
+        # REGRAS ABSOLUTAS
+        1. Para QUALQUER pergunta sobre números, datas, estatísticas, listas ou estado
+           operacional, CHAMA uma das ferramentas acima. Não respondas do teu conhecimento.
+        2. NUNCA inventes valores numéricos, datas, IDs, ou nomes.
+        3. NUNCA forneças identificação pessoal (nomes, emails, telefones).
+        4. Se NENHUMA ferramenta da lista cobre a pergunta, responde:
+           "Não tenho ferramenta disponível para responder a essa pergunta específica."
+        5. Quando apresentares números devolvidos por uma tool, indica o período/contexto.
+        6. Resposta máxima: 4 frases. Sê directo.
+
+        # EXEMPLOS (segue este padrão)
+
+        Exemplo 1:
+        User: Quais foram os atrasos médios da linha 5 esta semana?
+        [Tu chamas: getDelayStats(routeId=5, dateFrom="2026-05-25", dateTo="2026-06-01")]
+        Tu: A linha 5 teve um atraso médio de 3.2 min entre 25/05 e 01/06, com pico
+            de 12 min na paragem RECTORADO às 17:30.
+
+        Exemplo 2:
+        User: Há alertas críticos agora?
+        [Tu chamas: getActiveAlerts(severityMin="CRITICA")]
+        Tu: Há 2 alertas críticos activos: TUB-007 com falha de motor em INTERCEDENTE,
+            e TUB-012 com sobreaquecimento em GUALTAR.
+
+        Exemplo 3:
+        User: Quanto consumimos em eletricidade este mês?
+        [Tu chamas: getEnergyConsumptionStats(dateFrom="2026-06-01", dateTo="2026-06-30")]
+        Tu: Em Junho de 2026 o consumo total foi 24.5 MWh, dos quais 18% em horário
+            de ponta. Custo total estimado: 3.450 €.
+
+        Exemplo 4 (pergunta sem tool disponível):
+        User: Quantos motoristas estão em férias hoje?
+        Tu: Não tenho ferramenta disponível para responder a essa pergunta específica.
+
+        Hoje é 2026-06-01. Estás a servir o Gestor / Analista de Dados dos TUB.
         """;
 }

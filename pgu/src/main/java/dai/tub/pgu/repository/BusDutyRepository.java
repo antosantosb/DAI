@@ -35,6 +35,21 @@ public interface BusDutyRepository extends JpaRepository<BusDuty, Long>
     /** Existe atribuicao desta trip neste dia (em qualquer bus). */
     boolean existsByTripIdAndServiceDate(Long tripId, LocalDate serviceDate);
 
+    /**
+     * Sprint 5 (follow-up): a mesma trip esta a ser executada/planeada por
+     * OUTRO bus no dia indicado? Ignora duties DONE/CANCELLED/INTERRUPTED
+     * (escala antiga deste mesmo bus que ja terminou nao conta) e permite
+     * que o proprio bus reutilize a trip num replan.
+     */
+    @Query("SELECT (COUNT(d) > 0) FROM BusDuty d "
+         + "WHERE d.trip.id = :tripId "
+         + "  AND d.serviceDate = :serviceDate "
+         + "  AND d.bus.id <> :excludeBusId "
+         + "  AND d.status IN ('PLANNED', 'RUNNING')")
+    boolean isTripActivelyAssignedToOtherBus(@Param("tripId") Long tripId,
+                                              @Param("serviceDate") LocalDate serviceDate,
+                                              @Param("excludeBusId") Long excludeBusId);
+
     /** Duties de um bus num dia filtrados por status (RUNNING, DONE, ...). */
     List<BusDuty> findByBusIdAndServiceDateAndStatus(Long busId, LocalDate serviceDate, String status);
 
@@ -82,6 +97,17 @@ public interface BusDutyRepository extends JpaRepository<BusDuty, Long>
     @Query("DELETE FROM BusDuty d WHERE d.bus.id = :busId AND d.serviceDate = :serviceDate AND d.status = 'PLANNED'")
     int deletePlannedByBusIdAndServiceDate(@Param("busId") Long busId,
                                            @Param("serviceDate") LocalDate serviceDate);
+
+    /**
+     * Sprint 5 (follow-up): max sequence ja' usada para um bus/dia. Necessario
+     * porque ao replanear apos uma escala concluida (DONE), as sequence 1..N
+     * antigas ficam ocupadas. Novas duties tem de comecar em MAX+1 para nao
+     * colidir com o UNIQUE (bus_id, service_date, sequence).
+     */
+    @Query("SELECT COALESCE(MAX(d.sequence), 0) FROM BusDuty d "
+         + "WHERE d.bus.id = :busId AND d.serviceDate = :serviceDate")
+    int maxSequenceForBusAndDate(@Param("busId") Long busId,
+                                 @Param("serviceDate") LocalDate serviceDate);
 
     /** Sumario para o Calendar (#4a follow-up: substitui o GTFS calendar):
      *  por cada dia/bus no intervalo, devolve [date, busCode, tripCount].

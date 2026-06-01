@@ -11,12 +11,12 @@ import api from '../services/api';
 import { IconChatbot } from '../components/NavIcon';
 import './Chatbot.css';
 
+// Curto e directo — 4 sugestões em chips horizontais (não cards grandes).
 const SUGGESTIONS = [
-  'Que linhas tiveram mais atrasos hoje?',
-  'Qual a ocupação média da Linha 5 esta semana?',
-  'Quantas ocorrências críticas estão abertas?',
-  'Quanto consumimos em eletricidade este mês?',
-  'Que motoristas têm discrepâncias de bilhética?',
+  'Linhas com mais atrasos hoje',
+  'Ocupação média da Linha 5 esta semana',
+  'Ocorrências críticas abertas',
+  'Consumo de eletricidade este mês',
 ];
 
 export default function Chatbot() {
@@ -39,11 +39,14 @@ export default function Chatbot() {
     setLoading(true);
 
     try {
-      // api.baseURL ja' inclui /api/v1, por isso o path aqui e' relativo.
+      // Endpoint /ai/chat (nao streaming) — tem as tools registadas no
+      // chatClient, permite ao modelo invocar AiTools.* para consultar
+      // dados reais em vez de inventar. Mais lento (sem feedback ate' a
+      // resposta estar pronta) mas devolve dados verdadeiros.
       const res = await api.post('/ai/chat', {
         message: text,
         sessionId,
-      });
+      }, { timeout: 180000 });
 
       const assistantMessage = {
         role: 'assistant',
@@ -56,7 +59,7 @@ export default function Chatbot() {
     } catch (e) {
       const errorMessage = {
         role: 'error',
-        content: e.response?.data?.message || 'Erro ao processar pergunta.',
+        content: e.response?.data?.message || e.message || 'Erro ao processar pergunta.',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -94,18 +97,10 @@ export default function Chatbot() {
           <h1>{t('nav.chatbot')}</h1>
           <span className="chatbot-header-subtitle">
             <span className="chatbot-status-dot" aria-hidden="true" />
-            Gemma 4 · on-premises
+            Qwen 2.5 · on-premises
           </span>
         </div>
       </header>
-
-      {/* Banner de privacidade */}
-      <div className="chatbot-banner" role="note">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        IA generativa local. Os dados não saem do servidor PGU.
-      </div>
 
       {/* Scroll area */}
       <main className="chatbot-main">
@@ -115,16 +110,7 @@ export default function Chatbot() {
               <div className="chatbot-welcome-icon" aria-hidden="true">
                 <IconChatbot />
               </div>
-              <h2>Assistente de IA · Gestão Urbana TUB</h2>
-              <p>
-                Posso ajudar com perguntas sobre operação, frota, atrasos,
-                ocorrências e energia.
-              </p>
-              <p>
-                <strong>Limitações:</strong> não tenho acesso a dados pessoais,
-                não posso modificar dados, posso cometer imprecisões.
-              </p>
-              <h3>Experimente perguntar</h3>
+              <h2>Como posso ajudar?</h2>
               <ul className="chatbot-suggestions">
                 {SUGGESTIONS.map((s, i) => (
                   <li
