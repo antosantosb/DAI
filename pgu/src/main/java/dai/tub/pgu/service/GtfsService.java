@@ -45,8 +45,6 @@ public class GtfsService
     /** Guarda para evitar sincronizações TUB concorrentes (cliques repetidos). */
     private final AtomicBoolean syncInProgress = new AtomicBoolean(false);
 
-    /** Sprint 0 (F4 follow-up): último estado da sincronização para o
-     *  endpoint GET /gtfs/sync-status (resume do toast após refresh do browser). */
     private volatile GtfsProgressDTO lastProgress;
 
     private final GtfsImportRepository importRepository;
@@ -54,33 +52,20 @@ public class GtfsService
     private final GtfsConfigRepository configRepository;
     private final BusStopRepository busStopRepository;
     private final RouteRepository routeRepository;
-    // Sprint 1 (Fase 1): modelo Transmodel (substitui route_stops/route_segments/stop_schedule)
     private final JourneyPatternRepository journeyPatternRepository;
     private final PatternStopRepository patternStopRepository;
     private final PatternSegmentRepository patternSegmentRepository;
     private final TripRepository tripRepository;
     private final TripStopTimeRepository tripStopTimeRepository;
     private final BusRepository busRepository;
-    // Sprint 1 (F0): mapear agency.txt -> Operator e popular Route.operator
     private final OperatorRepository operatorRepository;
-    // Sprint 1 (Fase 1): OSRM para gerar a geometria dos padroes a seguir as
-    // estradas (corrige os shapes GTFS grosseiros dos TUB).
     private final OsrmService osrmService;
     private final SimpMessagingTemplate ws;
     private final GeometryFactory geometryFactory;
     private final ObjectMapper objectMapper;
-    // Sprint 0 (F4 follow-up): self-reference via @Lazy para o proxy do Spring
-    // intercetar self-calls a metodos @Async. Sem isto, processTubDownload
-    // corre na thread do request HTTP e o user vê timeouts no frontend.
     private final GtfsService self;
-    // Sprint 0 (F4 follow-up): invalidar cache "routes" (definida em F2 no
-    // RouteService) apos o import GTFS. Sem isto, o backoffice continua a ver
-    // as rotas antigas (cache TTL 10min).
     private final org.springframework.cache.CacheManager cacheManager;
-    // Sprint 1 (F4): bulk insert do calendar.txt / calendar_dates.txt
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
-    // Sprint 1 (F9): contadores de importacoes GTFS bem/mal sucedidas.
-    // MeterRegistry auto-configurado pelo Spring Boot (micrometer-registry-prometheus).
     private final Counter importSuccessCounter;
     private final Counter importFailedCounter;
 
@@ -122,7 +107,6 @@ public class GtfsService
         this.jdbcTemplate = jdbcTemplate;
         this.geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
         this.objectMapper = new ObjectMapper();
-        // Sprint 1 (F9): counters de import GTFS (success/failed).
         this.importSuccessCounter = Counter.builder("gtfs.import.success")
                 .description("Numero de importacoes GTFS concluidas com sucesso")
                 .register(meterRegistry);
@@ -131,12 +115,6 @@ public class GtfsService
                 .register(meterRegistry);
     }
 
-    /**
-     * Sprint 1 (F4): importa calendar.txt + calendar_dates.txt (R.IVT.05).
-     * O calendario e' global (nao por rota), por isso limpamos as tabelas e
-     * reinserimos a cada import completo. Falha silenciosa por ficheiro em
-     * falta — feeds GTFS podem ter so' calendar OU so' calendar_dates.
-     */
     private void importCalendars(Map<String, byte[]> files, GtfsImport imp)
     {
         try {

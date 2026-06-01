@@ -26,17 +26,6 @@ import dai.tub.pgu.repository.BusRepository;
 import dai.tub.pgu.repository.TripRepository;
 import dai.tub.pgu.repository.TripStopTimeRepository;
 
-/**
- * Fase E (E-back-1): gestao da escala (bus_duty) de um autocarro.
- *
- * Responsabilidades:
- *   - createDuty: validar e gravar uma escala (sequence comecando em 1).
- *   - listForBusOnDate / listForDate: leituras para os ecras de operacao.
- *   - deleteDuty: apagar a escala de um dia (so com bus STOPPED).
- *
- * Iniciar/Terminar Servico (transicoes do bus + duty.status) NAO sao
- * implementadas aqui; e' o passo E-back-2.
- */
 @Service
 public class BusDutyService
 {
@@ -63,29 +52,13 @@ public class BusDutyService
     // Comandos
     // ============================================================
 
-    /**
-     * Cria a escala (lista de duties) de um bus para um dia. Ordem de
-     * validacao (em conformidade com o contrato acordado):
-     *   1) bus existe e esta STOPPED        -> 409 caso contrario.
-     *   2) cada tripId pertence ao patternId -> 400 caso contrario.
-     *   3) para serviceDate == hoje (Europe/Lisbon), filtra trips cujo
-     *      planned_start <= now; se a lista filtrada ficar vazia, devolve
-     *      400 com a mensagem; para datas futuras aceita todas.
-     *   4) nenhuma das trips ja' esta atribuida a outro bus naquele
-     *      serviceDate                       -> 409 caso contrario.
-     *
-     * Devolve a lista de BusDutyDTO criados, por ordem cronologica (sequence 1..N).
-     */
     @Transactional
     public List<BusDutyDTO> createDuty(Long busId, Long patternId, LocalDate serviceDate, List<Long> tripIds)
     {
         if (busId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "busId obrigatorio.");
         }
-        // patternId e' OPCIONAL. Se vier, validamos que todas as trips
-        // pertencem a esse padrao (legado). Sem patternId, aceitamos qualquer
-        // mistura de padroes/linhas na mesma escala (ex.: bus faz Linha 2 de
-        // manha e Linha 5 a tarde).
+
         if (serviceDate == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "serviceDate obrigatorio.");
         }
@@ -93,7 +66,7 @@ public class BusDutyService
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tripIds nao pode estar vazio.");
         }
 
-        // 1) Bus existe e esta STOPPED.
+        // Bus existe e esta STOPPED.
         Bus bus = busRepository.findById(busId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Autocarro nao encontrado: " + busId));
@@ -110,8 +83,8 @@ public class BusDutyService
                     "Pelo menos uma das trips nao existe.");
         }
 
-        // 2) Se patternId vier, todas as trips devem pertencer-lhe (legado).
-        //    Sem patternId, aceita qualquer mistura (escalas multi-padrao).
+        // Se patternId vier, todas as trips devem pertencer-lhe (legado).
+        // Sem patternId, aceita qualquer mistura (escalas multi-padrao).
         if (patternId != null) {
             for (Trip t : trips) {
                 Long tripPatternId = t.getPattern() != null ? t.getPattern().getId() : null;
@@ -129,7 +102,7 @@ public class BusDutyService
             plannedStartByTrip.put(t.getId(), start);
         }
 
-        // 3) Filtro "inicio > agora" para o caso de serviceDate == hoje.
+        // Filtro "inicio > agora" para o caso de serviceDate == hoje.
         LocalDate today = LocalDate.now(ZONE_LISBON);
         Instant now = Instant.now();
         List<Trip> filteredTrips = new ArrayList<>();
@@ -152,10 +125,7 @@ public class BusDutyService
             filteredTrips.addAll(trips);
         }
 
-        // 4) A trip nao pode estar ACTIVAMENTE atribuida a OUTRO bus no mesmo
-        // dia. Sprint 5 follow-up: ignorar duties DONE/CANCELLED/INTERRUPTED
-        // (escala antiga ja terminou — nao bloqueia replan) e tambem ignorar
-        // duties do proprio bus que esta a (re)planear.
+        // 4) A trip nao pode estar ACTIVAMENTE atribuida a OUTRO bus no mesmo dia. 
         for (Trip t : filteredTrips) {
             if (dutyRepository.isTripActivelyAssignedToOtherBus(t.getId(), serviceDate, busId)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -163,10 +133,6 @@ public class BusDutyService
             }
         }
 
-        // 5) Sprint 5: cada trip tem de COMECAR no dia da escala (serviceDate).
-        // Trips podem terminar depois da meia-noite (e.g. trip 23:30 -> 00:30
-        // do dia seguinte e' aceitavel — pertence a escala do dia em que
-        // arrancou). O que nao pode e' uma trip arrancar noutro dia.
         ZoneId LISBON = ZoneId.of("Europe/Lisbon");
         for (Trip t : filteredTrips) {
             Instant ps = plannedStartByTrip.get(t.getId());
@@ -206,17 +172,6 @@ public class BusDutyService
         return created.stream().map(this::toDTO).toList();
     }
 
-    /**
-     * Fase E (E-back-2): chamado pelo simulador (m2m via X-API-Key) quando
-     * uma trip RUNNING chega ao destino. Se a duty RUNNING desse bus tiver
-     * tripId igual ao argumento, marca-a DONE; se houver proxima PLANNED na
-     * escala de hoje (por sequence), promove-a a RUNNING. Devolve {nextTripId}
-     * ou null. NAO transita o bus para STOPPING (esse passo e' do endpoint
-     * /duties-complete ou do /end manual).
-     *
-     * Idempotente: se nao houver duty RUNNING para este bus/tripId, devolve
-     * null sem erro (caso o simulador retente).
-     */
     @Transactional
     public Long completeTripIfArrived(Long busId, Long tripId)
     {
@@ -279,10 +234,7 @@ public class BusDutyService
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "So e' possivel apagar a escala com o autocarro em STOPPED. Estado actual: " + bus.getStatus());
         }
-        // Sprint 5: apaga APENAS as duties PLANNED (futuras). Preserva
-        // historico (DONE/CANCELLED/INTERRUPTED) para auditoria e Calendar.
-        // Permite que o admin re-planeie a tarde mesmo depois de a manha
-        // ter sido completada — sem perder o registo do que foi feito.
+        
         dutyRepository.deletePlannedByBusIdAndServiceDate(busId, serviceDate);
     }
 
@@ -312,18 +264,6 @@ public class BusDutyService
                 .stream().map(this::toDTO).toList();
     }
 
-    /**
-     * Sumario para a vista mensal do Calendar (substitui o antigo /api/v1/calendar
-     * que vinha do GTFS calendar.txt). Agora alimentado pelas escalas que nos
-     * proprios criamos: por cada dia no intervalo, devolve a contagem total de
-     * viagens (trips) e o numero de autocarros distintos com escala.
-     *
-     * <p>Shape devolvido (compativel com o frontend):
-     * <pre>{ hasData: boolean, days: [{ date, totalTrips, routeCount }] }</pre>
-     * O campo {@code routeCount} mantem o nome do shape antigo (e' o que o
-     * frontend ja le), mas o seu valor passa a ser o numero de autocarros
-     * distintos com escala nesse dia.
-     */
     @Transactional(readOnly = true)
     public Map<String, Object> getCalendarSummary(LocalDate from, LocalDate to) {
         if (from == null || to == null) {
@@ -362,13 +302,6 @@ public class BusDutyService
     // Helpers
     // ============================================================
 
-    /**
-     * Calcula o planned_start de uma trip num service_date como o
-     * departure_time (HH:MM[:SS]) da PRIMEIRA paragem (stop_sequence
-     * mais baixo) combinado com a data de servico, na timezone de Lisboa.
-     *
-     * Se a trip nao tiver passing-times, devolve 400.
-     */
     private Instant computePlannedStart(Long tripId, LocalDate serviceDate)
     {
         List<TripStopTime> stopTimes = tripStopTimeRepository.findByTripIdOrderByStopSequence(tripId);
@@ -403,12 +336,6 @@ public class BusDutyService
         }
     }
 
-    /**
-     * Parser tolerante para horas em formato GTFS. Aceita "HH:mm" e
-     * "HH:mm:ss". Para suporte de horas >= 24:00:00 (servicos overnight do
-     * GTFS), faz wrap modulo 24 (o overflow nao e' usado nesta fase, mas
-     * evita NumberFormatException).
-     */
     private LocalTime parseGtfsTime(String text)
     {
         if (text == null || text.isBlank()) {

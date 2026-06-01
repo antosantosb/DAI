@@ -2,10 +2,6 @@ package dai.tub.pgu.domain;
 
 import jakarta.persistence.*;
 
-/**
- * Sprint 1 (Fase 1): TripStopTime (Transmodel TimetabledPassingTime) — a hora
- * de uma trip em cada paragem. Substitui o antigo stop_schedule.
- */
 @Entity
 @Table(name = "trip_stop_time", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"trip_id", "stop_sequence"})

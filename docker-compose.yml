@@ -384,8 +384,11 @@ services:
     container_name: pgu-web
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      # Mapeamos para 5173/5443 no host para evitar conflito com Apache /
+      # IIS / outra coisa que esteja a usar 80/443 no Windows. Em produacao
+      # com servidor dedicado, pode-se voltar a 80:80 + 443:443.
+      - "5173:80"
+      - "5443:443"
     environment:
       # DOMAIN com fallback "localhost" para arranque automatico em dev.
       # Em producao, sobrepor via .env (DOMAIN=pgu.cm-braga.pt).

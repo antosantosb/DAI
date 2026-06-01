@@ -1,11 +1,3 @@
-// Sprint 2 (redesign): editor manual de Padrao (trajeto) de uma Linha.
-//
-// Modelo: o utilizador coloca uma sequencia ORDENADA de pontos no mapa.
-//   - Clicar numa PARAGEM   -> entra no padrao (fica guardada).
-//   - Clicar fora de paragem -> ANCORA (waypoint) que so' molda o tracado.
-// O OSRM cola a linha as ruas passando por todos os pontos pela ordem. Ao
-// guardar, so' as paragens + a geometria ficam; as ancoras desaparecem.
-
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -53,7 +45,7 @@ export default function PatternEditor() {
 
   const color = line?.color || '#009BDB';
 
-  // ── carregar linha + paragens ──
+  // carregar linha + paragens 
   useEffect(() => {
     api.get('/routes')
       .then(r => setLine((r.data || []).find(x => x.id === routeId) || null))
@@ -61,7 +53,7 @@ export default function PatternEditor() {
     api.get('/stops').then(r => setStops(r.data || [])).catch(() => setStops([]));
   }, [routeId]);
 
-  // ── modo edicao: carregar a sequencia de autoria (paragens + ancoras) ──
+  //  modo edicao: carregar a sequencia de autoria (paragens + ancoras)
   useEffect(() => {
     if (!patternId) return;
     api.get(`/patterns/${patternId}/authoring`)

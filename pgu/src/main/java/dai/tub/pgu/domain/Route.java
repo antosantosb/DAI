@@ -21,9 +21,6 @@ public class Route
     @Column
     private String color;
 
-    // Sprint 1 (F0): operador de transporte (R.IVT.03). Nullable porque
-    // legacy routes podem nao ter operador definido; em pratica o seed da
-    // migracao V38 associa todas a 'TUB'.
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "operator_id")
     private Operator operator;

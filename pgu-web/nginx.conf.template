@@ -142,17 +142,8 @@ server {
         proxy_busy_buffers_size 256k;
     }
 
-    # ─────────────────────────────────────────
-    # Airflow (ETL Orchestrator)
-    # BASE_URL configura Flask APPLICATION_ROOT=/airflow
-    # ─────────────────────────────────────────
-    location ^~ /airflow/ {
-        proxy_pass http://airflow:8080/airflow/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+    # Airflow foi removido da stack (substituido por NiFi) — bloco
+    # /airflow/ desactivado para nao quebrar o nginx com "host not found".
 
     # ─────────────────────────────────────────
     # SPA fallback (React frontend)

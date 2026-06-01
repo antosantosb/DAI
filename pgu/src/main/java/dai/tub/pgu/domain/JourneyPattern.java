@@ -3,11 +3,6 @@ package dai.tub.pgu.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-/**
- * Sprint 1 (Fase 1): JourneyPattern (Transmodel) — uma sequencia distinta de
- * paragens de uma linha (o "canal"). Uma linha tem tipicamente 3 a 5 padroes.
- * As trips apontam para o seu padrao; a geometria vive em PatternSegment.
- */
 @Entity
 @Table(name = "journey_pattern", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"route_id", "signature"})
@@ -31,12 +26,6 @@ public class JourneyPattern
     @Column
     private String name;
 
-    /**
-     * Sprint 1 (Fase 2): sequencia de autoria manual (JSON da lista ordenada de
-     * pontos STOP/WAYPOINT com type/stopId/lat/lon), para reabrir o padrao no
-     * editor com as ancoras originais. Anulavel: padroes importados de GTFS ficam
-     * a null (o editor reconstroi a partir das paragens em sequencia).
-     */
     @Column(name = "authoring_points", columnDefinition = "text")
     private String authoringPoints;
 

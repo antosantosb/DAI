@@ -3,11 +3,6 @@ package dai.tub.pgu.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-/**
- * Sprint 1 (Fase 1): Trip (Transmodel ServiceJourney) — uma viagem concreta.
- * Aponta para o seu JourneyPattern (paragens + geometria) e tem service_id
- * (dias de operacao). As horas em cada paragem vivem em TripStopTime.
- */
 @Entity
 @Table(name = "trip")
 public class Trip

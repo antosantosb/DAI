@@ -415,13 +415,44 @@ fi
 # ──────────────────────────────────────────────────────────────────────
 header "4/7  Build e arranque dos containers"
 
+# Output do build/up vai para ficheiro; em caso de erro mostramos tail.
+SETUP_LOG="/tmp/pgu-setup-$$.log"
+
 step_info "A construir imagens Docker..."
-compose_cmd build --quiet 2>/dev/null || compose_cmd build
-step_ok "Imagens construidas"
+if compose_cmd build --quiet > "$SETUP_LOG" 2>&1; then
+    step_ok "Imagens construidas"
+else
+    step_warn "Build com erros — a reconstruir verbose para diagnostico"
+    if ! compose_cmd build 2>&1 | tee -a "$SETUP_LOG"; then
+        step_fail "Build falhou. Logs em $SETUP_LOG"
+        tail -30 "$SETUP_LOG"
+        exit 1
+    fi
+    step_ok "Imagens construidas (rebuild verbose)"
+fi
 
 step_info "A iniciar containers..."
-compose_cmd up -d 2>/dev/null
+if ! compose_cmd up -d > "$SETUP_LOG" 2>&1; then
+    step_fail "Falha a iniciar containers. Ultimas linhas do log:"
+    tail -25 "$SETUP_LOG"
+    exit 1
+fi
 step_ok "Containers iniciados"
+
+# Garante que o pgu-web (frontend) arranca. Por vezes o "up -d" geral
+# silenciosamente ignora um servico se a primeira tentativa falhar (ex:
+# OOM transiente durante o build). Forcamos build+up explicito.
+step_info "A garantir frontend (pgu-web)..."
+if ! compose_cmd build pgu-web > "$SETUP_LOG" 2>&1; then
+    step_warn "Build do pgu-web falhou — output:"
+    tail -20 "$SETUP_LOG"
+fi
+if ! compose_cmd up -d pgu-web > "$SETUP_LOG" 2>&1; then
+    step_fail "Falha a iniciar pgu-web. Ultimas linhas:"
+    tail -20 "$SETUP_LOG"
+    exit 1
+fi
+step_ok "Frontend pronto em http://localhost"
 
 # ──────────────────────────────────────────────────────────────────────
 # STEP 5 — Aguardar serviços

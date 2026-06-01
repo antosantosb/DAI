@@ -13,7 +13,7 @@
 
 Plataforma única, **on-premises**, para a operação dos **Transportes Urbanos de Braga**: tempo real, bilhética, planeamento e IA generativa local — tudo num cockpit integrado.
 
-> **Projecto académico DAI · 2.º ano de Engenharia Informática · Universidade do Minho · 2025-2026.**
+> **Projecto académico DAI · 2.º ano de Engenharia e Gestão de Sistemas de Informação · Universidade do Minho · 2025-2026.**
 > Não é uma plataforma oficial dos TUB.
 
 ---
@@ -32,8 +32,6 @@ Plataforma única, **on-premises**, para a operação dos **Transportes Urbanos 
 10. [Variáveis de ambiente](#10-variáveis-de-ambiente)
 11. [Desenvolvimento](#11-desenvolvimento)
 12. [Standards e interoperabilidade](#12-standards-e-interoperabilidade)
-13. [Documentação detalhada](#13-documentação-detalhada)
-
 ---
 
 ## 1. Visão geral
@@ -426,4 +424,4 @@ MIT. Ver `LICENSE`.
 
 ## Equipa
 
-Projecto académico DAI · Engenharia Informática · Universidade do Minho · 2025-2026.
+Projecto académico DAI · Engenharia e Gestão de Sistemas de Informação · Universidade do Minho · 2025-2026.
